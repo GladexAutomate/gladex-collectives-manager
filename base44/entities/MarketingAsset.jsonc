@@ -1,0 +1,75 @@
+{
+  "name": "MarketingAsset",
+  "type": "object",
+  "properties": {
+    "collective_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "asset_type": {
+      "type": "string",
+      "enum": [
+        "poster",
+        "reel",
+        "caption",
+        "e_blast",
+        "video",
+        "photo",
+        "brochure"
+      ],
+      "default": "poster"
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "facebook",
+          "instagram",
+          "website",
+          "email"
+        ]
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "pending_approval",
+        "approved",
+        "published",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "scheduled_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "published_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "asset_type"
+  ]
+}

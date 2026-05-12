@@ -1,0 +1,64 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "collective_id": {
+      "type": "string"
+    },
+    "booking_id": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "passport",
+        "visa",
+        "travel_insurance",
+        "booking_confirmation",
+        "itinerary",
+        "voucher",
+        "contract",
+        "invoice",
+        "receipt",
+        "other"
+      ]
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "file_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "missing",
+        "submitted",
+        "verified",
+        "expired",
+        "rejected"
+      ],
+      "default": "missing"
+    },
+    "expiry_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "uploaded_by": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "document_type",
+    "client_name"
+  ]
+}

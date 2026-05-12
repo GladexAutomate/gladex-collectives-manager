@@ -1,0 +1,104 @@
+{
+  "name": "ChecklistTask",
+  "type": "object",
+  "properties": {
+    "collective_id": {
+      "type": "string"
+    },
+    "task_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "phase_number": {
+      "type": "number"
+    },
+    "phase_name": {
+      "type": "string"
+    },
+    "stage_number": {
+      "type": "number"
+    },
+    "stage_name": {
+      "type": "string"
+    },
+    "department": {
+      "type": "string",
+      "enum": [
+        "product_development",
+        "marketing",
+        "sales",
+        "accounting",
+        "admin",
+        "operations",
+        "visa",
+        "management"
+      ]
+    },
+    "assigned_to": {
+      "type": "string"
+    },
+    "assigned_email": {
+      "type": "string"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed",
+        "delayed",
+        "cancelled"
+      ],
+      "default": "pending"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "attachment_url": {
+      "type": "string"
+    },
+    "requires_approval": {
+      "type": "boolean",
+      "default": false
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "order_index": {
+      "type": "number"
+    },
+    "is_template": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "task_name",
+    "phase_number",
+    "stage_number"
+  ]
+}

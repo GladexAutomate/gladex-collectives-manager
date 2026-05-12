@@ -1,0 +1,59 @@
+{
+  "name": "Survey",
+  "type": "object",
+  "properties": {
+    "collective_id": {
+      "type": "string"
+    },
+    "booking_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "client_email": {
+      "type": "string"
+    },
+    "hotel_rating": {
+      "type": "number"
+    },
+    "tour_quality_rating": {
+      "type": "number"
+    },
+    "flight_rating": {
+      "type": "number"
+    },
+    "guide_rating": {
+      "type": "number"
+    },
+    "transfer_rating": {
+      "type": "number"
+    },
+    "optional_tours_rating": {
+      "type": "number"
+    },
+    "overall_rating": {
+      "type": "number"
+    },
+    "nps_score": {
+      "type": "number"
+    },
+    "suggestions": {
+      "type": "string"
+    },
+    "highlights": {
+      "type": "string"
+    },
+    "would_recommend": {
+      "type": "boolean"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "collective_id",
+    "client_name"
+  ]
+}

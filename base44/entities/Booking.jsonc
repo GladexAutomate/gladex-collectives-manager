@@ -1,0 +1,102 @@
+{
+  "name": "Booking",
+  "type": "object",
+  "properties": {
+    "collective_id": {
+      "type": "string"
+    },
+    "booking_reference": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "client_email": {
+      "type": "string"
+    },
+    "client_phone": {
+      "type": "string"
+    },
+    "pax_count": {
+      "type": "number",
+      "default": 1
+    },
+    "booking_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "inquiry",
+        "slot_held",
+        "confirmed",
+        "paid",
+        "cancelled",
+        "completed"
+      ],
+      "default": "inquiry"
+    },
+    "total_amount": {
+      "type": "number"
+    },
+    "downpayment_amount": {
+      "type": "number"
+    },
+    "downpayment_paid": {
+      "type": "boolean",
+      "default": false
+    },
+    "downpayment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "full_payment_due": {
+      "type": "string",
+      "format": "date"
+    },
+    "full_payment_paid": {
+      "type": "boolean",
+      "default": false
+    },
+    "full_payment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "balance": {
+      "type": "number"
+    },
+    "assigned_agent": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "sub_agent",
+        "online",
+        "referral",
+        "walk_in"
+      ],
+      "default": "direct"
+    },
+    "remarks": {
+      "type": "string"
+    },
+    "visa_status": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending",
+        "submitted",
+        "approved",
+        "rejected"
+      ],
+      "default": "not_required"
+    }
+  },
+  "required": [
+    "client_name",
+    "collective_id"
+  ]
+}

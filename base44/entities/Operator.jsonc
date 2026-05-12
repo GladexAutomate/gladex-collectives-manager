@@ -1,0 +1,57 @@
+{
+  "name": "Operator",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "contact_person": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "specialization": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reliability_score": {
+      "type": "number",
+      "description": "Score out of 10"
+    },
+    "total_collectives": {
+      "type": "number",
+      "default": 0
+    },
+    "total_revenue": {
+      "type": "number",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "blacklisted"
+      ],
+      "default": "active"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "contract_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

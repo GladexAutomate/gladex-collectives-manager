@@ -1,0 +1,132 @@
+{
+  "name": "Collective",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Collective name"
+    },
+    "destination": {
+      "type": "string"
+    },
+    "travel_type": {
+      "type": "string",
+      "enum": [
+        "domestic",
+        "international"
+      ],
+      "default": "international"
+    },
+    "operator_name": {
+      "type": "string"
+    },
+    "departure_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "return_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "total_slots": {
+      "type": "number",
+      "default": 0
+    },
+    "available_slots": {
+      "type": "number",
+      "default": 0
+    },
+    "booked_pax": {
+      "type": "number",
+      "default": 0
+    },
+    "guaranteed_departure": {
+      "type": "boolean",
+      "default": false
+    },
+    "base_price": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string",
+      "default": "PHP"
+    },
+    "commission_rate": {
+      "type": "number",
+      "description": "Commission percentage"
+    },
+    "commission_amount": {
+      "type": "number"
+    },
+    "internal_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "supplier_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "flight_details": {
+      "type": "string"
+    },
+    "hotel_details": {
+      "type": "string"
+    },
+    "inclusions": {
+      "type": "string"
+    },
+    "exclusions": {
+      "type": "string"
+    },
+    "terms_conditions": {
+      "type": "string"
+    },
+    "cancellation_policy": {
+      "type": "string"
+    },
+    "optional_tours": {
+      "type": "string"
+    },
+    "marketing_materials_url": {
+      "type": "string"
+    },
+    "remarks": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "launched",
+        "ongoing",
+        "completed",
+        "cancelled"
+      ],
+      "default": "draft"
+    },
+    "current_phase": {
+      "type": "number",
+      "default": 1
+    },
+    "current_stage": {
+      "type": "number",
+      "default": 1
+    },
+    "checklist_completion": {
+      "type": "number",
+      "default": 0
+    },
+    "total_revenue": {
+      "type": "number",
+      "default": 0
+    },
+    "image_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "destination"
+  ]
+}

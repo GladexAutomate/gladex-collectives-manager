@@ -1,0 +1,78 @@
+{
+  "name": "Payment",
+  "type": "object",
+  "properties": {
+    "booking_id": {
+      "type": "string"
+    },
+    "collective_id": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "payment_type": {
+      "type": "string",
+      "enum": [
+        "downpayment",
+        "partial",
+        "full_payment",
+        "balance"
+      ],
+      "default": "downpayment"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "currency": {
+      "type": "string",
+      "default": "PHP"
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "bank_transfer",
+        "gcash",
+        "credit_card",
+        "check",
+        "online"
+      ],
+      "default": "bank_transfer"
+    },
+    "reference_number": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "verified",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "verified_by": {
+      "type": "string"
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "receipt_url": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "booking_id",
+    "amount",
+    "payment_type"
+  ]
+}

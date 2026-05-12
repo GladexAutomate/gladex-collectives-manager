@@ -1,0 +1,54 @@
+{
+  "name": "Notification",
+  "type": "object",
+  "properties": {
+    "recipient_email": {
+      "type": "string"
+    },
+    "recipient_role": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "deadline",
+        "approval",
+        "payment",
+        "reminder",
+        "alert",
+        "info"
+      ],
+      "default": "info"
+    },
+    "related_entity": {
+      "type": "string"
+    },
+    "related_id": {
+      "type": "string"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    }
+  },
+  "required": [
+    "title",
+    "message"
+  ]
+}
