@@ -114,19 +114,60 @@ const DEFAULT_TASKS = [
   { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Archive all collective documents', department: 'admin', priority: 'low' },
 ];
 
+// Stage → allowed departments mapping
+const priorityConfig = {
+  low: 'bg-slate-100 text-slate-600',
+  medium: 'bg-sky-100 text-sky-700',
+  high: 'bg-amber-100 text-amber-700',
+  urgent: 'bg-rose-100 text-rose-700',
+};
+
+const STAGE_DEPARTMENTS = {
+  1: ['product_development'],
+  2: ['product_development', 'management'],
+  3: ['product_development'],
+  4: ['admin'],
+  5: ['product_development'],
+  6: ['marketing'],
+  7: ['product_development', 'marketing'],
+  8: ['sales', 'admin'],
+  9: ['sales', 'accounting'],
+  10: ['admin'],
+  11: ['admin', 'visa'],
+  12: ['admin', 'operations'],
+  13: ['operations', 'sales'],
+  14: ['sales'],
+  15: ['admin'],
+};
+
+const DEPT_LABELS = {
+  product_development: 'Product Dev',
+  marketing: 'Marketing',
+  sales: 'Sales',
+  accounting: 'Accounting',
+  admin: 'Admin',
+  operations: 'Operations',
+  visa: 'Visa',
+  management: 'Management',
+};
+
+const DEPT_COLORS = {
+  product_development: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  marketing: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+  sales: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  accounting: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  admin: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
+  operations: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  visa: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  management: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+};
+
 const statusConfig = {
   pending: { icon: Circle, label: 'Pending', class: 'text-slate-500' },
   in_progress: { icon: Loader2, label: 'In Progress', class: 'text-sky-500' },
   completed: { icon: CheckCircle, label: 'Completed', class: 'text-emerald-500' },
   delayed: { icon: AlertTriangle, label: 'Delayed', class: 'text-rose-500' },
   cancelled: { icon: X, label: 'Cancelled', class: 'text-slate-400' },
-};
-
-const priorityConfig = {
-  low: 'bg-slate-100 text-slate-600',
-  medium: 'bg-sky-100 text-sky-700',
-  high: 'bg-amber-100 text-amber-700',
-  urgent: 'bg-rose-100 text-rose-700',
 };
 
 const phaseColorMap = {
@@ -376,7 +417,12 @@ export default function Workflow() {
                             <h4 className="text-sm font-semibold text-foreground">
                               Stage {stage.number}: {stage.name}
                             </h4>
-                            <p className="text-xs text-muted-foreground">{stageTasks.length} tasks</p>
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              {(STAGE_DEPARTMENTS[stage.number] || []).map(d => (
+                                <span key={d} className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", DEPT_COLORS[d])}>{DEPT_LABELS[d]}</span>
+                              ))}
+                              <span className="text-[10px] text-muted-foreground">{stageTasks.length} tasks</span>
+                            </div>
                           </div>
                           <Button
                             size="sm"
@@ -417,8 +463,8 @@ export default function Workflow() {
                                         {task.priority}
                                       </Badge>
                                       {task.department && (
-                                        <span className="text-[10px] text-muted-foreground capitalize bg-muted px-1.5 py-0.5 rounded">
-                                          {task.department.replace('_', ' ')}
+                                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", DEPT_COLORS[task.department] || 'bg-muted text-muted-foreground')}>
+                                          {DEPT_LABELS[task.department] || task.department}
                                         </span>
                                       )}
                                       {task.due_date && (
@@ -472,14 +518,9 @@ export default function Workflow() {
                 <Select value={taskForm.department} onValueChange={v => setTaskForm({...taskForm, department: v})}>
                   <SelectTrigger><SelectValue placeholder="Select dept." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="product_development">Product Development</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="accounting">Accounting</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="operations">Operations</SelectItem>
-                    <SelectItem value="visa">Visa</SelectItem>
-                    <SelectItem value="management">Management</SelectItem>
+                    {(STAGE_DEPARTMENTS[taskForm.stage_number] || Object.keys(DEPT_LABELS)).map(d => (
+                      <SelectItem key={d} value={d}>{DEPT_LABELS[d]}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

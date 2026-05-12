@@ -2,8 +2,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import {
   LayoutDashboard, Globe, CheckSquare, Package, Megaphone,
-  Users, CreditCard, FileText, Truck, Star, BarChart3,
-  Bell, Settings, ChevronLeft, ChevronRight, Plane, Shield
+  FileText, Truck, Star, BarChart3, ClipboardList,
+  Bell, Settings, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,8 +13,7 @@ const navItems = [
   { icon: CheckSquare, label: 'Workflow', path: '/workflow' },
   { icon: Package, label: 'Product Dev', path: '/product-development' },
   { icon: Megaphone, label: 'Marketing', path: '/marketing' },
-  { icon: Users, label: 'Sales & Booking', path: '/sales' },
-  { icon: CreditCard, label: 'Payments', path: '/payments' },
+  { icon: ClipboardList, label: 'Admin Operations', path: '/admin-operations' },
   { icon: FileText, label: 'Documents', path: '/documents' },
   { icon: Truck, label: 'Operations', path: '/operations' },
   { icon: Star, label: 'Feedback', path: '/feedback' },

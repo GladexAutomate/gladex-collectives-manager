@@ -12,8 +12,8 @@ import Collectives from './pages/Collectives';
 import Workflow from './pages/Workflow';
 import ProductDevelopment from './pages/ProductDevelopment';
 import Marketing from './pages/Marketing';
-import Sales from './pages/Sales';
-import Payments from './pages/Payments';
+import AdminOperations from './pages/AdminOperations';
+
 import Documents from './pages/Documents';
 import Operations from './pages/Operations';
 import Feedback from './pages/Feedback';
@@ -50,8 +50,8 @@ const AuthenticatedApp = () => {
         <Route path="/workflow" element={<Workflow />} />
         <Route path="/product-development" element={<ProductDevelopment />} />
         <Route path="/marketing" element={<Marketing />} />
-        <Route path="/sales" element={<Sales />} />
-        <Route path="/payments" element={<Payments />} />
+        <Route path="/admin-operations" element={<AdminOperations />} />
+
         <Route path="/documents" element={<Documents />} />
         <Route path="/operations" element={<Operations />} />
         <Route path="/feedback" element={<Feedback />} />

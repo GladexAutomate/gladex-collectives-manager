@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Image, Film, Mail, Globe, Facebook, Instagram, Search, Eye, Edit } from 'lucide-react';
+import { Plus, Image, Film, Mail, Globe, Facebook, Instagram, Search, Edit, Upload, Download, Paperclip, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,10 @@ export default function Marketing() {
   const [editingAsset, setEditingAsset] = useState(null);
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const imageInputRef = useRef(null);
+  const proofInputRef = useRef(null);
 
   const loadData = () => {
     Promise.all([
@@ -70,6 +74,24 @@ export default function Marketing() {
     setEditingAsset(a);
     setFormData({ ...a });
     setShowModal(true);
+  };
+
+  const handleUploadImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingImage(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    setFormData(prev => ({ ...prev, file_url }));
+    setUploadingImage(false);
+  };
+
+  const handleUploadProof = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingProof(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    setFormData(prev => ({ ...prev, proof_url: file_url }));
+    setUploadingProof(false);
   };
 
   const handleSave = async () => {
@@ -163,10 +185,13 @@ export default function Marketing() {
             const TypeIcon = TypeConfig.icon;
             return (
               <div key={asset.id} className="bg-card rounded-xl border border-border shadow-sm card-hover overflow-hidden">
-                {/* Preview or icon */}
+                {/* Preview: image or icon */}
                 {asset.file_url ? (
-                  <div className="h-36 overflow-hidden bg-muted">
+                  <div className="h-36 overflow-hidden bg-muted relative group/thumb">
                     <img src={asset.file_url} alt={asset.title} className="w-full h-full object-cover" onError={e => e.target.style.display = 'none'} />
+                    <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+                      <Download className="w-6 h-6 text-white" />
+                    </a>
                   </div>
                 ) : (
                   <div className={cn("h-36 flex items-center justify-center", TypeConfig.bg)}>
@@ -196,6 +221,14 @@ export default function Marketing() {
                         return <PlatIcon key={p} className={cn("w-3.5 h-3.5", pc.color)} />;
                       })}
                     </div>
+                  )}
+
+                  {asset.proof_url && (
+                    <a href={asset.proof_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-sky-600 hover:text-sky-700 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800 rounded-lg px-3 py-1.5 mb-2 truncate">
+                      <Paperclip className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">Attached Proof</span>
+                      <Download className="w-3 h-3 flex-shrink-0 ml-auto" />
+                    </a>
                   )}
 
                   {asset.caption && (
@@ -281,9 +314,41 @@ export default function Marketing() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Attached File Image */}
             <div className="space-y-1.5">
-              <Label>File URL</Label>
-              <Input placeholder="https://..." value={formData.file_url || ''} onChange={e => setFormData({...formData, file_url: e.target.value})} />
+              <Label>Attached File Image</Label>
+              <input ref={imageInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleUploadImage} />
+              {formData.file_url ? (
+                <div className="relative rounded-lg overflow-hidden border border-border h-32">
+                  <img src={formData.file_url} alt="preview" className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                    <Button type="button" size="sm" variant="outline" className="bg-white/90 text-xs" onClick={() => imageInputRef.current?.click()}>Replace</Button>
+                    <Button type="button" size="sm" variant="outline" className="bg-white/90 text-xs text-rose-600" onClick={() => setFormData(prev => ({...prev, file_url: ''}))}>Remove</Button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => imageInputRef.current?.click()} className="w-full h-24 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary transition-colors text-muted-foreground hover:text-primary">
+                  {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Upload className="w-5 h-5" /><span className="text-xs">Upload image or media file</span></>}
+                </button>
+              )}
+            </div>
+
+            {/* Attached Proof */}
+            <div className="space-y-1.5">
+              <Label>Attached Proof</Label>
+              <input ref={proofInputRef} type="file" accept="image/*,application/pdf,.pdf,.doc,.docx" className="hidden" onChange={handleUploadProof} />
+              {formData.proof_url ? (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/20">
+                  <Paperclip className="w-4 h-4 text-sky-600 flex-shrink-0" />
+                  <span className="text-xs text-sky-700 flex-1 truncate">Proof attached</span>
+                  <a href={formData.proof_url} target="_blank" rel="noopener noreferrer"><Download className="w-4 h-4 text-sky-600" /></a>
+                  <button type="button" onClick={() => setFormData(prev => ({...prev, proof_url: ''}))} className="text-rose-500 text-xs hover:underline">Remove</button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => proofInputRef.current?.click()} className="w-full h-16 border-2 border-dashed border-border rounded-lg flex items-center justify-center gap-2 hover:border-primary transition-colors text-muted-foreground hover:text-primary">
+                  {uploadingProof ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Paperclip className="w-4 h-4" /><span className="text-xs">Upload campaign proof / PDF</span></>}
+                </button>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Caption/Copy</Label>
