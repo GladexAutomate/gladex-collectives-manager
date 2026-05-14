@@ -239,12 +239,15 @@ export default function Workflow() {
 
   const openNewTask = (phaseNumber, stageNumber, stageName) => {
     setEditingTask(null);
+    // Auto-assign the first department for this stage (primary owner)
+    const autoDept = (STAGE_DEPARTMENTS[stageNumber] || [])[0] || '';
     setTaskForm({
       collective_id: selectedCollective,
       phase_number: phaseNumber,
       phase_name: PHASES.find(p => p.number === phaseNumber)?.name,
       stage_number: stageNumber,
       stage_name: stageName,
+      department: autoDept,
       status: 'pending',
       priority: 'medium',
     });
@@ -514,15 +517,19 @@ export default function Workflow() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Department</Label>
-                <Select value={taskForm.department} onValueChange={v => setTaskForm({...taskForm, department: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select dept." /></SelectTrigger>
-                  <SelectContent>
-                    {(STAGE_DEPARTMENTS[taskForm.stage_number] || Object.keys(DEPT_LABELS)).map(d => (
-                      <SelectItem key={d} value={d}>{DEPT_LABELS[d]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Assigned Department(s)</Label>
+                <div className="flex flex-wrap gap-1 min-h-[36px] items-center px-3 py-2 rounded-md border border-input bg-muted/40">
+                  {(STAGE_DEPARTMENTS[taskForm.stage_number] || []).length > 0 ? (
+                    (STAGE_DEPARTMENTS[taskForm.stage_number]).map(d => (
+                      <span key={d} className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", DEPT_COLORS[d])}>
+                        {DEPT_LABELS[d]}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Auto-assigned from stage</span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Auto-assigned · system controlled</p>
               </div>
               <div className="space-y-1.5">
                 <Label>Priority</Label>
