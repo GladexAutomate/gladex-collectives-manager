@@ -70,8 +70,7 @@ const BLANK_QUOTE = () => ({
 
 // ─── Sidebar Package Row ──────────────────────────────────────────────────────
 
-function PackageListItem({ collective, isSelected, onSelect, onDelete }) {
-  const [showMenu, setShowMenu] = useState(false);
+function PackageListItem({ collective, isSelected, onSelect, onDelete, coverImage }) {
   const price = collective.selling_price || collective.base_price || 0;
   const sc = STATUS_CONFIG[collective.status] || STATUS_CONFIG.draft;
   const refCode = generateRefCode(collective);
@@ -83,21 +82,28 @@ function PackageListItem({ collective, isSelected, onSelect, onDelete }) {
         isSelected ? "bg-amber-50 dark:bg-amber-950/20 border-l-2 border-l-amber-500" : "hover:bg-muted/40"
       )}
     >
-      <button onClick={() => onSelect(collective)} className="w-full text-left px-3 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className={cn("text-xs font-semibold truncate", isSelected ? "text-amber-700 dark:text-amber-400" : "text-foreground")}>
-              {collective.name}
-            </p>
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-              <Plane className="w-2.5 h-2.5" /> {collective.destination}
-            </p>
+      <button onClick={() => onSelect(collective)} className="w-full text-left">
+        {coverImage && (
+          <div className="h-16 w-full overflow-hidden">
+            <img src={coverImage} alt={collective.name} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
           </div>
-          <Badge className={cn("text-[8px] flex-shrink-0", sc.class)}>{sc.label}</Badge>
-        </div>
-        <div className="flex items-center justify-between mt-1.5">
-          <code className="text-[9px] font-mono text-muted-foreground/60">{refCode}</code>
-          {price > 0 && <span className="text-[10px] font-bold text-amber-600">₱{Number(price).toLocaleString()}</span>}
+        )}
+        <div className="px-3 py-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className={cn("text-xs font-semibold truncate", isSelected ? "text-amber-700 dark:text-amber-400" : "text-foreground")}>
+                {collective.name}
+              </p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                <Plane className="w-2.5 h-2.5" /> {collective.destination}
+              </p>
+            </div>
+            <Badge className={cn("text-[8px] flex-shrink-0", sc.class)}>{sc.label}</Badge>
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <code className="text-[9px] font-mono text-muted-foreground/60">{refCode}</code>
+            {price > 0 && <span className="text-[10px] font-bold text-amber-600">₱{Number(price).toLocaleString()}</span>}
+          </div>
         </div>
       </button>
       {/* Delete action — appears on hover */}
@@ -177,8 +183,17 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
     if (externalCollectives) setCollectives(externalCollectives);
   }, [externalCollectives]);
 
+  const [marketingAssets, setMarketingAssets] = useState([]);
+
   useEffect(() => {
     base44.entities.Booking.list().then(setBookings).catch(() => {});
+    base44.entities.MarketingAsset.list().then(setMarketingAssets).catch(() => {});
+    const unsub = base44.entities.MarketingAsset.subscribe(e => {
+      if (e.type === 'create') setMarketingAssets(p => [...p, e.data]);
+      else if (e.type === 'update') setMarketingAssets(p => p.map(a => a.id === e.id ? e.data : a));
+      else if (e.type === 'delete') setMarketingAssets(p => p.filter(a => a.id !== e.id));
+    });
+    return () => unsub();
   }, []);
 
   const setQ = useCallback((key, val) => {
@@ -350,6 +365,13 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
     return matchSearch && matchStatus;
   });
 
+  // ── Get cover image for a collective ──
+  const getCoverImage = (collectiveId) => {
+    const pkgAssets = marketingAssets.filter(a => a.collective_id === collectiveId && a.file_url);
+    const published = pkgAssets.find(a => a.status === 'published');
+    return (published || pkgAssets[0])?.file_url || null;
+  };
+
   // ── Hotel row helpers ──
   const updateHotelRow = (id, key, val) => setQ('hotel_rows', quote.hotel_rows.map(r => r.id === id ? { ...r, [key]: val } : r));
   const addHotelRow = () => setQ('hotel_rows', [...quote.hotel_rows, BLANK_HOTEL()]);
@@ -405,6 +427,7 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                 isSelected={selectedCollective?.id === c.id}
                 onSelect={loadCollective}
                 onDelete={(c) => setConfirmDelete(c)}
+                coverImage={getCoverImage(c.id)}
               />
             ))
           )}

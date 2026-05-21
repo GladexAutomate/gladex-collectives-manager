@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, Globe, Calendar, Users, Eye, Edit, Plane, TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Globe, Calendar, Users, Eye, Edit, Plane, TrendingUp, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,7 @@ const TAB_LABELS = { ai_import: '✦ AI Import', basic: 'Basic Info', pricing: '
 
 export default function Collectives() {
   const [collectives, setCollectives] = useState([]);
+  const [marketingAssets, setMarketingAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -47,16 +48,34 @@ export default function Collectives() {
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const navigate = useNavigate();
 
   const loadCollectives = () => {
-    base44.entities.Collective.list('-created_date').then(data => {
-      setCollectives(data);
+    Promise.all([
+      base44.entities.Collective.list('-created_date'),
+      base44.entities.MarketingAsset.list(),
+    ]).then(([colls, assets]) => {
+      setCollectives(colls);
+      setMarketingAssets(assets);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
 
-  useEffect(() => { loadCollectives(); }, []);
+  useEffect(() => {
+    loadCollectives();
+    const unsubC = base44.entities.Collective.subscribe(e => {
+      if (e.type === 'create') setCollectives(p => [e.data, ...p]);
+      else if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
+      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
+    });
+    const unsubA = base44.entities.MarketingAsset.subscribe(e => {
+      if (e.type === 'create') setMarketingAssets(p => [...p, e.data]);
+      else if (e.type === 'update') setMarketingAssets(p => p.map(a => a.id === e.id ? e.data : a));
+      else if (e.type === 'delete') setMarketingAssets(p => p.filter(a => a.id !== e.id));
+    });
+    return () => { unsubC(); unsubA(); };
+  }, []);
 
   const openAdd = () => {
     setEditingCollective(null);
@@ -97,6 +116,19 @@ export default function Collectives() {
     const matchType = typeFilter === 'all' || c.travel_type === typeFilter;
     return matchSearch && matchStatus && matchType;
   });
+
+  const handleDelete = async (c) => {
+    await base44.entities.Collective.delete(c.id);
+    setConfirmDelete(null);
+  };
+
+  // Get the best cover image for a collective from its marketing assets
+  const getCoverImage = (collectiveId) => {
+    const assets = marketingAssets.filter(a => a.collective_id === collectiveId && a.file_url);
+    const published = assets.find(a => a.status === 'published');
+    const approved = assets.find(a => a.status === 'approved');
+    return (published || approved || assets[0])?.file_url || null;
+  };
 
   const fmtPHP = (val) => val ? `₱${Number(val).toLocaleString()}` : '—';
 
@@ -185,10 +217,18 @@ export default function Collectives() {
             const pct = c.total_slots > 0 ? Math.min(100, ((c.booked_pax || 0) / c.total_slots) * 100) : 0;
             const dateCount = (c.travel_dates || []).length;
             return (
-              <div key={c.id} className="bg-card rounded-xl border border-border shadow-sm card-hover overflow-hidden">
-                <div className="h-1.5 w-full bg-muted">
-                  <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all" style={{ width: `${((c.current_phase || 1) / 7) * 100}%` }} />
-                </div>
+              <div key={c.id} className="bg-card rounded-xl border border-border shadow-sm card-hover overflow-hidden group">
+                {/* Cover image */}
+                {getCoverImage(c.id) ? (
+                  <div className="h-36 overflow-hidden relative">
+                    <img src={getCoverImage(c.id)} alt={c.name} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  </div>
+                ) : (
+                  <div className="h-1.5 w-full bg-muted">
+                    <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all" style={{ width: `${((c.current_phase || 1) / 7) * 100}%` }} />
+                  </div>
+                )}
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
@@ -249,6 +289,9 @@ export default function Collectives() {
                     </Button>
                     <Button size="sm" variant="outline" className="flex-1 text-xs h-7 gap-1" onClick={() => openEdit(c)}>
                       <Edit className="w-3 h-3" /> Edit
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20" onClick={() => setConfirmDelete(c)}>
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -421,6 +464,27 @@ export default function Collectives() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Delete */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/30 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-foreground">Delete Collective?</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">This will permanently delete <strong>{confirmDelete.name}</strong>.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+              <Button size="sm" className="bg-rose-600 hover:bg-rose-700 text-white" onClick={() => handleDelete(confirmDelete)}>Delete</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

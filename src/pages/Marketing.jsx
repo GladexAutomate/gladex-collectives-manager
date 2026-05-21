@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Image, Film, Mail, Globe, Facebook, Instagram, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package } from 'lucide-react';
+import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -125,6 +125,25 @@ export default function Marketing() {
     }
     setSaving(false);
     setShowModal(false);
+  };
+
+  const handleDelete = async (asset) => {
+    await base44.entities.MarketingAsset.delete(asset.id);
+  };
+
+  const handlePublish = async (asset) => {
+    await base44.entities.MarketingAsset.update(asset.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] });
+    // Sync cover image to collective if it has a file_url
+    if (asset.collective_id && asset.file_url) {
+      const collective = collectives.find(c => c.id === asset.collective_id);
+      if (collective && !collective.image_url) {
+        await base44.entities.Collective.update(asset.collective_id, { image_url: asset.file_url });
+      }
+    }
+  };
+
+  const handleSubmitForApproval = async (asset) => {
+    await base44.entities.MarketingAsset.update(asset.id, { status: 'pending_approval' });
   };
 
   const togglePkg = (id) => setExpandedPkg(prev => ({ ...prev, [id]: !prev[id] }));
@@ -277,11 +296,7 @@ export default function Marketing() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                        {pkgAssets.map(asset => <AssetCard key={asset.id} asset={asset} onEdit={openEdit} onPublish={async (a) => {
-                          await base44.entities.MarketingAsset.update(a.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] });
-                        }} onSubmit={async (a) => {
-                          await base44.entities.MarketingAsset.update(a.id, { status: 'pending_approval' });
-                        }} />)}
+                        {pkgAssets.map(asset => <AssetCard key={asset.id} asset={asset} onEdit={openEdit} onDelete={handleDelete} onPublish={handlePublish} onSubmit={handleSubmitForApproval} />)}
                       </div>
                     )}
                   </div>
@@ -328,9 +343,7 @@ export default function Marketing() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredAssets.map(asset => {
                 const pkgName = collectives.find(c => c.id === asset.collective_id)?.name;
-                return <AssetCard key={asset.id} asset={asset} pkgName={pkgName} onEdit={openEdit}
-                  onPublish={async (a) => { await base44.entities.MarketingAsset.update(a.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] }); }}
-                  onSubmit={async (a) => { await base44.entities.MarketingAsset.update(a.id, { status: 'pending_approval' }); }} />;
+                return <AssetCard key={asset.id} asset={asset} pkgName={pkgName} onEdit={openEdit} onDelete={handleDelete} onPublish={handlePublish} onSubmit={handleSubmitForApproval} />;
               })}
             </div>
           )}
@@ -439,7 +452,8 @@ export default function Marketing() {
 }
 
 // ---- Reusable Asset Card ----
-function AssetCard({ asset, pkgName, onEdit, onPublish, onSubmit }) {
+function AssetCard({ asset, pkgName, onEdit, onDelete, onPublish, onSubmit }) {
+  const [confirmDel, setConfirmDel] = useState(false);
   const cfg = typeConfig[asset.asset_type] || typeConfig.poster;
   const Icon = cfg.icon;
   return (
@@ -474,17 +488,29 @@ function AssetCard({ asset, pkgName, onEdit, onPublish, onSubmit }) {
           </a>
         )}
         {asset.caption && <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{asset.caption}</p>}
-        <div className="flex gap-1.5 pt-2 border-t border-border">
-          <Button size="sm" variant="outline" className="flex-1 text-[10px] h-6 px-2" onClick={() => onEdit(asset)}>
-            <Edit className="w-2.5 h-2.5 mr-1" /> Edit
-          </Button>
-          {asset.status === 'approved' && (
-            <Button size="sm" variant="outline" className="flex-1 text-[10px] h-6 px-2 text-emerald-600 border-emerald-200" onClick={() => onPublish(asset)}>Publish</Button>
-          )}
-          {asset.status === 'draft' && (
-            <Button size="sm" variant="outline" className="flex-1 text-[10px] h-6 px-2 text-amber-600 border-amber-200" onClick={() => onSubmit(asset)}>Submit</Button>
-          )}
-        </div>
+
+        {confirmDel ? (
+          <div className="flex gap-1.5 pt-2 border-t border-border">
+            <span className="text-[10px] text-rose-600 flex-1 flex items-center">Delete this asset?</span>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-muted-foreground" onClick={() => setConfirmDel(false)}>No</Button>
+            <Button size="sm" className="h-6 px-2 text-[10px] bg-rose-600 hover:bg-rose-700 text-white" onClick={() => onDelete(asset)}>Yes</Button>
+          </div>
+        ) : (
+          <div className="flex gap-1.5 pt-2 border-t border-border">
+            <Button size="sm" variant="outline" className="flex-1 text-[10px] h-6 px-2" onClick={() => onEdit(asset)}>
+              <Edit className="w-2.5 h-2.5 mr-1" /> Edit
+            </Button>
+            {asset.status === 'approved' && (
+              <Button size="sm" variant="outline" className="flex-1 text-[10px] h-6 px-2 text-emerald-600 border-emerald-200" onClick={() => onPublish(asset)}>Publish</Button>
+            )}
+            {asset.status === 'draft' && (
+              <Button size="sm" variant="outline" className="flex-1 text-[10px] h-6 px-2 text-amber-600 border-amber-200" onClick={() => onSubmit(asset)}>Submit</Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-rose-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => setConfirmDel(true)}>
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
