@@ -73,10 +73,17 @@ export default function Collectives() {
 
   const handleSave = async () => {
     setSaving(true);
+    const cleanedDates = (formData.travel_dates || []).map(d => ({
+      ...d,
+      price_override: d.price_override === '' || d.price_override === undefined ? undefined : Number(d.price_override),
+      total_slots: Number(d.total_slots) || 0,
+      booked_slots: Number(d.booked_slots) || 0,
+    }));
+    const payload = { ...formData, travel_dates: cleanedDates };
     if (editingCollective) {
-      await base44.entities.Collective.update(editingCollective.id, formData);
+      await base44.entities.Collective.update(editingCollective.id, payload);
     } else {
-      await base44.entities.Collective.create(formData);
+      await base44.entities.Collective.create(payload);
     }
     setSaving(false);
     setShowModal(false);

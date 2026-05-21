@@ -21,7 +21,7 @@ export default function TravelDatesManager({ formData, setFormData }) {
   const addDate = () => {
     if (!newDate.departure_date) return;
     const dateLabel = newDate.label || `${new Date(newDate.departure_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}–${newDate.return_date ? new Date(newDate.return_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}`;
-    const updated = [...travelDates, { ...newDate, label: dateLabel }];
+    const updated = [...travelDates, { ...newDate, label: dateLabel, price_override: newDate.price_override === '' ? undefined : Number(newDate.price_override) }];
     setFormData(prev => ({ ...prev, travel_dates: updated }));
     setNewDate({ departure_date: '', return_date: '', total_slots: 30, booked_slots: 0, status: 'open', price_override: '', label: '' });
     setAdding(false);
