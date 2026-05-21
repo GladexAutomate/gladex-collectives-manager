@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import PackageCard from '@/components/product/PackageCard';
-import EZQuoteBuilder from '@/components/product/EZQuoteBuilder';
+import EZQuoteWorkspace from '@/pages/EZQuoteWorkspace';
 
 const STATUS_CONFIG = {
   draft:               { label: 'Draft',              class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
@@ -171,7 +171,12 @@ export default function ProductDevelopment() {
       )}
 
       {/* EZQuote Tab */}
-      {activeTab === 'ezquote' && <EZQuoteBuilder collectives={collectives} />}
+      {activeTab === 'ezquote' && (
+        <EZQuoteWorkspace
+          collectives={collectives}
+          onCollectivesChange={() => base44.entities.Collective.list('-created_date').then(setCollectives)}
+        />
+      )}
     </div>
   );
 }
