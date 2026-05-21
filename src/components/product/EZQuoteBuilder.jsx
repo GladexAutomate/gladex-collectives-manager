@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Trash2, Save, RefreshCw, ChevronDown, ChevronUp, CheckCircle, ArrowRight, Calculator, FileText, Plane, Hotel, Users, DollarSign, Info } from 'lucide-react';
+import SmartPackagePad from '@/components/product/SmartPackagePad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -199,19 +200,33 @@ export default function EZQuoteBuilder({ collectives }) {
   const netRevenue = estRevenue - estCommission;
   const grossMargin = sellingPrice > 0 ? ((markupPHP / sellingPrice) * 100).toFixed(1) : 0;
 
-  // ── Load from existing collective ──
-  const loadFromCollective = (id) => {
-    const c = collectives.find(x => x.id === id);
-    if (!c) return;
-    setActiveTemplate(id);
+  // ── Load from existing collective or partial data ──
+  const loadFromCollective = useCallback((c) => {
+    // If called from toolbar dropdown (passes id string)
+    if (typeof c === 'string') {
+      c = collectives.find(x => x.id === c);
+      if (!c) return;
+    }
+    // Partial import (from SmartPad raw text parse)
+    if (c && c._partial) {
+      const { _partial: _p, ...partial } = c;
+      setQuote(prev => ({ ...prev, ...partial }));
+      setSaved(false);
+      return;
+    }
+    setActiveTemplate(c.id);
+    setSavedId(null);
     setQuote(prev => ({
       ...prev,
-      package_name: c.name,
-      destination: c.destination,
+      package_name: c.name || '',
+      destination: c.destination || '',
       travel_type: c.travel_type || 'international',
       operator_name: c.operator_name || '',
       departure_date: c.departure_date || '',
       return_date: c.return_date || '',
+      nights: c.nights || '',
+      pax_estimate: c.total_slots || prev.pax_estimate,
+      guaranteed_departure_pax: c.guaranteed_departure || 0,
       currency: c.base_price_currency || 'USD',
       exchange_rate: c.exchange_rate || 57,
       base_cost_foreign: c.base_price_foreign || '',
@@ -226,7 +241,7 @@ export default function EZQuoteBuilder({ collectives }) {
       remarks: c.remarks || '',
     }));
     setSaved(false);
-  };
+  }, [collectives]);
 
   // ── Save to Collectives DB ──
   const handleSave = async () => {
@@ -289,7 +304,7 @@ export default function EZQuoteBuilder({ collectives }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Load from existing */}
-          <Select value={activeTemplate} onValueChange={loadFromCollective}>
+          <Select value={activeTemplate} onValueChange={(id) => loadFromCollective(id)}>
             <SelectTrigger className="h-8 text-xs w-52">
               <SelectValue placeholder="📂 Load from package..." />
             </SelectTrigger>
@@ -313,6 +328,9 @@ export default function EZQuoteBuilder({ collectives }) {
           </Button>
         </div>
       </div>
+
+      {/* ── Smart Package Pad ── */}
+      <SmartPackagePad collectives={collectives} onLoadPackage={loadFromCollective} />
 
       {/* ── 1. Package Info ── */}
       <Section title="Package Information" icon={Plane} iconColor="text-sky-500">
