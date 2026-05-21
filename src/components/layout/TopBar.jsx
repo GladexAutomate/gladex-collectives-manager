@@ -1,12 +1,8 @@
-import { Bell, Search, Moon, Sun, User, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Moon, Sun, User, ChevronDown } from 'lucide-react';
+import NotificationCenter from '@/components/notifications/NotificationCenter';
+import GlobalSearch from '@/components/search/GlobalSearch';
 
 export default function TopBar({ pageTitle, darkMode, onToggleDark }) {
-  const [showSearch, setShowSearch] = useState(false);
-
   return (
     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-40">
       <div className="flex items-center gap-4">
@@ -17,31 +13,16 @@ export default function TopBar({ pageTitle, darkMode, onToggleDark }) {
       </div>
 
       <div className="flex items-center gap-3">
-        {showSearch && (
-          <Input
-            placeholder="Search collectives, bookings..."
-            className="w-64 h-8 text-sm"
-            autoFocus
-            onBlur={() => setShowSearch(false)}
-          />
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => setShowSearch(!showSearch)}
+        <GlobalSearch />
+
+        <button
+          className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors text-muted-foreground"
+          onClick={onToggleDark}
         >
-          <Search className="w-4 h-4" />
-        </Button>
-
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative" onClick={onToggleDark}>
           {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
+        </button>
 
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-          <Bell className="w-4 h-4" />
-          <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-primary text-primary-foreground">3</Badge>
-        </Button>
+        <NotificationCenter />
 
         <div className="flex items-center gap-2 pl-3 border-l border-border cursor-pointer hover:opacity-80">
           <div className="w-8 h-8 rounded-full gradient-gold flex items-center justify-center">
