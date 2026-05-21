@@ -20,6 +20,44 @@
     "operator_name": {
       "type": "string"
     },
+    "travel_dates": {
+      "type": "array",
+      "description": "Multiple available travel date ranges",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "departure_date": {
+            "type": "string"
+          },
+          "return_date": {
+            "type": "string"
+          },
+          "total_slots": {
+            "type": "number"
+          },
+          "booked_slots": {
+            "type": "number",
+            "default": 0
+          },
+          "price_override": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "almost_full",
+              "sold_out",
+              "closed"
+            ],
+            "default": "open"
+          }
+        }
+      }
+    },
     "departure_date": {
       "type": "string",
       "format": "date"
@@ -44,6 +82,31 @@
       "type": "boolean",
       "default": false
     },
+    "base_price_currency": {
+      "type": "string",
+      "default": "PHP"
+    },
+    "base_price_foreign": {
+      "type": "number",
+      "description": "Price in foreign currency (USD/EUR etc)"
+    },
+    "exchange_rate": {
+      "type": "number",
+      "default": 1,
+      "description": "To PHP"
+    },
+    "base_price_php": {
+      "type": "number",
+      "description": "Converted PHP amount"
+    },
+    "markup_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "selling_price": {
+      "type": "number",
+      "description": "Final selling price in PHP"
+    },
     "base_price": {
       "type": "number"
     },
@@ -51,12 +114,57 @@
       "type": "string",
       "default": "PHP"
     },
-    "commission_rate": {
-      "type": "number",
-      "description": "Commission percentage"
-    },
     "commission_amount": {
-      "type": "number"
+      "type": "number",
+      "description": "Fixed peso commission per booking"
+    },
+    "downpayment_required": {
+      "type": "number",
+      "description": "Required downpayment amount in PHP"
+    },
+    "room_configurations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "room_type": {
+            "type": "string",
+            "enum": [
+              "twin_sharing",
+              "triple_sharing",
+              "quad_sharing",
+              "solo_room",
+              "family_room"
+            ]
+          },
+          "price": {
+            "type": "number"
+          },
+          "slots": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "rate_child_no_bed": {
+      "type": "number",
+      "description": "Child without bed rate (6 y/o below & max 1.1m height)"
+    },
+    "rate_adult_child_bed": {
+      "type": "number",
+      "description": "Adult & child with bed rate"
+    },
+    "rate_single_supplement": {
+      "type": "number",
+      "description": "Single supplement rate"
+    },
+    "rate_child": {
+      "type": "number",
+      "description": "Child rate (6 y/o below)"
+    },
+    "rate_infant": {
+      "type": "number",
+      "description": "Estimated infant fee"
     },
     "internal_deadline": {
       "type": "string",
@@ -97,13 +205,26 @@
       "type": "string",
       "enum": [
         "draft",
+        "for_approval",
+        "product_development",
+        "marketing_prep",
         "active",
         "launched",
+        "open_booking",
+        "reservation_ongoing",
+        "payment_verification",
+        "documentation",
+        "pre_departure",
         "ongoing",
         "completed",
+        "post_evaluation",
         "cancelled"
       ],
       "default": "draft"
+    },
+    "lifecycle_stage": {
+      "type": "string",
+      "description": "Current lifecycle status label"
     },
     "current_phase": {
       "type": "number",
