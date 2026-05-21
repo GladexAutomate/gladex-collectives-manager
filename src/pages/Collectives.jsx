@@ -389,20 +389,7 @@ export default function Collectives() {
                 <Label>Remarks</Label>
                 <Textarea rows={2} value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} />
               </div>
-              {/* Admin-only fields */}
-              <div className="border border-amber-200 rounded-lg p-4 bg-amber-50 dark:bg-amber-950/20 space-y-3">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">🔒 Admin-Only Fields</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Internal Deadline</Label>
-                    <Input type="date" value={formData.internal_deadline || ''} onChange={e => setFormData({...formData, internal_deadline: e.target.value})} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Supplier Deadline</Label>
-                    <Input type="date" value={formData.supplier_deadline || ''} onChange={e => setFormData({...formData, supplier_deadline: e.target.value})} />
-                  </div>
-                </div>
-              </div>
+
             </div>
           )}
 

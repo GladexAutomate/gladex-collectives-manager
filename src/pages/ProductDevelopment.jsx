@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Package, Plus, Calculator, TrendingUp, Star, Search, Edit, ArrowRight, FileText, Download, Users, DollarSign } from 'lucide-react';
+import { Package, Plus, TrendingUp, Star, Search, Edit, ArrowRight, FileText, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +36,7 @@ export default function ProductDevelopment() {
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeSection, setActiveSection] = useState('calculator'); // 'calculator' | 'operators' | 'ezquote'
+  const [activeSection, setActiveSection] = useState('ezquote'); // 'operators' | 'ezquote'
 
   // EZQuote state
   const [quote, setQuote] = useState({
@@ -48,11 +48,7 @@ export default function ProductDevelopment() {
     pax_count: 20, departure_date: '', return_date: '',
   });
 
-  // Simple calculator state
-  const [costPrice, setCostPrice] = useState('');
-  const [markupPct, setMarkupPct] = useState(20);
-  const [currency, setCurrency] = useState('PHP');
-  const [exchangeRate, setExchangeRate] = useState(58);
+
 
   useEffect(() => {
     Promise.all([
@@ -80,12 +76,6 @@ export default function ProductDevelopment() {
   const openAdd = () => { setEditingOperator(null); setFormData({ status: 'active' }); setShowModal(true); };
   const openEdit = (op) => { setEditingOperator(op); setFormData({ ...op }); setShowModal(true); };
   const filteredOperators = operators.filter(op => !search || op.name?.toLowerCase().includes(search.toLowerCase()) || op.country?.toLowerCase().includes(search.toLowerCase()));
-
-  // Simple calc
-  const currencySymbol = CURRENCIES.find(c => c.value === currency)?.symbol || '₱';
-  const basePHP = currency === 'PHP' ? Number(costPrice) : Number(costPrice) * exchangeRate;
-  const sellingPrice = costPrice ? basePHP * (1 + markupPct / 100) : 0;
-  const profit = sellingPrice - basePHP;
 
   // EZQuote calc
   const qBasePHP = quote.currency === 'PHP' ? Number(quote.base_price_foreign) : Number(quote.base_price_foreign) * Number(quote.exchange_rate);
@@ -115,7 +105,6 @@ export default function ProductDevelopment() {
       {/* Section Tabs */}
       <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit">
         {[
-          { key: 'calculator', label: '🧮 Quick Calc' },
           { key: 'ezquote', label: '📋 EZQuote Builder' },
           { key: 'operators', label: '🏢 Operators' },
         ].map(tab => (
@@ -128,57 +117,6 @@ export default function ProductDevelopment() {
           </button>
         ))}
       </div>
-
-      {/* Quick Calculator */}
-      {activeSection === 'calculator' && (
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
-          <h3 className="font-semibold font-jakarta text-foreground mb-4 flex items-center gap-2">
-            <Calculator className="w-4 h-4 text-primary" /> Quick Pricing Calculator
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Cost Price (Supplier)</Label>
-              <div className="flex gap-2">
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger className="w-24 h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input type="number" placeholder="0" value={costPrice} onChange={e => setCostPrice(e.target.value)} className="h-9" />
-              </div>
-            </div>
-            {currency !== 'PHP' && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">Exchange Rate (→ PHP)</Label>
-                <Input type="number" step="0.01" value={exchangeRate} onChange={e => setExchangeRate(Number(e.target.value))} className="h-9" />
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label className="text-xs">Markup %</Label>
-              <Input type="number" value={markupPct} onChange={e => setMarkupPct(Number(e.target.value))} className="h-9" />
-            </div>
-          </div>
-          {costPrice && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Cost PHP</p>
-                <p className="text-lg font-bold text-foreground font-jakarta">₱{basePHP.toLocaleString(undefined, {maximumFractionDigits:0})}</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20">
-                <p className="text-xs text-muted-foreground">Selling Price</p>
-                <p className="text-lg font-bold text-amber-600 font-jakarta">₱{sellingPrice.toLocaleString(undefined, {maximumFractionDigits:0})}</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
-                <p className="text-xs text-muted-foreground">Gross Profit</p>
-                <p className="text-lg font-bold text-emerald-600 font-jakarta">₱{profit.toLocaleString(undefined, {maximumFractionDigits:0})}</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-sky-50 dark:bg-sky-950/20">
-                <p className="text-xs text-muted-foreground">Margin</p>
-                <p className="text-lg font-bold text-sky-600 font-jakarta">{markupPct}%</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* EZQuote Builder */}
       {activeSection === 'ezquote' && (
