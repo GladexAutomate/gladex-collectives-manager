@@ -18,6 +18,7 @@ import Documents from './pages/Documents';
 import Operations from './pages/Operations';
 import Feedback from './pages/Feedback';
 import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -56,6 +57,7 @@ const AuthenticatedApp = () => {
         <Route path="/operations" element={<Operations />} />
         <Route path="/feedback" element={<Feedback />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

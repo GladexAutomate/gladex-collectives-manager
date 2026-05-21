@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import PricingEngine from '@/components/collectives/PricingEngine';
 import TravelDatesManager from '@/components/collectives/TravelDatesManager';
 import RoomConfigurator from '@/components/collectives/RoomConfigurator';
+import AISmartImport from '@/components/collectives/AISmartImport';
 
 const statusConfig = {
   draft: { label: 'Draft', class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
@@ -32,8 +33,8 @@ const statusConfig = {
   cancelled: { label: 'Cancelled', class: 'bg-rose-100 text-rose-700' },
 };
 
-const MODAL_TABS = ['basic', 'pricing', 'dates', 'rooms', 'details'];
-const TAB_LABELS = { basic: 'Basic Info', pricing: 'Pricing', dates: 'Travel Dates', rooms: 'Rooms & Rates', details: 'Details' };
+const MODAL_TABS = ['ai_import', 'basic', 'pricing', 'dates', 'rooms', 'details'];
+const TAB_LABELS = { ai_import: '✦ AI Import', basic: 'Basic Info', pricing: 'Pricing', dates: 'Travel Dates', rooms: 'Rooms & Rates', details: 'Details' };
 
 export default function Collectives() {
   const [collectives, setCollectives] = useState([]);
@@ -60,7 +61,7 @@ export default function Collectives() {
   const openAdd = () => {
     setEditingCollective(null);
     setFormData({ status: 'draft', travel_type: 'international', base_price_currency: 'PHP', exchange_rate: 1, current_phase: 1, current_stage: 1, travel_dates: [], room_configurations: [] });
-    setActiveTab('basic');
+    setActiveTab('ai_import');
     setShowModal(true);
   };
 
@@ -274,13 +275,32 @@ export default function Collectives() {
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
-                  activeTab === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                  tab === 'ai_import'
+                    ? activeTab === tab
+                      ? "gradient-gold text-white"
+                      : "text-amber-600 border border-amber-200 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                    : activeTab === tab
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
                 )}
               >
                 {TAB_LABELS[tab]}
               </button>
             ))}
           </div>
+
+          {/* Tab: AI Import */}
+          {activeTab === 'ai_import' && (
+            <div className="mt-2">
+              <AISmartImport
+                onParsed={(parsed) => {
+                  setFormData(prev => ({ ...prev, ...parsed }));
+                  setActiveTab('basic');
+                }}
+                onClose={() => setActiveTab('basic')}
+              />
+            </div>
+          )}
 
           {/* Tab: Basic Info */}
           {activeTab === 'basic' && (

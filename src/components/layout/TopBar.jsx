@@ -1,5 +1,4 @@
 import { Moon, Sun, User, ChevronDown } from 'lucide-react';
-import NotificationCenter from '@/components/notifications/NotificationCenter';
 import GlobalSearch from '@/components/search/GlobalSearch';
 
 export default function TopBar({ pageTitle, darkMode, onToggleDark }) {
@@ -21,8 +20,6 @@ export default function TopBar({ pageTitle, darkMode, onToggleDark }) {
         >
           {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
-
-        <NotificationCenter />
 
         <div className="flex items-center gap-2 pl-3 border-l border-border cursor-pointer hover:opacity-80">
           <div className="w-8 h-8 rounded-full gradient-gold flex items-center justify-center">
