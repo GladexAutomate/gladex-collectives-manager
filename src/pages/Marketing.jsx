@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Image, Film, Mail, Globe, Facebook, Instagram, Search, Edit, Upload, Download, Paperclip, Loader2 } from 'lucide-react';
+import { Plus, Image, Film, Mail, Globe, Facebook, Instagram, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, Calendar, Users, TrendingUp, AlertTriangle, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -35,13 +35,29 @@ const platformConfig = {
   email: { label: 'Email', icon: Mail, color: 'text-purple-600' },
 };
 
+const collectiveStatusConfig = {
+  draft: { label: 'Draft', class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
+  for_approval: { label: 'For Approval', class: 'bg-purple-100 text-purple-700' },
+  product_development: { label: 'Product Dev', class: 'bg-amber-100 text-amber-700' },
+  marketing_prep: { label: 'Marketing Prep', class: 'bg-pink-100 text-pink-700' },
+  active: { label: 'Active', class: 'bg-emerald-100 text-emerald-700' },
+  launched: { label: 'Launched', class: 'bg-sky-100 text-sky-700' },
+  open_booking: { label: 'Open Booking', class: 'bg-teal-100 text-teal-700' },
+  reservation_ongoing: { label: 'Reservation Ongoing', class: 'bg-blue-100 text-blue-700' },
+  ongoing: { label: 'Ongoing Travel', class: 'bg-amber-100 text-amber-700' },
+  completed: { label: 'Completed', class: 'bg-purple-100 text-purple-700' },
+  cancelled: { label: 'Cancelled', class: 'bg-rose-100 text-rose-700' },
+};
+
 export default function Marketing() {
   const [assets, setAssets] = useState([]);
   const [collectives, setCollectives] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('assets'); // 'assets' | 'packages'
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [pkgSearch, setPkgSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingAsset, setEditingAsset] = useState(null);
   const [formData, setFormData] = useState({});
@@ -51,18 +67,36 @@ export default function Marketing() {
   const imageInputRef = useRef(null);
   const proofInputRef = useRef(null);
 
-  const loadData = () => {
+  useEffect(() => {
     Promise.all([
       base44.entities.MarketingAsset.list('-created_date'),
-      base44.entities.Collective.list(),
+      base44.entities.Collective.list('-created_date'),
     ]).then(([a, c]) => {
       setAssets(a);
       setCollectives(c);
       setLoading(false);
     }).catch(() => setLoading(false));
-  };
 
-  useEffect(() => { loadData(); }, []);
+    // Real-time sync
+    const unsubAssets = base44.entities.MarketingAsset.subscribe((event) => {
+      if (event.type === 'create') setAssets(prev => [event.data, ...prev]);
+      else if (event.type === 'update') setAssets(prev => prev.map(a => a.id === event.id ? event.data : a));
+      else if (event.type === 'delete') setAssets(prev => prev.filter(a => a.id !== event.id));
+    });
+    const unsubCollectives = base44.entities.Collective.subscribe((event) => {
+      if (event.type === 'create') setCollectives(prev => [event.data, ...prev]);
+      else if (event.type === 'update') setCollectives(prev => prev.map(c => c.id === event.id ? event.data : c));
+      else if (event.type === 'delete') setCollectives(prev => prev.filter(c => c.id !== event.id));
+    });
+    return () => { unsubAssets(); unsubCollectives(); };
+  }, []);
+
+  const loadData = () => {
+    Promise.all([
+      base44.entities.MarketingAsset.list('-created_date'),
+      base44.entities.Collective.list('-created_date'),
+    ]).then(([a, c]) => { setAssets(a); setCollectives(c); });
+  };
 
   const openAdd = () => {
     setEditingAsset(null);
@@ -115,12 +149,17 @@ export default function Marketing() {
 
   const getCollectiveName = (id) => collectives.find(c => c.id === id)?.name || '';
 
-  const statsData = [
-    { label: 'Total Assets', value: assets.length },
-    { label: 'Published', value: assets.filter(a => a.status === 'published').length },
-    { label: 'Pending Approval', value: assets.filter(a => a.status === 'pending_approval').length },
-    { label: 'Draft', value: assets.filter(a => a.status === 'draft').length },
-  ];
+  const activeCollectives = collectives.filter(c => ['active','launched','open_booking','reservation_ongoing'].includes(c.status));
+  const upcomingDepartures = collectives.filter(c => {
+    const dep = c.departure_date || (c.travel_dates?.[0]?.departure_date);
+    return dep && new Date(dep) > new Date();
+  });
+  const fullyBooked = collectives.filter(c => c.total_slots > 0 && (c.booked_pax || 0) >= c.total_slots);
+  const fmtPHP = (val) => val ? `₱${Number(val).toLocaleString()}` : '—';
+
+  const filteredPackages = collectives.filter(c => {
+    return !pkgSearch || c.name?.toLowerCase().includes(pkgSearch.toLowerCase()) || c.destination?.toLowerCase().includes(pkgSearch.toLowerCase());
+  });
 
   return (
     <div className="space-y-6">
@@ -129,20 +168,138 @@ export default function Marketing() {
           <h2 className="text-xl font-bold font-jakarta text-foreground">Marketing</h2>
           <p className="text-sm text-muted-foreground">Manage marketing assets, campaigns, and social media</p>
         </div>
-        <Button onClick={openAdd} className="gradient-gold text-white border-0 gap-2">
-          <Plus className="w-4 h-4" /> Add Asset
-        </Button>
+        {activeTab === 'assets' && (
+          <Button onClick={openAdd} className="gradient-gold text-white border-0 gap-2">
+            <Plus className="w-4 h-4" /> Add Asset
+          </Button>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {statsData.map((s, i) => (
-          <div key={i} className="bg-card rounded-xl border border-border p-4 text-center">
-            <p className="text-2xl font-bold font-jakarta text-foreground">{s.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-          </div>
+      {/* Tabs */}
+      <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit">
+        {[
+          { key: 'assets', label: '🎨 Marketing Assets' },
+          { key: 'packages', label: '📦 All Packages' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={cn("px-4 py-2 rounded-lg text-xs font-medium transition-all", activeTab === tab.key ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            {tab.label}
+          </button>
         ))}
       </div>
 
+      {/* Stats — changes based on tab */}
+      {activeTab === 'assets' ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Total Assets', value: assets.length, color: 'text-foreground' },
+            { label: 'Published', value: assets.filter(a => a.status === 'published').length, color: 'text-emerald-600' },
+            { label: 'Pending Approval', value: assets.filter(a => a.status === 'pending_approval').length, color: 'text-amber-600' },
+            { label: 'Draft', value: assets.filter(a => a.status === 'draft').length, color: 'text-slate-500' },
+          ].map((s, i) => (
+            <div key={i} className="bg-card rounded-xl border border-border p-4 text-center">
+              <p className={cn("text-2xl font-bold font-jakarta", s.color)}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { label: 'Total Packages', value: collectives.length, color: 'text-foreground' },
+            { label: 'Active Collectives', value: activeCollectives.length, color: 'text-emerald-600' },
+            { label: 'Upcoming Departures', value: upcomingDepartures.length, color: 'text-sky-600' },
+            { label: 'Fully Booked', value: fullyBooked.length, color: 'text-rose-600' },
+            { label: 'Draft Packages', value: collectives.filter(c => c.status === 'draft').length, color: 'text-slate-500' },
+            { label: 'With Assets', value: collectives.filter(c => assets.some(a => a.collective_id === c.id)).length, color: 'text-purple-600' },
+          ].map((s, i) => (
+            <div key={i} className="bg-card rounded-xl border border-border p-4 text-center">
+              <p className={cn("text-2xl font-bold font-jakarta", s.color)}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Packages Tab */}
+      {activeTab === 'packages' && (
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Search packages by name or destination..." className="pl-9" value={pkgSearch} onChange={e => setPkgSearch(e.target.value)} />
+          </div>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {[1,2,3,4,5,6].map(i => <div key={i} className="h-48 bg-card rounded-xl border animate-pulse" />)}
+            </div>
+          ) : filteredPackages.length === 0 ? (
+            <div className="text-center py-16">
+              <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">No packages found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredPackages.map(c => {
+                const pct = c.total_slots > 0 ? Math.min(100, ((c.booked_pax || 0) / c.total_slots) * 100) : 0;
+                const sellingPrice = c.selling_price || c.base_price;
+                const dateCount = (c.travel_dates || []).length;
+                const pkgAssets = assets.filter(a => a.collective_id === c.id);
+                return (
+                  <div key={c.id} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                    <div className="h-1.5 w-full bg-muted">
+                      <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500" style={{ width: `${((c.current_phase || 1) / 7) * 100}%` }} />
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <Badge className={cn("text-[10px]", collectiveStatusConfig[c.status]?.class)}>
+                              {collectiveStatusConfig[c.status]?.label || c.status}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px]">{c.travel_type === 'international' ? '🌍' : '🏠'} {c.travel_type}</Badge>
+                            {pct >= 100 && <Badge className="text-[10px] bg-rose-100 text-rose-700">Sold Out</Badge>}
+                            {pct >= 80 && pct < 100 && <Badge className="text-[10px] bg-amber-100 text-amber-700 gap-1"><AlertTriangle className="w-2.5 h-2.5" />Almost Full</Badge>}
+                          </div>
+                          <h3 className="font-semibold text-foreground font-jakarta text-sm truncate">{c.name}</h3>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1"><Plane className="w-3 h-3" />{c.destination}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 my-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-primary" />{dateCount > 0 ? `${dateCount} date${dateCount > 1 ? 's' : ''}` : c.departure_date ? new Date(c.departure_date).toLocaleDateString('en-US', {month:'short',day:'numeric'}) : '—'}</span>
+                        <span className="flex items-center gap-1"><Users className="w-3 h-3 text-secondary" />{c.booked_pax || 0}/{c.total_slots || 0} pax</span>
+                        <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3 text-emerald-500" />{fmtPHP(sellingPrice)}</span>
+                        <span className="flex items-center gap-1 text-purple-600"><Image className="w-3 h-3" />{pkgAssets.length} asset{pkgAssets.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      {c.total_slots > 0 && (
+                        <div>
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Slot occupancy</span><span>{Math.round(pct)}%</span></div>
+                          <div className="h-1.5 bg-muted rounded-full">
+                            <div className={cn("h-full rounded-full transition-all", pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-500" : "bg-gradient-to-r from-emerald-500 to-teal-500")} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )}
+                      {pkgAssets.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-border">
+                          <p className="text-[10px] text-muted-foreground mb-1.5">Marketing Assets:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {pkgAssets.slice(0,4).map(a => (
+                              <Badge key={a.id} className={cn("text-[10px]", statusColors[a.status])}>{a.asset_type?.replace('_',' ')}</Badge>
+                            ))}
+                            {pkgAssets.length > 4 && <Badge variant="outline" className="text-[10px]">+{pkgAssets.length - 4} more</Badge>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Assets Tab */}
+      {activeTab === 'assets' && <>
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
@@ -272,6 +429,8 @@ export default function Marketing() {
           })}
         </div>
       )}
+
+      </>}
 
       {/* Add/Edit Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>

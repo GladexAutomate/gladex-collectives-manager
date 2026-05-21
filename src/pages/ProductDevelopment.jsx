@@ -53,12 +53,20 @@ export default function ProductDevelopment() {
   useEffect(() => {
     Promise.all([
       base44.entities.Operator.list(),
-      base44.entities.Collective.list('-created_date', 20),
+      base44.entities.Collective.list('-created_date'),
     ]).then(([ops, cols]) => {
       setOperators(ops);
       setCollectives(cols);
       setLoading(false);
     }).catch(() => setLoading(false));
+
+    // Real-time sync for collectives
+    const unsub = base44.entities.Collective.subscribe((event) => {
+      if (event.type === 'create') setCollectives(prev => [event.data, ...prev]);
+      else if (event.type === 'update') setCollectives(prev => prev.map(c => c.id === event.id ? event.data : c));
+      else if (event.type === 'delete') setCollectives(prev => prev.filter(c => c.id !== event.id));
+    });
+    return () => unsub();
   }, []);
 
   const handleSave = async () => {
@@ -115,6 +123,21 @@ export default function ProductDevelopment() {
           >
             {tab.label}
           </button>
+        ))}
+      </div>
+
+      {/* Live package counters */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Packages', value: collectives.length, color: 'text-foreground' },
+          { label: 'Active / Open', value: collectives.filter(c => ['active','launched','open_booking'].includes(c.status)).length, color: 'text-emerald-600' },
+          { label: 'Draft', value: collectives.filter(c => c.status === 'draft').length, color: 'text-slate-500' },
+          { label: 'Ongoing Travel', value: collectives.filter(c => c.status === 'ongoing').length, color: 'text-amber-600' },
+        ].map((s, i) => (
+          <div key={i} className="bg-card rounded-xl border border-border p-4 text-center">
+            <p className={cn("text-2xl font-bold font-jakarta", s.color)}>{s.value}</p>
+            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+          </div>
         ))}
       </div>
 
