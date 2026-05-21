@@ -1,13 +1,14 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
-  X, Search, Download, Shuffle, Clock, Clipboard,
-  Check, Copy, Zap, Link2, ChevronRight
+  X, Search, Download, Shuffle, Clock, Check, Copy, Zap,
+  ChevronRight, Upload, FileText, Loader2, Sparkles, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+
+// ─── Ref code generator (exported for use in workspace) ──────────────────────
 
 export function generateRefCode(collective) {
   const dest = (collective.destination || 'PKG')
@@ -19,26 +20,189 @@ export function generateRefCode(collective) {
   return `EZQ-${dest}-${year}-${seq}`;
 }
 
+// ─── Text parser (ref codes + raw text) ──────────────────────────────────────
+
 function parseRawText(text, collectives) {
   const codeMatch = text.match(/EZQ-[A-Z0-9-]+/i);
   if (codeMatch) {
-    const code = codeMatch[0].toUpperCase();
-    const match = collectives.find(c => generateRefCode(c) === code);
+    const match = collectives.find(c => generateRefCode(c) === codeMatch[0].toUpperCase());
     if (match) return { collective: match };
   }
   const result = {};
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines[0]) result.package_name = lines[0];
-  const durMatch = text.match(/(\d+)\s*nights?/i);
-  if (durMatch) result.nights = durMatch[1];
-  const destLine = lines.find(l =>
-    /japan|korea|bohol|cebu|taiwan|singapore|dubai|europe|bali|thailand|vietnam|hongkong|macau|manila|boracay/i.test(l)
-  );
-  if (destLine) result.destination = destLine;
-  const priceMatch = text.match(/[₱$]\s*([\d,]+)/);
-  if (priceMatch) result.base_cost_foreign = parseFloat(priceMatch[1].replace(/,/g, ''));
+  const dur = text.match(/(\d+)\s*nights?/i);
+  if (dur) result.nights = dur[1];
+  const dest = lines.find(l => /japan|korea|bohol|cebu|taiwan|singapore|dubai|europe|bali|thailand|vietnam|hongkong|macau|manila|boracay/i.test(l));
+  if (dest) result.destination = dest;
+  const price = text.match(/[₱$]\s*([\d,]+)/);
+  if (price) result.base_cost_foreign = parseFloat(price[1].replace(/,/g, ''));
   return Object.keys(result).length > 0 ? { partial: result } : null;
 }
+
+// ─── AI File Parser Tab ───────────────────────────────────────────────────────
+
+function AIParseTab({ onFieldsDetected }) {
+  const [file, setFile] = useState(null);
+  const [parsing, setParsing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (f) { setFile(f); setResult(null); setError(null); }
+  };
+
+  const handleParse = async () => {
+    if (!file) return;
+    setParsing(true);
+    setError(null);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const parsed = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: {
+          type: 'object',
+          properties: {
+            package_name: { type: 'string' },
+            destination: { type: 'string' },
+            departure_date: { type: 'string' },
+            return_date: { type: 'string' },
+            nights: { type: 'string' },
+            pax_estimate: { type: 'number' },
+            operator_name: { type: 'string' },
+            flight_details: { type: 'string' },
+            base_cost_foreign: { type: 'number' },
+            currency: { type: 'string' },
+            exchange_rate: { type: 'number' },
+            markup_php: { type: 'number' },
+            commission_per_pax: { type: 'number' },
+            downpayment_required: { type: 'number' },
+            inclusions: { type: 'string' },
+            exclusions: { type: 'string' },
+            cancellation_policy: { type: 'string' },
+            optional_tours: { type: 'string' },
+            remarks: { type: 'string' },
+          }
+        }
+      });
+      if (parsed.status === 'success' && parsed.output) {
+        const data = Array.isArray(parsed.output) ? parsed.output[0] : parsed.output;
+        // Also run AI enrichment for better field population
+        const enriched = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are a travel package data extractor. Given this raw extracted data from a travel package file, clean and enrich it. Return a JSON with these fields if detectable: package_name, destination, nights, departure_date, return_date, pax_estimate, operator_name, flight_details, base_cost_foreign, currency, exchange_rate, markup_php, commission_per_pax, downpayment_required, inclusions (bullet list string), exclusions (bullet list string), cancellation_policy, optional_tours, remarks. Raw data: ${JSON.stringify(data)}`,
+          response_json_schema: {
+            type: 'object',
+            properties: {
+              package_name: { type: 'string' },
+              destination: { type: 'string' },
+              nights: { type: 'string' },
+              departure_date: { type: 'string' },
+              return_date: { type: 'string' },
+              pax_estimate: { type: 'number' },
+              operator_name: { type: 'string' },
+              flight_details: { type: 'string' },
+              base_cost_foreign: { type: 'number' },
+              currency: { type: 'string' },
+              exchange_rate: { type: 'number' },
+              markup_php: { type: 'number' },
+              commission_per_pax: { type: 'number' },
+              downpayment_required: { type: 'number' },
+              inclusions: { type: 'string' },
+              exclusions: { type: 'string' },
+              cancellation_policy: { type: 'string' },
+              optional_tours: { type: 'string' },
+              remarks: { type: 'string' },
+            }
+          }
+        });
+        setResult(enriched || data);
+      } else {
+        setError('Could not extract data from this file. Try a different format.');
+      }
+    } catch (e) {
+      setError(e.message || 'Parsing failed');
+    }
+    setParsing(false);
+  };
+
+  const detectedFields = result ? Object.entries(result).filter(([, v]) => v != null && v !== '' && v !== 0) : [];
+
+  return (
+    <div className="p-4 space-y-4">
+      <p className="text-[10px] text-slate-400 leading-relaxed">
+        Upload a package file (Excel, CSV, PDF, DOCX). AI will auto-detect and populate all package fields.
+      </p>
+
+      {/* File picker */}
+      <label className={cn(
+        "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all",
+        file ? "border-amber-500/50 bg-amber-500/5" : "border-white/10 hover:border-white/20 bg-white/3"
+      )}>
+        <input type="file" accept=".xlsx,.xls,.csv,.pdf,.docx,.txt" className="hidden" onChange={handleFile} />
+        <Upload className={cn("w-5 h-5", file ? "text-amber-400" : "text-slate-500")} />
+        <span className={cn("text-xs text-center", file ? "text-amber-300" : "text-slate-500")}>
+          {file ? file.name : 'Drop file here or click to browse'}
+        </span>
+        <span className="text-[9px] text-slate-600">XLSX · CSV · PDF · DOCX · TXT</span>
+      </label>
+
+      {file && !result && (
+        <Button
+          size="sm"
+          className="w-full h-8 text-xs gradient-gold text-white border-0 gap-1.5"
+          onClick={handleParse}
+          disabled={parsing}
+        >
+          {parsing ? (
+            <><Loader2 className="w-3 h-3 animate-spin" /> Analyzing with AI…</>
+          ) : (
+            <><Sparkles className="w-3 h-3" /> Parse & Auto-Fill</>
+          )}
+        </Button>
+      )}
+
+      {error && (
+        <div className="flex items-start gap-2 p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-lg">
+          <AlertCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0 mt-0.5" />
+          <p className="text-[10px] text-rose-300">{error}</p>
+        </div>
+      )}
+
+      {result && detectedFields.length > 0 && (
+        <div className="space-y-3">
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+            <p className="text-[10px] text-emerald-300 font-semibold mb-2 flex items-center gap-1">
+              <Check className="w-3 h-3" /> {detectedFields.length} fields detected
+            </p>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {detectedFields.map(([k, v]) => (
+                <div key={k} className="flex gap-2 text-[9px]">
+                  <span className="text-slate-400 font-mono w-28 flex-shrink-0">{k}:</span>
+                  <span className="text-slate-200 truncate">{String(v).substring(0, 30)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 h-7 text-xs gradient-gold text-white border-0 gap-1"
+              onClick={() => { onFieldsDetected({ _partial: true, ...result }); setFile(null); setResult(null); }}
+            >
+              <Zap className="w-3 h-3" /> Apply to Editor
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-xs text-slate-400 hover:text-white" onClick={() => { setFile(null); setResult(null); }}>
+              Reset
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Sidebar ─────────────────────────────────────────────────────────────
 
 export default function SmartImportSidebar({ open, onClose, collectives, onLoadPackage }) {
   const [tab, setTab] = useState('search');
@@ -97,41 +261,50 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
     setTimeout(() => setCopied(null), 2000);
   };
 
-  if (!open) return null;
+  const TABS = [
+    { key: 'search', label: 'Search' },
+    { key: 'codes', label: 'Codes' },
+    { key: 'pad', label: 'Notepad' },
+    { key: 'ai', label: '✨ AI Parse' },
+  ];
 
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className={cn("fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200",
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={onClose}
+      />
 
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-80 z-50 bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col">
+      {/* Drawer — slides from right */}
+      <div className={cn(
+        "fixed right-0 top-0 h-full w-80 z-50 bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out",
+        open ? "translate-x-0" : "translate-x-full"
+      )}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-700">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-700 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-amber-400" />
             <span className="font-bold text-sm text-white font-jakarta">Smart Import</span>
             <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[9px]">UTILITY</Badge>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-700">
-          {[
-            { key: 'search', label: 'Search' },
-            { key: 'codes', label: 'Ref Codes' },
-            { key: 'pad', label: 'Notepad' },
-          ].map(t => (
+        <div className="flex border-b border-slate-700 flex-shrink-0 overflow-x-auto">
+          {TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                "flex-1 py-2.5 text-xs font-medium transition-colors",
+                "flex-1 py-2.5 text-[11px] font-medium transition-colors whitespace-nowrap px-2",
                 tab === t.key
-                  ? "text-amber-400 border-b-2 border-amber-400"
+                  ? "text-amber-400 border-b-2 border-amber-400 bg-white/3"
                   : "text-slate-400 hover:text-slate-200"
               )}
             >
@@ -140,12 +313,12 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
           ))}
         </div>
 
-        {/* Content */}
+        {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
 
           {/* SEARCH TAB */}
           {tab === 'search' && (
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                 <input
@@ -161,15 +334,13 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
                   const code = generateRefCode(c);
                   const price = c.selling_price || c.base_price || 0;
                   return (
-                    <div key={c.id} className="bg-white/5 border border-white/10 rounded-xl p-3 hover:border-amber-500/30 transition-all group">
+                    <div key={c.id} className="bg-white/5 border border-white/10 rounded-xl p-3 hover:border-amber-500/30 transition-all">
                       <div className="flex items-start justify-between gap-1 mb-1.5">
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-white truncate">{c.name}</p>
                           <p className="text-[10px] text-slate-400">{c.destination}</p>
                         </div>
-                        {price > 0 && (
-                          <span className="text-[10px] font-bold text-amber-400 flex-shrink-0">₱{Number(price).toLocaleString()}</span>
-                        )}
+                        {price > 0 && <span className="text-[10px] font-bold text-amber-400 flex-shrink-0">₱{Number(price).toLocaleString()}</span>}
                       </div>
                       <div className="flex items-center gap-1 mb-2">
                         <code className="text-[9px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded flex-1 truncate">{code}</code>
@@ -188,9 +359,9 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
                     </div>
                   );
                 })}
+                {results.length === 0 && <p className="text-center text-xs text-slate-500 py-6">No packages found</p>}
               </div>
 
-              {/* Recent */}
               {recentImports.length > 0 && (
                 <div className="pt-2 border-t border-white/10">
                   <p className="text-[10px] text-slate-400 flex items-center gap-1 mb-2">
@@ -216,15 +387,16 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
           {/* REF CODES TAB */}
           {tab === 'codes' && (
             <div className="p-4 space-y-3">
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                All package reference codes. Click to load, or copy to share.
-              </p>
+              <p className="text-[10px] text-slate-400">All package reference codes. Click to load, or copy to share.</p>
               <div className="space-y-1.5">
                 {collectives.map(c => {
                   const code = generateRefCode(c);
                   return (
                     <div key={c.id} className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 hover:bg-white/8 group transition-all">
-                      <code className="text-[10px] font-mono text-amber-300 flex-1 truncate">{code}</code>
+                      <div className="flex-1 min-w-0">
+                        <code className="text-[10px] font-mono text-amber-300 block truncate">{code}</code>
+                        <span className="text-[9px] text-slate-500 truncate">{c.name}</span>
+                      </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => copyCode(code, c.id)} className="text-slate-400 hover:text-amber-400 transition-colors">
                           {copied === c.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
@@ -244,16 +416,15 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
           {tab === 'pad' && (
             <div className="p-4 space-y-3">
               <p className="text-[10px] text-slate-400 leading-relaxed">
-                Paste reference codes, package details, or itineraries. The system auto-detects and pre-fills fields.
+                Paste a ref code <span className="font-mono text-amber-400">EZQ-JAPAN-2026-XXXXX</span>, raw package details, or any text. System auto-detects fields.
               </p>
               <textarea
                 value={padText}
                 onChange={e => handlePadChange(e.target.value)}
                 rows={10}
-                placeholder={"Paste here:\n• EZQ-JAPAN-2026-XXXXX\n• Package name / destination\n• Duration, dates, price\n• Any raw package details"}
+                placeholder={"Paste here:\n• EZQ-JAPAN-2026-XXXXX\n• Package name / destination\n• Duration, dates, pricing\n• Inclusions, exclusions\n• Any raw package details"}
                 className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-slate-300 placeholder:text-slate-600 font-mono outline-none focus:border-amber-500/50 resize-none transition-colors"
               />
-
               {parseResult && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
                   {parseResult.collective ? (
@@ -272,7 +443,6 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
                       </div>
                     </div>
                   ) : null}
-
                   <div className="flex gap-2">
                     <Button size="sm" className="flex-1 h-7 text-xs gradient-gold text-white border-0 gap-1" onClick={handleImport}>
                       <Zap className="w-3 h-3" /> {parseResult.collective ? 'Load Package' : 'Pre-fill Fields'}
@@ -284,6 +454,11 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
                 </div>
               )}
             </div>
+          )}
+
+          {/* AI PARSE TAB */}
+          {tab === 'ai' && (
+            <AIParseTab onFieldsDetected={(fields) => { onLoadPackage(fields); }} />
           )}
         </div>
       </div>

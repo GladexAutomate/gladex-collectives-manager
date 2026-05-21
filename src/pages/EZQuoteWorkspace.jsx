@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
-  Plus, Search, Filter, Save, RefreshCw, CheckCircle, ArrowRight,
-  Calculator, FileText, Plane, Hotel, Users, DollarSign, Info,
-  Package, Zap, Trash2, ChevronDown, ChevronUp, MoreVertical,
-  Copy, Shuffle, Star, TrendingUp, Clock, BookOpen
+  Plus, Search, Save, RefreshCw, CheckCircle, ArrowRight,
+  Calculator, FileText, Plane, Hotel, DollarSign, Info,
+  Package, Zap, Trash2, MoreVertical, Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,35 +70,44 @@ const BLANK_QUOTE = () => ({
 
 // ─── Sidebar Package Row ──────────────────────────────────────────────────────
 
-function PackageListItem({ collective, isSelected, onSelect, bookingCount }) {
+function PackageListItem({ collective, isSelected, onSelect, onDelete }) {
+  const [showMenu, setShowMenu] = useState(false);
   const price = collective.selling_price || collective.base_price || 0;
   const sc = STATUS_CONFIG[collective.status] || STATUS_CONFIG.draft;
   const refCode = generateRefCode(collective);
 
   return (
-    <button
-      onClick={() => onSelect(collective)}
+    <div
       className={cn(
-        "w-full text-left px-3 py-3 border-b border-border hover:bg-muted/40 transition-all group",
-        isSelected && "bg-amber-50 dark:bg-amber-950/20 border-l-2 border-l-amber-500"
+        "relative w-full border-b border-border group transition-all",
+        isSelected ? "bg-amber-50 dark:bg-amber-950/20 border-l-2 border-l-amber-500" : "hover:bg-muted/40"
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className={cn("text-xs font-semibold truncate", isSelected ? "text-amber-700 dark:text-amber-400" : "text-foreground")}>
-            {collective.name}
-          </p>
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-            <Plane className="w-2.5 h-2.5" /> {collective.destination}
-          </p>
+      <button onClick={() => onSelect(collective)} className="w-full text-left px-3 py-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className={cn("text-xs font-semibold truncate", isSelected ? "text-amber-700 dark:text-amber-400" : "text-foreground")}>
+              {collective.name}
+            </p>
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+              <Plane className="w-2.5 h-2.5" /> {collective.destination}
+            </p>
+          </div>
+          <Badge className={cn("text-[8px] flex-shrink-0", sc.class)}>{sc.label}</Badge>
         </div>
-        <Badge className={cn("text-[8px] flex-shrink-0", sc.class)}>{sc.label}</Badge>
-      </div>
-      <div className="flex items-center justify-between mt-1.5">
-        <code className="text-[9px] font-mono text-muted-foreground/60">{refCode}</code>
-        {price > 0 && <span className="text-[10px] font-bold text-amber-600">₱{Number(price).toLocaleString()}</span>}
-      </div>
-    </button>
+        <div className="flex items-center justify-between mt-1.5">
+          <code className="text-[9px] font-mono text-muted-foreground/60">{refCode}</code>
+          {price > 0 && <span className="text-[10px] font-bold text-amber-600">₱{Number(price).toLocaleString()}</span>}
+        </div>
+      </button>
+      {/* Delete action — appears on hover */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(collective); }}
+        className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 opacity-0 group-hover:opacity-100 transition-all"
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
+    </div>
   );
 }
 
@@ -160,6 +168,9 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
   const [saved, setSaved] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isNewPackage, setIsNewPackage] = useState(false);
+  const [autoSaveTimer, setAutoSaveTimer] = useState(null);
+  const [autoSaved, setAutoSaved] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   // Sync external collectives
   useEffect(() => {
@@ -170,7 +181,49 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
     base44.entities.Booking.list().then(setBookings).catch(() => {});
   }, []);
 
-  const setQ = useCallback((key, val) => setQuote(prev => ({ ...prev, [key]: val })), []);
+  const setQ = useCallback((key, val) => {
+    setQuote(prev => {
+      const next = { ...prev, [key]: val };
+      // Auto-save debounce (only for existing packages)
+      if (selectedCollective?.id) {
+        if (autoSaveTimer) clearTimeout(autoSaveTimer);
+        const t = setTimeout(async () => {
+          const bForeign = Number(next.base_cost_foreign) || 0;
+          const eRate = Number(next.exchange_rate) || 1;
+          const bPHP = next.currency === 'PHP' ? bForeign : bForeign * eRate;
+          const mPHP = next.use_markup_pct ? bPHP * (Number(next.markup_pct) / 100) : Number(next.markup_php) || 0;
+          await base44.entities.Collective.update(selectedCollective.id, {
+            name: next.package_name,
+            destination: next.destination,
+            travel_type: next.travel_type,
+            operator_name: next.operator_name,
+            departure_date: next.departure_date || undefined,
+            return_date: next.return_date || undefined,
+            base_price_currency: next.currency,
+            base_price_foreign: bForeign,
+            exchange_rate: eRate,
+            base_price_php: bPHP,
+            markup_amount: mPHP,
+            selling_price: bPHP + mPHP,
+            commission_amount: Number(next.commission_per_pax),
+            downpayment_required: Number(next.downpayment_required),
+            total_slots: Number(next.pax_estimate) || 0,
+            inclusions: next.inclusions,
+            exclusions: next.exclusions,
+            cancellation_policy: next.cancellation_policy,
+            optional_tours: next.optional_tours,
+            flight_details: next.flight_details,
+            remarks: next.remarks,
+            status: next.status || 'draft',
+          });
+          setAutoSaved(true);
+          setTimeout(() => setAutoSaved(false), 2000);
+        }, 2000);
+        setAutoSaveTimer(t);
+      }
+      return next;
+    });
+  }, [selectedCollective, autoSaveTimer]);
 
   // ── Load collective into editor ──
   const loadCollective = useCallback((c) => {
@@ -277,6 +330,18 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
     if (onCollectivesChange) onCollectivesChange();
   };
 
+  // ── Delete package ──
+  const handleDelete = async (collective) => {
+    await base44.entities.Collective.delete(collective.id);
+    if (selectedCollective?.id === collective.id) {
+      setSelectedCollective(null);
+      setIsNewPackage(false);
+      setQuote(BLANK_QUOTE());
+    }
+    setConfirmDelete(null);
+    if (onCollectivesChange) onCollectivesChange();
+  };
+
   // ── Filter packages ──
   const filtered = collectives.filter(c => {
     const q = search.toLowerCase();
@@ -339,7 +404,7 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                 collective={c}
                 isSelected={selectedCollective?.id === c.id}
                 onSelect={loadCollective}
-                bookingCount={bookings.filter(b => b.collective_id === c.id).length}
+                onDelete={(c) => setConfirmDelete(c)}
               />
             ))
           )}
@@ -402,6 +467,11 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                     ))}
                   </SelectContent>
                 </Select>
+                {autoSaved && (
+                  <span className="text-[10px] text-emerald-600 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Auto-saved
+                  </span>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -677,6 +747,31 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
         collectives={collectives}
         onLoadPackage={(c) => { loadCollective(c); setSidebarOpen(false); }}
       />
+
+      {/* ── Confirm Delete Modal ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/30 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-foreground">Delete Package?</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">This will permanently delete <strong>{confirmDelete.name}</strong> and all associated data.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmDelete(null)} className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => handleDelete(confirmDelete)} className="px-3 py-1.5 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors">
+                Delete Package
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
