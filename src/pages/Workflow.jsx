@@ -33,39 +33,123 @@ const PHASES = [
 ];
 
 const DEFAULT_TASKS = [
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Identify potential operators/suppliers', priority: 'high' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request costing/quotation from operator', priority: 'high' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Destination research & competitor pricing', priority: 'medium' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Review and evaluate operator proposal', priority: 'high', requires_approval: true },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Compute profitability & markup', priority: 'high' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Management approval for pricing', priority: 'urgent', requires_approval: true },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Build EZQuote / price sheet', priority: 'high' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Prepare inclusions & exclusions list', priority: 'medium' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Finalize itinerary document', priority: 'high' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Upload collective in system', priority: 'high' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Endorse to Marketing Team', priority: 'high' },
-  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Design promotional poster', priority: 'high' },
-  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Post on Facebook', priority: 'high' },
-  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Post on Instagram', priority: 'high' },
-  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Send e-blast to client database', priority: 'medium' },
-  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 8, stage_name: 'Reservation & Slot Holding', task_name: 'Confirm slot availability with operator', priority: 'high' },
-  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 8, stage_name: 'Reservation & Slot Holding', task_name: 'Track and monitor slot requests', priority: 'medium' },
-  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: 'Issue payment instructions/invoice', priority: 'high' },
-  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: 'Collect and verify downpayments', priority: 'high' },
-  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: 'Monitor payment due dates', priority: 'urgent' },
-  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 10, stage_name: 'Booking Confirmation', task_name: 'Confirm booking with operator', priority: 'urgent' },
-  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 10, stage_name: 'Booking Confirmation', task_name: 'Send booking confirmation to clients', priority: 'high' },
-  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Collect passport copies from all pax', priority: 'urgent' },
-  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Prepare visa applications', priority: 'urgent' },
-  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Submit visa applications to embassy', priority: 'urgent' },
-  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Monitor visa status', priority: 'urgent' },
-  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING', stage_number: 12, stage_name: 'Pre-Departure Coordination', task_name: 'Prepare final passenger manifest', priority: 'urgent' },
-  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING', stage_number: 12, stage_name: 'Pre-Departure Coordination', task_name: 'Conduct pre-departure briefing', priority: 'high' },
-  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING', stage_number: 13, stage_name: 'During Travel', task_name: 'Monitor group status daily', priority: 'urgent' },
-  { phase_number: 6, phase_name: 'SALES INCOME', stage_number: 14, stage_name: 'Post-Travel Evaluation', task_name: 'Reconcile final payments', priority: 'high' },
-  { phase_number: 6, phase_name: 'SALES INCOME', stage_number: 14, stage_name: 'Post-Travel Evaluation', task_name: 'Compute final commissions', priority: 'high' },
-  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Send post-trip survey to all clients', priority: 'high' },
-  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Analyze client satisfaction scores', priority: 'medium' },
+  // PHASE 1 — GATHER
+  // Stage 1 — Product Sourcing | Product Development Team
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Identify potential collectives from partner operators', department: 'product_development', priority: 'high', order_index: 1 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Check marketability and demand of destination', department: 'product_development', priority: 'high', order_index: 2 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Compare competitor pricing', department: 'product_development', priority: 'medium', order_index: 3 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Review operator reputation and reliability', department: 'product_development', priority: 'medium', order_index: 4 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Inclusions', department: 'product_development', priority: 'high', order_index: 5 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Exclusions', department: 'product_development', priority: 'high', order_index: 6 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Flight details', department: 'product_development', priority: 'high', order_index: 7 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Hotel details', department: 'product_development', priority: 'high', order_index: 8 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Terms & conditions', department: 'product_development', priority: 'medium', order_index: 9 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Payment deadlines', department: 'product_development', priority: 'high', order_index: 10 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Cancellation policy', department: 'product_development', priority: 'medium', order_index: 11 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Agent Commission', department: 'product_development', priority: 'high', order_index: 12 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Confirm commission structure', department: 'product_development', priority: 'high', order_index: 13 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Confirm guaranteed departure status', department: 'product_development', priority: 'medium', order_index: 14 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Confirm seat/blocking allocation availability', department: 'product_development', priority: 'high', order_index: 15 },
+  // Stage 2 — Product Evaluation & Approval | Product Development + Management
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Evaluate profitability and commission margin', department: 'product_development', priority: 'high', requires_approval: true, order_index: 1 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Review selling price competitiveness', department: 'product_development', priority: 'high', order_index: 2 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Check risk exposure and operator credibility', department: 'management', priority: 'high', order_index: 3 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Review payment schedules and deadlines', department: 'management', priority: 'urgent', order_index: 4 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Approve product for selling', department: 'management', priority: 'urgent', requires_approval: true, order_index: 5 },
+  // Stage 3 — Product Creation | Product Development Team
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Create internal EZquote', department: 'product_development', priority: 'high', order_index: 1 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Add mark-up/buffer', department: 'product_development', priority: 'high', order_index: 2 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Convert rates into peso if applicable', department: 'product_development', priority: 'high', order_index: 3 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Add buffer for currency exchange', department: 'product_development', priority: 'medium', order_index: 4 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Prepare internal costing', department: 'product_development', priority: 'high', order_index: 5 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Create optional tour list', department: 'product_development', priority: 'medium', order_index: 6 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 3, stage_name: 'Product Creation', task_name: 'Prepare terms and conditions', department: 'product_development', priority: 'medium', order_index: 7 },
+  // Stage 4 — Internal Documentation | Admin
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Save operator tariff in Google Drive', department: 'admin', priority: 'high', order_index: 1 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Save operator contact details', department: 'admin', priority: 'medium', order_index: 2 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Save payment deadlines', department: 'admin', priority: 'high', order_index: 3 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Save operator posters and materials', department: 'admin', priority: 'medium', order_index: 4 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Update destination tracker', department: 'admin', priority: 'high', order_index: 5 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Update collective monitoring tracker', department: 'admin', priority: 'high', order_index: 6 },
+  // Stage 5 — Upload in Collectives Tracker | Product Development Dept
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Upload collective package in Google Drive', department: 'product_development', priority: 'high', order_index: 1 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Encode departure dates', department: 'product_development', priority: 'high', order_index: 2 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Encode pricing', department: 'product_development', priority: 'high', order_index: 3 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Encode flight details', department: 'product_development', priority: 'high', order_index: 4 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Encode available slots', department: 'product_development', priority: 'high', order_index: 5 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Encode payment deadlines', department: 'product_development', priority: 'urgent', order_index: 6 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Add remarks and booking conditions', department: 'product_development', priority: 'medium', order_index: 7 },
+  // Stage 6 — Marketing Endorsement | Marketing Team
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Receive finalized package details', department: 'marketing', priority: 'high', order_index: 1 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Create official marketing poster if needed', department: 'marketing', priority: 'high', order_index: 2 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Prepare optional tour posters', department: 'marketing', priority: 'medium', order_index: 3 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Ensure itinerary visuals are accurate', department: 'marketing', priority: 'high', order_index: 4 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Prepare reels/videos aligned with itinerary only', department: 'marketing', priority: 'medium', order_index: 5 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Prepare social media captions', department: 'marketing', priority: 'medium', order_index: 6 },
+  { phase_number: 1, phase_name: 'GATHER', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Prepare E-blast materials', department: 'marketing', priority: 'medium', order_index: 7 },
+  // PHASE 2 — LAUNCHING
+  // Stage 7 — Product Launch | Product Development + Marketing
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Endorse package in Product Update GC', department: 'product_development', priority: 'high', order_index: 1 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Obtain acknowledgment from Sales Team', department: 'marketing', priority: 'high', order_index: 2 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Make a Product Update post', department: 'marketing', priority: 'high', order_index: 3 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Upload/post to Facebook', department: 'marketing', priority: 'high', order_index: 4 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Upload/post to Instagram', department: 'marketing', priority: 'high', order_index: 5 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Upload/post to Website', department: 'marketing', priority: 'high', order_index: 6 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Upload/post to Sub-agent groups (POTB)', department: 'marketing', priority: 'medium', order_index: 7 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 7, stage_name: 'Product Launch', task_name: 'Release promotional materials', department: 'marketing', priority: 'medium', order_index: 8 },
+  // Stage 8 — Reservation & Slot Holding | Sales Team / Admin
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 8, stage_name: 'Reservation & Slot Holding', task_name: 'Receive booking inquiry', department: 'sales', priority: 'high', order_index: 1 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 8, stage_name: 'Reservation & Slot Holding', task_name: 'Coordinate with operator for slot availability', department: 'sales', priority: 'high', order_index: 2 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 8, stage_name: 'Reservation & Slot Holding', task_name: 'Hold reservation if allowed by operator', department: 'admin', priority: 'high', order_index: 3 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 8, stage_name: 'Reservation & Slot Holding', task_name: 'Check payment deadline', department: 'admin', priority: 'urgent', order_index: 4 },
+  { phase_number: 2, phase_name: 'LAUNCHING', stage_number: 8, stage_name: 'Reservation & Slot Holding', task_name: 'Inform client of payment terms', department: 'sales', priority: 'high', order_index: 5 },
+  // PHASE 3 — SALES
+  // Stage 9 — Payment Coordination | Sales + Accounting
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: 'Collect downpayment/full payment from client', department: 'accounting', priority: 'urgent', order_index: 1 },
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: 'Coordinate payment deadline with Accounting', department: 'sales', priority: 'urgent', order_index: 2 },
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: 'Ensure payment is processed BEFORE operator deadline', department: 'accounting', priority: 'urgent', order_index: 3 },
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: '⚠ STRICT RULE: Internal deadline must be earlier than supplier deadline (buffer period)', department: 'management', priority: 'urgent', order_index: 4 },
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 9, stage_name: 'Payment Coordination', task_name: 'Set internal deadline at least 15-30 days before supplier deadline', department: 'admin', priority: 'urgent', order_index: 5 },
+  // Stage 10 — Booking Confirmation | Admin
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 10, stage_name: 'Booking Confirmation', task_name: 'Send passenger details to operator', department: 'admin', priority: 'urgent', order_index: 1 },
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 10, stage_name: 'Booking Confirmation', task_name: 'Secure booking confirmation', department: 'admin', priority: 'urgent', order_index: 2 },
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 10, stage_name: 'Booking Confirmation', task_name: 'Request booking reference', department: 'admin', priority: 'high', order_index: 3 },
+  { phase_number: 3, phase_name: 'SALES & BOOKING', stage_number: 10, stage_name: 'Booking Confirmation', task_name: 'Update slot inventory tracker', department: 'admin', priority: 'high', order_index: 4 },
+  // PHASE 4 — DOCUMENTATION
+  // Stage 11 — Documentation | Admin Team / Visa
+  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Collect passport copies/documents', department: 'visa', priority: 'urgent', order_index: 1 },
+  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Assist visa requirements if applicable', department: 'visa', priority: 'urgent', order_index: 2 },
+  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Send reminders for lacking requirements (if there is visa needed)', department: 'visa', priority: 'urgent', order_index: 3 },
+  { phase_number: 4, phase_name: 'DOCUMENTATION', stage_number: 11, stage_name: 'Documentation', task_name: 'Send travel reminders and confirmations', department: 'admin', priority: 'high', order_index: 4 },
+  // PHASE 5 — PRE-DEPARTURE & ONGOING TRAVEL
+  // Stage 12 — Pre-Departure Coordination | Admin / Operations
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 12, stage_name: 'Pre-Departure Coordination', task_name: 'Reconfirm booking with operator', department: 'operations', priority: 'urgent', order_index: 1 },
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 12, stage_name: 'Pre-Departure Coordination', task_name: 'Request final itinerary', department: 'operations', priority: 'high', order_index: 2 },
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 12, stage_name: 'Pre-Departure Coordination', task_name: 'Request emergency contact details', department: 'admin', priority: 'high', order_index: 3 },
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 12, stage_name: 'Pre-Departure Coordination', task_name: 'Send travel vouchers to clients', department: 'admin', priority: 'high', order_index: 4 },
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 12, stage_name: 'Pre-Departure Coordination', task_name: 'Coordinate special requests if any', department: 'operations', priority: 'medium', order_index: 5 },
+  // Stage 13 — During Travel | Operations / Sales Support
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 13, stage_name: 'During Travel', task_name: 'Monitor trip status', department: 'operations', priority: 'urgent', order_index: 1 },
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 13, stage_name: 'During Travel', task_name: 'Coordinate with operator during emergencies/disruptions', department: 'operations', priority: 'urgent', order_index: 2 },
+  { phase_number: 5, phase_name: 'PRE-DEPARTURE & ONGOING TRAVEL', stage_number: 13, stage_name: 'During Travel', task_name: 'Monitor client satisfaction during trip', department: 'sales', priority: 'high', order_index: 3 },
+  // PHASE 6 — SALES INCOME
+  // Stage 14 — Post-Travel Evaluation | Sales Manager
+  { phase_number: 6, phase_name: 'SALES INCOME', stage_number: 14, stage_name: 'Post-Travel Evaluation', task_name: 'Record number of pax sold', department: 'sales', priority: 'high', order_index: 1 },
+  { phase_number: 6, phase_name: 'SALES INCOME', stage_number: 14, stage_name: 'Post-Travel Evaluation', task_name: 'Record total revenue generated', department: 'accounting', priority: 'high', order_index: 2 },
+  { phase_number: 6, phase_name: 'SALES INCOME', stage_number: 14, stage_name: 'Post-Travel Evaluation', task_name: 'Record total commission earned', department: 'accounting', priority: 'high', order_index: 3 },
+  { phase_number: 6, phase_name: 'SALES INCOME', stage_number: 14, stage_name: 'Post-Travel Evaluation', task_name: 'Conduct profitability review', department: 'management', priority: 'high', requires_approval: true, order_index: 4 },
+  { phase_number: 6, phase_name: 'SALES INCOME', stage_number: 14, stage_name: 'Post-Travel Evaluation', task_name: 'Document recommendation for future selling', department: 'management', priority: 'medium', order_index: 5 },
+  // PHASE 7 — CLIENT EVALUATION
+  // Stage 15 — Post-Trip Evaluation & Client Feedback | Admin / Sales Agent
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Send post-trip evaluation form/survey to clients within 3–5 days after travel', department: 'sales', priority: 'high', order_index: 1 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Hotel Experience', department: 'admin', priority: 'medium', order_index: 2 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Tour quality', department: 'admin', priority: 'medium', order_index: 3 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Flight Experience', department: 'admin', priority: 'medium', order_index: 4 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Tour guide service', department: 'admin', priority: 'medium', order_index: 5 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Transfers and transportation', department: 'admin', priority: 'medium', order_index: 6 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Optional tours', department: 'admin', priority: 'medium', order_index: 7 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Overall satisfaction', department: 'admin', priority: 'high', order_index: 8 },
+  { phase_number: 7, phase_name: 'CLIENT EVALUATION', stage_number: 15, stage_name: 'Post-Trip Evaluation & Client Feedback', task_name: 'Survey covers: Suggestions and Improvements', department: 'admin', priority: 'medium', order_index: 9 },
 ];
 
 const STAGE_DEPARTMENTS = {
@@ -141,8 +225,54 @@ export default function Workflow() {
   };
 
   const updateTaskStatus = async (task, newStatus) => {
-    await base44.entities.ChecklistTask.update(task.id, { status: newStatus, completed_at: newStatus === 'completed' ? new Date().toISOString() : null });
-    setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+    const now = new Date().toISOString();
+    await base44.entities.ChecklistTask.update(task.id, {
+      status: newStatus,
+      completed_at: newStatus === 'completed' ? now : null,
+    });
+
+    const updatedTasks = tasks.map(t => t.id === task.id ? { ...t, status: newStatus, completed_at: newStatus === 'completed' ? now : null } : t);
+    setTasks(updatedTasks);
+
+    // AUTO-COMPLETION CASCADE: Stage → Phase → Collective
+    if (newStatus === 'completed' && selectedCollective) {
+      // Check if all tasks in this stage are now completed
+      const stageTasks = updatedTasks.filter(t => t.stage_number === task.stage_number && t.collective_id === selectedCollective);
+      const stageComplete = stageTasks.length > 0 && stageTasks.every(t => t.status === 'completed');
+
+      if (stageComplete) {
+        // Check if all stages in this phase are completed
+        const phase = PHASES.find(p => p.number === task.phase_number);
+        if (phase) {
+          const allPhaseStageNums = phase.stages.map(s => s.number);
+          const allPhaseTasks = updatedTasks.filter(t => allPhaseStageNums.includes(t.stage_number) && t.collective_id === selectedCollective);
+          const phaseComplete = allPhaseTasks.length > 0 && allPhaseTasks.every(t => t.status === 'completed');
+
+          // Auto-update collective phase/stage progress
+          const currentCollective = collectives.find(c => c.id === selectedCollective);
+          if (currentCollective) {
+            const nextStageInPhase = phase.stages.find(s => s.number > task.stage_number);
+            const nextPhase = PHASES.find(p => p.number === task.phase_number + 1);
+
+            if (phaseComplete && nextPhase) {
+              // Advance to next phase
+              await base44.entities.Collective.update(selectedCollective, {
+                current_phase: nextPhase.number,
+                current_stage: nextPhase.stages[0]?.number || task.stage_number + 1,
+              });
+              setCollectives(prev => prev.map(c => c.id === selectedCollective ? { ...c, current_phase: nextPhase.number } : c));
+            } else if (!phaseComplete && nextStageInPhase) {
+              // Advance to next stage in current phase
+              await base44.entities.Collective.update(selectedCollective, { current_stage: nextStageInPhase.number });
+            } else if (phaseComplete && !nextPhase) {
+              // All phases complete — mark collective as completed
+              await base44.entities.Collective.update(selectedCollective, { status: 'completed' });
+              setCollectives(prev => prev.map(c => c.id === selectedCollective ? { ...c, status: 'completed' } : c));
+            }
+          }
+        }
+      }
+    }
   };
 
   const openEditTask = (task) => { setEditingTask(task); setTaskForm({ ...task }); setShowTaskModal(true); };
@@ -401,43 +531,64 @@ export default function Workflow() {
                         const stageTasks = getTasksForStage(stage.number);
                         return (
                           <div key={stage.number} className="p-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <h4 className="text-sm font-semibold text-foreground">Stage {stage.number}: {stage.name}</h4>
-                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                  {(STAGE_DEPARTMENTS[stage.number] || []).map(d => (
-                                    <span key={d} className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", DEPT_COLORS[d])}>{DEPT_LABELS[d]}</span>
-                                  ))}
-                                  <span className="text-[10px] text-muted-foreground">{stageTasks.length} tasks</span>
-                                </div>
-                              </div>
-                              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => openNewTask(phase.number, stage.number, stage.name)}>
-                                <Plus className="w-3 h-3" /> Add
-                              </Button>
+                            {/* Stage Header — matches reference image dark row style */}
+                        <div className="flex items-center justify-between bg-slate-800 dark:bg-slate-900 text-white px-3 py-2.5 -mx-4 mb-0">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <span className="text-xs font-bold text-white whitespace-nowrap">STAGE {stage.number} — {stage.name.toUpperCase()}</span>
+                            <span className="text-slate-400 text-[10px]">|</span>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {(STAGE_DEPARTMENTS[stage.number] || []).map(d => (
+                                <span key={d} className="text-[10px] text-slate-300 font-medium">{DEPT_LABELS[d]}</span>
+                              ))}
                             </div>
-                            <div className="space-y-2">
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-[10px] text-slate-400">{stageTasks.filter(t=>t.status==='completed').length}/{stageTasks.length}</span>
+                            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-slate-300 hover:text-white hover:bg-slate-700 px-2" onClick={() => openNewTask(phase.number, stage.number, stage.name)}>
+                              <Plus className="w-3 h-3" /> Add
+                            </Button>
+                          </div>
+                        </div>
+                        {/* Column headers */}
+                        <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/60 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                          <span className="w-8">#</span>
+                          <span className="flex-1">Checklist Item</span>
+                          <span className="w-20 text-right hidden md:block">Status</span>
+                          <span className="w-24 text-right hidden md:block">Assigned To</span>
+                          <span className="w-20 text-right hidden md:block">Due / Done</span>
+                        </div>
+                            <div className="space-y-1">
                               {stageTasks.length === 0 ? (
                                 <p className="text-xs text-muted-foreground italic py-2 pl-2">No tasks — add tasks or initialize workflow</p>
-                              ) : stageTasks.map(task => {
+                              ) : stageTasks
+                                  .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+                                  .map((task, taskIdx) => {
                                 const StatusIcon = taskStatusConfig[task.status]?.icon || Circle;
+                                const taskNum = `${stage.number}.${(task.order_index || taskIdx + 1)}`;
+                                const isWarning = task.task_name.startsWith('⚠');
                                 return (
-                                  <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/60 transition-colors group">
-                                    <button className="mt-0.5 flex-shrink-0" onClick={() => {
+                                  <div key={task.id} className={cn("flex items-center gap-3 px-3 py-2.5 border-b border-border/40 hover:bg-muted/40 transition-colors group", isWarning && "bg-rose-50/50 dark:bg-rose-950/20")}>
+                                    <span className="text-[10px] text-muted-foreground w-8 flex-shrink-0 font-mono">{taskNum}</span>
+                                    <button className="flex-shrink-0" onClick={() => {
                                       const next = task.status === 'pending' ? 'in_progress' : task.status === 'in_progress' ? 'completed' : 'pending';
                                       updateTaskStatus(task, next);
                                     }}>
-                                      <StatusIcon className={cn("w-4 h-4", taskStatusConfig[task.status]?.class)} />
+                                      <StatusIcon className={cn("w-4 h-4", taskStatusConfig[task.status]?.class, task.status === 'in_progress' && "animate-spin")} />
                                     </button>
                                     <div className="flex-1 min-w-0">
-                                      <p className={cn("text-sm font-medium", task.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground')}>{task.task_name}</p>
-                                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                        <Badge className={cn("text-[10px]", priorityConfig[task.priority])}>{task.priority}</Badge>
-                                        {task.department && <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium", DEPT_COLORS[task.department] || 'bg-muted text-muted-foreground')}>{DEPT_LABELS[task.department] || task.department}</span>}
-                                        {task.due_date && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                                        {task.requires_approval && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Needs Approval</span>}
-                                      </div>
+                                      <p className={cn("text-sm", task.status === 'completed' ? 'line-through text-muted-foreground' : isWarning ? 'text-rose-700 dark:text-rose-400 font-medium' : 'text-foreground')}>
+                                        {task.task_name}
+                                      </p>
                                     </div>
-                                    <button className="opacity-0 group-hover:opacity-100 text-xs text-muted-foreground hover:text-foreground transition-all" onClick={() => openEditTask(task)}>Edit</button>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium capitalize", taskStatusConfig[task.status]?.class, "bg-transparent border-0")}>
+                                        {taskStatusConfig[task.status]?.label || 'Pending'}
+                                      </span>
+                                      {task.assigned_to && <span className="text-[10px] text-muted-foreground hidden md:inline">{task.assigned_to}</span>}
+                                      {task.due_date && <span className="text-[10px] text-muted-foreground hidden md:inline">{new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+                                      {task.requires_approval && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded hidden sm:inline">Approval</span>}
+                                      <button className="opacity-0 group-hover:opacity-100 text-[10px] text-muted-foreground hover:text-foreground transition-all" onClick={() => openEditTask(task)}>Edit</button>
+                                    </div>
                                   </div>
                                 );
                               })}
