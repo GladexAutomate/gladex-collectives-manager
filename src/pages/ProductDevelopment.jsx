@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import PackageCard from '@/components/product/PackageCard';
 import EZQuoteWorkspace from '@/pages/EZQuoteWorkspace';
+import WorkflowProgressBar from '@/components/workflow/WorkflowProgressBar';
 
 const STATUS_CONFIG = {
   draft:               { label: 'Draft',              class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
@@ -157,13 +158,15 @@ export default function ProductDevelopment() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filtered.map(c => (
-                <PackageCard
-                  key={c.id}
-                  collective={c}
-                  assetCount={marketingAssets.filter(a => a.collective_id === c.id).length}
-                  bookingCount={bookings.filter(b => b.collective_id === c.id).length}
-                  statusConfig={STATUS_CONFIG}
-                />
+                <div key={c.id} className="space-y-2">
+                  <PackageCard
+                    collective={c}
+                    assetCount={marketingAssets.filter(a => a.collective_id === c.id).length}
+                    bookingCount={bookings.filter(b => b.collective_id === c.id).length}
+                    statusConfig={STATUS_CONFIG}
+                  />
+                  <WorkflowProgressBar collectiveId={c.id} compact={true} />
+                </div>
               ))}
             </div>
           )}
