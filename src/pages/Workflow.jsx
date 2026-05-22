@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
   CheckSquare, ChevronRight, ChevronDown, Clock, AlertTriangle, CheckCircle, Circle,
-  Loader2, X, Kanban, LayoutList, Users, Plane, Zap, RefreshCw, BarChart2
+  Loader2, X, Kanban, LayoutList, Users, Plane, Zap, RefreshCw, BarChart2, Bot, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,6 +72,8 @@ export default function Workflow() {
   const [regenerating, setRegenerating] = useState(false);
   const [updatingTask, setUpdatingTask] = useState(null);
   const [updatingStage, setUpdatingStage] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   useEffect(() => {
     base44.entities.Collective.list().then(setCollectives);
@@ -116,6 +118,17 @@ export default function Workflow() {
     const fresh = await base44.entities.ChecklistTask.filter({ collective_id: collectiveId });
     setTasks(fresh);
     setInitializing(false);
+  };
+
+  const syncExistingData = async () => {
+    if (!selectedCollective) return;
+    setSyncing(true);
+    setSyncResult(null);
+    const res = await base44.functions.invoke('syncExistingData', { collective_id: selectedCollective });
+    const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
+    setTasks(fresh);
+    setSyncResult(res.data);
+    setSyncing(false);
   };
 
   const reGenerateWorkflow = async () => {
@@ -184,7 +197,12 @@ export default function Workflow() {
           <h2 className="text-xl font-bold font-jakarta text-foreground flex items-center gap-2">
             <Zap className="w-5 h-5 text-primary" /> Workflow Engine
           </h2>
-          <p className="text-sm text-muted-foreground">Auto-Generated · 7 Phases · 15 Stages · 90 Checklist Items</p>
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+            Auto-Generated · 7 Phases · 15 Stages · 90 Checklist Items
+            <span className="inline-flex items-center gap-1 text-[10px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-medium">
+              <Bot className="w-2.5 h-2.5" /> Smart Action Sync Active
+            </span>
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" variant={viewMode === 'kanban' ? 'default' : 'outline'} className={cn("gap-1.5 h-8 text-xs", viewMode === 'kanban' && "gradient-gold text-white border-0")} onClick={() => setViewMode('kanban')}>
@@ -296,6 +314,16 @@ export default function Workflow() {
                 <Button
                   size="sm"
                   variant="outline"
+                  onClick={syncExistingData}
+                  disabled={syncing}
+                  className="gap-1.5 h-8 text-xs text-sky-600 border-sky-200 hover:bg-sky-50"
+                >
+                  {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  Auto-Sync Now
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={reGenerateWorkflow}
                   disabled={regenerating}
                   className="gap-1.5 h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
@@ -315,6 +343,31 @@ export default function Workflow() {
                 <p className="text-sm font-semibold text-amber-700">Auto-generating workflow...</p>
                 <p className="text-xs text-amber-600">Creating 90 checklist items across 7 phases & 15 stages</p>
               </div>
+            </div>
+          )}
+
+          {/* Syncing loader */}
+          {syncing && (
+            <div className="flex items-center gap-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-xl p-4">
+              <Sparkles className="w-5 h-5 animate-pulse text-sky-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-sky-700">Smart Sync in progress...</p>
+                <p className="text-xs text-sky-600">Scanning all existing system data — bookings, payments, assets, documents</p>
+              </div>
+            </div>
+          )}
+
+          {/* Sync result banner */}
+          {syncResult && !syncing && (
+            <div className="flex items-start gap-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-xl p-4">
+              <Bot className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-emerald-700">Auto-Sync Complete — {syncResult.workflow_progress?.completion_pct || 0}% workflow progress</p>
+                <p className="text-xs text-emerald-600 mt-0.5">
+                  Scanned: {syncResult.synced_entities?.marketing_assets || 0} assets · {syncResult.synced_entities?.bookings || 0} bookings · {syncResult.synced_entities?.payments || 0} payments · {syncResult.synced_entities?.documents || 0} documents · {syncResult.synced_entities?.surveys || 0} surveys
+                </p>
+              </div>
+              <button onClick={() => setSyncResult(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
           )}
 
@@ -470,6 +523,11 @@ export default function Workflow() {
                                                 </p>
                                               </div>
                                               <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                {task.status === 'completed' && task.notes?.includes('Auto-completed') && (
+                                                  <span title="Auto-completed by system" className="flex items-center gap-0.5 text-[9px] text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded hidden sm:inline-flex">
+                                                    <Bot className="w-2.5 h-2.5" /> Auto
+                                                  </span>
+                                                )}
                                                 <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden sm:inline-flex", priorityConfig[task.priority])}>{task.priority}</Badge>
                                                 <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden md:inline-flex", DEPT_COLORS[task.department])}>{DEPT_LABELS[task.department]}</Badge>
                                                 {task.requires_approval && <Badge className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700 hidden sm:inline-flex">Approval</Badge>}

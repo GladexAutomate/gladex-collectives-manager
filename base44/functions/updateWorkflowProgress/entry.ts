@@ -21,13 +21,10 @@ const STAGE_TO_STATUS = {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     const body = await req.json();
-    const { collective_id } = body;
+    // Support both direct calls and entity automation payloads
+    const collective_id = body.collective_id || body.event?.entity_id || body.data?.id;
     if (!collective_id) {
       return Response.json({ error: 'collective_id is required' }, { status: 400 });
     }
