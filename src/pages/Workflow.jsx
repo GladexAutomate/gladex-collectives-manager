@@ -1,79 +1,109 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
-  CheckSquare, ChevronRight, ChevronDown, Clock, AlertTriangle, CheckCircle, Circle,
-  Loader2, X, Kanban, LayoutList, Users, Plane, Zap, RefreshCw, BarChart2, Bot, Sparkles
+  CheckCircle, Circle, Loader2, AlertTriangle, X,
+  ChevronDown, ChevronRight, Bot, Sparkles, RefreshCw,
+  Zap, BarChart2, Users, Clock, CheckSquare, ListChecks,
+  Building2, Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import DepartmentWorkflowView from '@/components/workflow/DepartmentWorkflowView';
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 const PHASES = [
-  { number: 1, name: 'PRODUCT PREPARATION', color: 'amber', stages: [
-    { number: 1, name: 'Product Sourcing' }, { number: 2, name: 'Product Evaluation & Approval' },
-    { number: 3, name: 'Product Creation' }, { number: 4, name: 'Internal Documentation' },
-    { number: 5, name: 'Upload in Collectives Tracker' }, { number: 6, name: 'Marketing Endorsement' },
-  ]},
-  { number: 2, name: 'LAUNCHING', color: 'sky', stages: [
-    { number: 7, name: 'Product Launch' }, { number: 8, name: 'Reservation & Slot Holding' },
-  ]},
-  { number: 3, name: 'SALES', color: 'emerald', stages: [
-    { number: 9, name: 'Payment Coordination' }, { number: 10, name: 'Booking Confirmation' },
-  ]},
-  { number: 4, name: 'DOCUMENTATION', color: 'purple', stages: [{ number: 11, name: 'Documentation' }] },
-  { number: 5, name: 'PRE-DEPARTURE & ONGOING TRAVEL', color: 'orange', stages: [
-    { number: 12, name: 'Pre-Departure Coordination' }, { number: 13, name: 'During Travel' },
-  ]},
-  { number: 6, name: 'SALES INCOME', color: 'rose', stages: [{ number: 14, name: 'Post-Travel Evaluation' }] },
-  { number: 7, name: 'CLIENT EVALUATION', color: 'teal', stages: [{ number: 15, name: 'Post-Trip Evaluation & Client Feedback' }] },
+  { number: 1, name: 'PRODUCT PREPARATION', color: 1, stages: [1,2,3,4,5,6] },
+  { number: 2, name: 'LAUNCHING',           color: 2, stages: [7,8] },
+  { number: 3, name: 'SALES',               color: 3, stages: [9,10] },
+  { number: 4, name: 'DOCUMENTATION',       color: 4, stages: [11] },
+  { number: 5, name: 'PRE-DEPARTURE & ONGOING TRAVEL', color: 5, stages: [12,13] },
+  { number: 6, name: 'SALES INCOME',        color: 6, stages: [14] },
+  { number: 7, name: 'CLIENT EVALUATION',   color: 7, stages: [15] },
 ];
 
+const STAGE_NAMES = {
+  1: 'Product Sourcing', 2: 'Product Evaluation & Approval', 3: 'Product Creation',
+  4: 'Internal Documentation', 5: 'Upload in Collectives Tracker', 6: 'Marketing Endorsement',
+  7: 'Product Launch', 8: 'Reservation & Slot Holding',
+  9: 'Payment Coordination', 10: 'Booking Confirmation',
+  11: 'Documentation',
+  12: 'Pre-Departure Coordination', 13: 'During Travel',
+  14: 'Post-Travel Evaluation',
+  15: 'Post-Trip Evaluation & Client Feedback',
+};
+
 const STAGE_DEPARTMENTS = {
-  1: ['product_development'], 2: ['product_development', 'management'], 3: ['product_development'],
-  4: ['admin'], 5: ['product_development'], 6: ['marketing'], 7: ['product_development', 'marketing'],
-  8: ['sales', 'admin'], 9: ['sales', 'accounting'], 10: ['admin'], 11: ['admin', 'visa'],
-  12: ['admin', 'operations'], 13: ['operations', 'sales'], 14: ['sales'], 15: ['admin'],
+  1: ['product_development'], 2: ['product_development','management'], 3: ['product_development'],
+  4: ['admin'], 5: ['product_development'], 6: ['marketing'],
+  7: ['product_development','marketing'], 8: ['sales','admin'],
+  9: ['sales','accounting'], 10: ['admin'],
+  11: ['admin','visa'],
+  12: ['admin','operations'], 13: ['operations','sales'],
+  14: ['sales','accounting'],
+  15: ['admin'],
 };
 
-const DEPT_LABELS = { product_development: 'Product Dev', marketing: 'Marketing', sales: 'Sales', accounting: 'Accounting', admin: 'Admin', operations: 'Operations', visa: 'Visa', management: 'Management' };
-const DEPT_COLORS = { product_development: 'bg-amber-100 text-amber-700', marketing: 'bg-pink-100 text-pink-700', sales: 'bg-emerald-100 text-emerald-700', accounting: 'bg-purple-100 text-purple-700', admin: 'bg-sky-100 text-sky-700', operations: 'bg-orange-100 text-orange-700', visa: 'bg-rose-100 text-rose-700', management: 'bg-slate-100 text-slate-700' };
-const priorityConfig = { low: 'bg-slate-100 text-slate-600', medium: 'bg-sky-100 text-sky-700', high: 'bg-amber-100 text-amber-700', urgent: 'bg-rose-100 text-rose-700' };
-const taskStatusConfig = { pending: { icon: Circle, label: 'Pending', class: 'text-slate-400' }, in_progress: { icon: Loader2, label: 'In Progress', class: 'text-sky-500', spin: true }, completed: { icon: CheckCircle, label: 'Done', class: 'text-emerald-500' }, delayed: { icon: AlertTriangle, label: 'Delayed', class: 'text-rose-500' }, cancelled: { icon: X, label: 'Cancelled', class: 'text-slate-400' } };
-
-const phaseColorMap = {
-  1: { bg: 'bg-amber-500', text: 'text-amber-600', light: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800' },
-  2: { bg: 'bg-sky-500', text: 'text-sky-600', light: 'bg-sky-50 dark:bg-sky-950/20', border: 'border-sky-200 dark:border-sky-800' },
-  3: { bg: 'bg-emerald-500', text: 'text-emerald-600', light: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-800' },
-  4: { bg: 'bg-purple-500', text: 'text-purple-600', light: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200 dark:border-purple-800' },
-  5: { bg: 'bg-orange-500', text: 'text-orange-600', light: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-200 dark:border-orange-800' },
-  6: { bg: 'bg-rose-500', text: 'text-rose-600', light: 'bg-rose-50 dark:bg-rose-950/20', border: 'border-rose-200 dark:border-rose-800' },
-  7: { bg: 'bg-teal-500', text: 'text-teal-600', light: 'bg-teal-50 dark:bg-teal-950/20', border: 'border-teal-200 dark:border-teal-800' },
+const phaseColors = {
+  1: { bg: 'bg-amber-500',   text: 'text-amber-700 dark:text-amber-400',   light: 'bg-amber-50 dark:bg-amber-950/20',   border: 'border-amber-200 dark:border-amber-800' },
+  2: { bg: 'bg-sky-500',     text: 'text-sky-700 dark:text-sky-400',       light: 'bg-sky-50 dark:bg-sky-950/20',       border: 'border-sky-200 dark:border-sky-800' },
+  3: { bg: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', light: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200 dark:border-emerald-800' },
+  4: { bg: 'bg-purple-500',  text: 'text-purple-700 dark:text-purple-400', light: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200 dark:border-purple-800' },
+  5: { bg: 'bg-orange-500',  text: 'text-orange-700 dark:text-orange-400', light: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-200 dark:border-orange-800' },
+  6: { bg: 'bg-rose-500',    text: 'text-rose-700 dark:text-rose-400',     light: 'bg-rose-50 dark:bg-rose-950/20',     border: 'border-rose-200 dark:border-rose-800' },
+  7: { bg: 'bg-teal-500',    text: 'text-teal-700 dark:text-teal-400',     light: 'bg-teal-50 dark:bg-teal-950/20',     border: 'border-teal-200 dark:border-teal-800' },
 };
 
-const LIFECYCLE_STAGES = ['draft', 'open_booking', 'confirmed_departure', 'ongoing', 'completed', 'cancelled'];
-const LIFECYCLE_LABELS = { draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure', ongoing: 'Ongoing Travel', completed: 'Completed', cancelled: 'Cancelled' };
-const LIFECYCLE_COLORS = { draft: 'bg-slate-100 text-slate-600', open_booking: 'bg-teal-100 text-teal-700', confirmed_departure: 'bg-sky-100 text-sky-700', ongoing: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-rose-100 text-rose-700' };
+const DEPT_CONFIG = {
+  product_development: { label: 'Product Dev', short: 'PD', bg: 'bg-amber-500',   badge: 'bg-amber-100 text-amber-700',   text: 'text-amber-700' },
+  marketing:           { label: 'Marketing',   short: 'MK', bg: 'bg-pink-500',    badge: 'bg-pink-100 text-pink-700',     text: 'text-pink-700' },
+  sales:               { label: 'Sales',       short: 'SL', bg: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-700' },
+  accounting:          { label: 'Accounting',  short: 'AC', bg: 'bg-purple-500',  badge: 'bg-purple-100 text-purple-700', text: 'text-purple-700' },
+  admin:               { label: 'Admin',       short: 'AD', bg: 'bg-sky-500',     badge: 'bg-sky-100 text-sky-700',       text: 'text-sky-700' },
+  operations:          { label: 'Operations',  short: 'OP', bg: 'bg-orange-500',  badge: 'bg-orange-100 text-orange-700', text: 'text-orange-700' },
+  visa:                { label: 'Visa',        short: 'VS', bg: 'bg-rose-500',    badge: 'bg-rose-100 text-rose-700',     text: 'text-rose-700' },
+  management:          { label: 'Management',  short: 'MG', bg: 'bg-slate-500',   badge: 'bg-slate-100 text-slate-700',   text: 'text-slate-700' },
+};
 
-// ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
+const TASK_STATUS = {
+  pending:     { icon: Circle,        label: 'Pending',     cls: 'text-slate-400' },
+  in_progress: { icon: Loader2,       label: 'In Progress', cls: 'text-sky-500',     spin: true },
+  completed:   { icon: CheckCircle,   label: 'Done',        cls: 'text-emerald-500' },
+  delayed:     { icon: AlertTriangle, label: 'Delayed',     cls: 'text-rose-500' },
+  cancelled:   { icon: X,            label: 'Cancelled',   cls: 'text-slate-400' },
+};
+
+const PRIORITY_COLORS = {
+  low: 'bg-slate-100 text-slate-600', medium: 'bg-sky-100 text-sky-700',
+  high: 'bg-amber-100 text-amber-700', urgent: 'bg-rose-100 text-rose-700',
+};
+
+const LIFECYCLE_LABELS = {
+  draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed',
+  ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled',
+};
+const LIFECYCLE_COLORS = {
+  draft: 'bg-slate-100 text-slate-600', open_booking: 'bg-teal-100 text-teal-700',
+  confirmed_departure: 'bg-sky-100 text-sky-700', ongoing: 'bg-amber-100 text-amber-700',
+  completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-rose-100 text-rose-700',
+};
+
+// ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function Workflow() {
   const [collectives, setCollectives] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [selectedCollective, setSelectedCollective] = useState('');
-  const [expandedPhases, setExpandedPhases] = useState({ 1: true });
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [view, setView] = useState('department'); // 'department' | 'phases'
   const [deptFilter, setDeptFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('kanban');
-  const [checklistSubView, setChecklistSubView] = useState('full'); // 'full' | 'department'
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [expandedPhases, setExpandedPhases] = useState({ 1: true });
   const [initializing, setInitializing] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [updatingTask, setUpdatingTask] = useState(null);
-  const [updatingStage, setUpdatingStage] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [updatingTask, setUpdatingTask] = useState(null);
 
   useEffect(() => {
     base44.entities.Collective.list().then(setCollectives);
@@ -82,29 +112,20 @@ export default function Workflow() {
       else if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
       else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
     });
-    // Check URL param
     const params = new URLSearchParams(window.location.search);
     const cid = params.get('collective');
-    if (cid) { setSelectedCollective(cid); setViewMode('checklist'); }
+    if (cid) setSelectedCollective(cid);
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    if (selectedCollective) {
-      base44.entities.ChecklistTask.filter({ collective_id: selectedCollective }).then(data => {
-        setTasks(data);
-        // Auto-initialize if no tasks exist yet
-        if (data.length === 0) {
-          autoInitWorkflow(selectedCollective);
-        }
-      });
-    } else {
-      base44.entities.ChecklistTask.list('-created_date', 300).then(setTasks);
-    }
-
+    if (!selectedCollective) { setTasks([]); return; }
+    base44.entities.ChecklistTask.filter({ collective_id: selectedCollective }).then(data => {
+      setTasks(data);
+      if (data.length === 0) autoInitWorkflow(selectedCollective);
+    });
     const unsub = base44.entities.ChecklistTask.subscribe(e => {
-      const relevant = !selectedCollective || e.data?.collective_id === selectedCollective || e.collective_id === selectedCollective;
-      if (!relevant) return;
+      if (e.data?.collective_id !== selectedCollective) return;
       if (e.type === 'create') setTasks(p => [...p, e.data]);
       else if (e.type === 'update') setTasks(p => p.map(t => t.id === e.id ? e.data : t));
       else if (e.type === 'delete') setTasks(p => p.filter(t => t.id !== e.id));
@@ -112,18 +133,17 @@ export default function Workflow() {
     return () => unsub();
   }, [selectedCollective]);
 
-  const autoInitWorkflow = async (collectiveId) => {
+  const autoInitWorkflow = async (id) => {
     setInitializing(true);
-    await base44.functions.invoke('autoGenerateWorkflow', { collective_id: collectiveId });
-    const fresh = await base44.entities.ChecklistTask.filter({ collective_id: collectiveId });
+    await base44.functions.invoke('autoGenerateWorkflow', { collective_id: id });
+    const fresh = await base44.entities.ChecklistTask.filter({ collective_id: id });
     setTasks(fresh);
     setInitializing(false);
   };
 
-  const syncExistingData = async () => {
+  const syncData = async () => {
     if (!selectedCollective) return;
-    setSyncing(true);
-    setSyncResult(null);
+    setSyncing(true); setSyncResult(null);
     const res = await base44.functions.invoke('syncExistingData', { collective_id: selectedCollective });
     const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
     setTasks(fresh);
@@ -131,429 +151,396 @@ export default function Workflow() {
     setSyncing(false);
   };
 
-  const reGenerateWorkflow = async () => {
+  const regenWorkflow = async () => {
     if (!selectedCollective) return;
     setRegenerating(true);
     await base44.functions.invoke('autoGenerateWorkflow', { collective_id: selectedCollective, force_regenerate: true });
     const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
-    setTasks(fresh);
-    setRegenerating(false);
+    setTasks(fresh); setRegenerating(false);
   };
 
-  const updateTaskStatus = async (task, newStatus) => {
+  const updateTask = async (task, newStatus) => {
     setUpdatingTask(task.id);
     const now = new Date().toISOString();
     await base44.entities.ChecklistTask.update(task.id, {
       status: newStatus,
       completed_at: newStatus === 'completed' ? now : null,
     });
-    const updated = tasks.map(t => t.id === task.id ? { ...t, status: newStatus, completed_at: newStatus === 'completed' ? now : null } : t);
-    setTasks(updated);
+    setTasks(p => p.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
     setUpdatingTask(null);
-
-    // Trigger server-side progress recalculation
-    if (selectedCollective) {
-      base44.functions.invoke('updateWorkflowProgress', { collective_id: selectedCollective }).catch(() => {});
-    }
+    base44.functions.invoke('updateWorkflowProgress', { collective_id: selectedCollective }).catch(() => {});
   };
 
-  const moveCollectiveStage = async (collective, newStatus) => {
-    setUpdatingStage(collective.id);
-    await base44.entities.Collective.update(collective.id, { status: newStatus });
-    setCollectives(prev => prev.map(c => c.id === collective.id ? { ...c, status: newStatus } : c));
-    setUpdatingStage(null);
-  };
+  const collective = collectives.find(c => c.id === selectedCollective);
+  const totalDone = tasks.filter(t => t.status === 'completed').length;
+  const totalProgress = tasks.length > 0 ? Math.round((totalDone / tasks.length) * 100) : 0;
+  const pendingCount = tasks.filter(t => t.status === 'pending').length;
+  const inProgressCount = tasks.filter(t => t.status === 'in_progress').length;
+  const blockedCount = tasks.filter(t => t.status === 'delayed').length;
 
-  const filteredTasks = tasks.filter(t => {
-    const matchStatus = statusFilter === 'all' || t.status === statusFilter;
-    const matchDept = deptFilter === 'all' || t.department === deptFilter;
-    return matchStatus && matchDept;
-  });
-
-  const getTasksForStage = (stageNumber) => filteredTasks.filter(t => t.stage_number === stageNumber);
-  const getPhaseProgress = (phaseNumber) => {
-    const pt = tasks.filter(t => t.phase_number === phaseNumber);
+  const getPhaseProgress = (phaseNum) => {
+    const pt = tasks.filter(t => t.phase_number === phaseNum);
     if (!pt.length) return 0;
     return Math.round((pt.filter(t => t.status === 'completed').length / pt.length) * 100);
   };
 
-  const totalCompleted = tasks.filter(t => t.status === 'completed').length;
-  const totalProgress = tasks.length > 0 ? Math.round((totalCompleted / tasks.length) * 100) : 0;
-  const togglePhase = (n) => setExpandedPhases(prev => ({ ...prev, [n]: !prev[n] }));
+  // Dept stats for summary
+  const deptStats = Object.entries(DEPT_CONFIG).map(([dept, cfg]) => {
+    const dt = tasks.filter(t => t.department === dept);
+    const done = dt.filter(t => t.status === 'completed').length;
+    return { dept, cfg, total: dt.length, done, pct: dt.length ? Math.round((done / dt.length) * 100) : 0 };
+  }).filter(d => d.total > 0);
 
-  const selectedCollectiveObj = collectives.find(c => c.id === selectedCollective);
+  // Phase checklist view filtered tasks
+  const filteredTasks = tasks.filter(t => {
+    const ms = statusFilter === 'all' || t.status === statusFilter;
+    const md = deptFilter === 'all' || t.department === deptFilter;
+    return ms && md;
+  });
 
-  const kanbanCols = LIFECYCLE_STAGES.filter(s => s !== 'cancelled').map(stage => ({
-    stage, label: LIFECYCLE_LABELS[stage], color: LIFECYCLE_COLORS[stage],
-    items: collectives.filter(c => (c.status || 'draft') === stage),
-  }));
-
-  // ─── RENDER ───────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold font-jakarta text-foreground flex items-center gap-2">
             <Zap className="w-5 h-5 text-primary" /> Workflow Engine
           </h2>
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-            Auto-Generated · 7 Phases · 15 Stages · 90 Checklist Items
-            <span className="inline-flex items-center gap-1 text-[10px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-medium">
-              <Bot className="w-2.5 h-2.5" /> Smart Action Sync Active
-            </span>
+          <p className="text-sm text-muted-foreground">
+            Department-based operational tracker · 7 Phases · 15 Stages · 90 Checklist Items
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button size="sm" variant={viewMode === 'kanban' ? 'default' : 'outline'} className={cn("gap-1.5 h-8 text-xs", viewMode === 'kanban' && "gradient-gold text-white border-0")} onClick={() => setViewMode('kanban')}>
-            <Kanban className="w-3.5 h-3.5" /> Destination Board
-          </Button>
-          <Button size="sm" variant={viewMode === 'checklist' ? 'default' : 'outline'} className={cn("gap-1.5 h-8 text-xs", viewMode === 'checklist' && "gradient-gold text-white border-0")} onClick={() => setViewMode('checklist')}>
-            <CheckSquare className="w-3.5 h-3.5" /> Checklist View
-          </Button>
+
+        {/* Collective selector + action buttons */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <Select value={selectedCollective || ''} onValueChange={v => { setSelectedCollective(v); setSyncResult(null); }}>
+            <SelectTrigger className="w-60 h-9 text-sm"><SelectValue placeholder="Select a package..." /></SelectTrigger>
+            <SelectContent>
+              {collectives.map(c => (
+                <SelectItem key={c.id} value={c.id}>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", LIFECYCLE_COLORS[c.status || 'draft'].split(' ')[0])} />
+                    {c.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {selectedCollective && (
+            <>
+              <Button size="sm" variant="outline" onClick={syncData} disabled={syncing}
+                className="h-9 gap-1.5 text-xs text-sky-600 border-sky-200 hover:bg-sky-50">
+                {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                Auto-Sync
+              </Button>
+              <Button size="sm" variant="outline" onClick={regenWorkflow} disabled={regenerating}
+                className="h-9 gap-1.5 text-xs text-rose-600 border-rose-200 hover:bg-rose-50">
+                {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                Reset
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* ═══ KANBAN VIEW ═══ */}
-      {viewMode === 'kanban' && (
-        <div className="space-y-4">
-          {/* Stats */}
-          <div className="bg-card rounded-xl border border-border p-4 shadow-sm">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-primary">{collectives.length}</p><p className="text-xs text-muted-foreground">Total Collectives</p></div>
-              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-teal-600">{collectives.filter(c => c.status === 'open_booking').length}</p><p className="text-xs text-muted-foreground">Open Booking</p></div>
-              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-amber-600">{collectives.filter(c => c.status === 'ongoing').length}</p><p className="text-xs text-muted-foreground">Ongoing Travel</p></div>
-              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-emerald-600">{collectives.filter(c => c.status === 'completed').length}</p><p className="text-xs text-muted-foreground">Completed</p></div>
-            </div>
-          </div>
+      {/* ── No collective selected ── */}
+      {!selectedCollective && (
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <ListChecks className="w-12 h-12 text-primary mx-auto mb-4 opacity-40" />
+          <h3 className="font-bold font-jakarta text-lg text-foreground mb-2">Select a Package to View Workflow</h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Choose a collective above. Each package has an auto-generated department workflow with 7 phases, 15 stages, and 90 checklist items. Tasks auto-complete when you record activity in other modules.
+          </p>
+          {collectives.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-4 italic">No collectives found. Create one in the Collectives module first.</p>
+          )}
+        </div>
+      )}
 
-          {/* Open Booking info banner */}
-          <div className="bg-teal-50 dark:bg-teal-950/20 border border-teal-200 rounded-xl px-4 py-3 text-xs text-teal-700 dark:text-teal-300">
-            <span className="font-semibold">🟢 Open Booking</span> = Package is active and visible for selling — accepting bookings now. Departments may still be completing their assigned workflow tasks in parallel.
-          </div>
-
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {kanbanCols.map(col => (
-              <div key={col.stage} className="flex-shrink-0 w-72">
-                <div className={cn("flex items-center justify-between px-3 py-2 rounded-t-lg mb-2", col.color)}>
-                  <span className="text-xs font-semibold">{col.label}</span>
-                  <span className="text-xs font-bold">{col.items.length}</span>
-                </div>
-                <div className="space-y-2 min-h-[80px]">
-                  {col.items.map(c => {
-                    const pct = c.total_slots > 0 ? Math.round(((c.booked_pax || 0) / c.total_slots) * 100) : 0;
-                    const sellingPrice = c.selling_price || c.base_price;
-                    const nextStageIdx = LIFECYCLE_STAGES.indexOf(col.stage);
-                    const nextStage = LIFECYCLE_STAGES[nextStageIdx + 1];
-                    const wfPct = c.checklist_completion || 0;
-                    return (
-                      <div key={c.id} className="bg-card border border-border rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <p className="text-xs font-semibold text-foreground font-jakarta line-clamp-2">{c.name}</p>
-                            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5"><Plane className="w-2.5 h-2.5" /> {c.destination}</p>
-                          </div>
-                          <button onClick={() => { setSelectedCollective(c.id); setViewMode('checklist'); }} className="text-muted-foreground hover:text-primary ml-2 flex-shrink-0">
-                            <CheckSquare className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-                          <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5" />{c.booked_pax || 0}/{c.total_slots || 0}</span>
-                          {sellingPrice > 0 && <span className="font-medium text-emerald-600">₱{Number(sellingPrice).toLocaleString()}</span>}
-                        </div>
-                        {/* Workflow progress mini bar */}
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-amber-400 rounded-full transition-all" style={{ width: `${wfPct}%` }} />
-                          </div>
-                          <span className="text-[9px] text-muted-foreground font-mono">{wfPct}%</span>
-                        </div>
-                        {nextStage && (
-                          <button
-                            disabled={updatingStage === c.id}
-                            onClick={() => moveCollectiveStage(c, nextStage)}
-                            className="w-full text-[10px] text-center text-primary hover:underline flex items-center justify-center gap-1 mt-1"
-                          >
-                            {updatingStage === c.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronRight className="w-3 h-3" />}
-                            Move to {LIFECYCLE_LABELS[nextStage]}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {col.items.length === 0 && (
-                    <div className="border-2 border-dashed border-border rounded-xl p-4 text-center">
-                      <p className="text-[10px] text-muted-foreground">No collectives</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+      {/* ── Initializing ── */}
+      {initializing && (
+        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 rounded-xl p-4">
+          <Loader2 className="w-5 h-5 animate-spin text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-amber-700">Generating workflow...</p>
+            <p className="text-xs text-amber-600">Creating 90 checklist items across 7 phases & 15 stages</p>
           </div>
         </div>
       )}
 
-      {/* ═══ CHECKLIST VIEW ═══ */}
-      {viewMode === 'checklist' && (
-        <div className="space-y-4">
-          {/* Collective selector + controls */}
-          <div className="flex flex-wrap gap-3 items-center">
-            <Select value={selectedCollective || ''} onValueChange={v => setSelectedCollective(v)}>
-              <SelectTrigger className="w-64"><SelectValue placeholder="Select a collective..." /></SelectTrigger>
-              <SelectContent>
-                {collectives.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+      {/* ── Syncing ── */}
+      {syncing && (
+        <div className="flex items-center gap-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-xl p-4">
+          <Sparkles className="w-5 h-5 animate-pulse text-sky-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-sky-700">Smart Sync in progress...</p>
+            <p className="text-xs text-sky-600">Scanning bookings, payments, assets, documents, surveys</p>
+          </div>
+        </div>
+      )}
 
-            {selectedCollective && (
-              <>
-                <div className="flex rounded-lg border border-border overflow-hidden">
-                  <button onClick={() => setChecklistSubView('full')} className={cn("px-3 py-1.5 text-xs font-medium transition-colors", checklistSubView === 'full' ? "bg-primary text-white" : "bg-card text-muted-foreground hover:text-foreground")}>
-                    Full Checklist
-                  </button>
-                  <button onClick={() => setChecklistSubView('department')} className={cn("px-3 py-1.5 text-xs font-medium transition-colors", checklistSubView === 'department' ? "bg-primary text-white" : "bg-card text-muted-foreground hover:text-foreground")}>
-                    By Department
-                  </button>
+      {/* ── Sync result ── */}
+      {syncResult && !syncing && (
+        <div className="flex items-start gap-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-xl p-4">
+          <Bot className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-emerald-700">
+              Auto-Sync Complete — {syncResult.workflow_progress?.completion_pct || 0}% overall progress
+            </p>
+            <p className="text-xs text-emerald-600 mt-0.5">
+              {syncResult.synced_entities?.marketing_assets || 0} assets · {syncResult.synced_entities?.bookings || 0} bookings · {syncResult.synced_entities?.payments || 0} payments · {syncResult.synced_entities?.documents || 0} docs · {syncResult.synced_entities?.surveys || 0} surveys
+            </p>
+          </div>
+          <button onClick={() => setSyncResult(null)} className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Main workflow content ── */}
+      {selectedCollective && !initializing && tasks.length > 0 && (
+        <>
+          {/* ── Collective status bar ── */}
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div>
+                  <h3 className="font-bold font-jakarta text-foreground text-base truncate">{collective?.name}</h3>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <Badge className={cn("text-xs", LIFECYCLE_COLORS[collective?.status || 'draft'])}>
+                      {LIFECYCLE_LABELS[collective?.status || 'draft']}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{collective?.destination}</span>
+                    {collective?.departure_date && (
+                      <span className="text-xs text-muted-foreground">· Departs {collective.departure_date}</span>
+                    )}
+                  </div>
                 </div>
+              </div>
+              {/* KPI strip */}
+              <div className="flex items-center gap-5 flex-shrink-0">
+                <div className="text-center">
+                  <p className="text-xl font-bold font-jakarta text-primary">{totalProgress}%</p>
+                  <p className="text-[10px] text-muted-foreground">Overall</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold font-jakarta text-emerald-600">{totalDone}</p>
+                  <p className="text-[10px] text-muted-foreground">Completed</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold font-jakarta text-sky-600">{inProgressCount}</p>
+                  <p className="text-[10px] text-muted-foreground">In Progress</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold font-jakarta text-slate-500">{pendingCount}</p>
+                  <p className="text-[10px] text-muted-foreground">Pending</p>
+                </div>
+                {blockedCount > 0 && (
+                  <div className="text-center">
+                    <p className="text-xl font-bold font-jakarta text-rose-600">{blockedCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Blocked</p>
+                  </div>
+                )}
+              </div>
+            </div>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={syncExistingData}
-                  disabled={syncing}
-                  className="gap-1.5 h-8 text-xs text-sky-600 border-sky-200 hover:bg-sky-50"
-                >
-                  {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  Auto-Sync Now
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={reGenerateWorkflow}
-                  disabled={regenerating}
-                  className="gap-1.5 h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50"
-                >
-                  {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                  Reset Workflow
-                </Button>
-              </>
+            {/* Progress bar */}
+            <Progress value={totalProgress} className="h-2 rounded-none" />
+
+            {/* Phase pills */}
+            <div className="px-5 py-3 flex gap-1.5 flex-wrap border-t border-border bg-muted/30">
+              {PHASES.map(phase => {
+                const c = phaseColors[phase.number];
+                const pct = getPhaseProgress(phase.number);
+                return (
+                  <div key={phase.number} className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border", c.light, c.border)}>
+                    <div className={cn("w-1.5 h-1.5 rounded-full", c.bg)} />
+                    <span className={c.text}>Ph.{phase.number}</span>
+                    <span className="text-muted-foreground">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── View Toggle ── */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex rounded-lg border border-border overflow-hidden bg-card">
+              <button
+                onClick={() => setView('department')}
+                className={cn("flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors",
+                  view === 'department' ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted/40")}
+              >
+                <Building2 className="w-3.5 h-3.5" /> By Department
+              </button>
+              <button
+                onClick={() => setView('phases')}
+                className={cn("flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors",
+                  view === 'phases' ? "bg-primary text-white" : "text-muted-foreground hover:text-foreground hover:bg-muted/40")}
+              >
+                <ListChecks className="w-3.5 h-3.5" /> Phase Checklist
+              </button>
+            </div>
+
+            {view === 'phases' && (
+              <div className="flex gap-2 ml-auto flex-wrap">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {Object.entries(TASK_STATUS).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={deptFilter} onValueChange={setDeptFilter}>
+                  <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {Object.entries(DEPT_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
 
-          {/* Auto-init loading */}
-          {initializing && (
-            <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 rounded-xl p-4">
-              <Loader2 className="w-5 h-5 animate-spin text-amber-600 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-amber-700">Auto-generating workflow...</p>
-                <p className="text-xs text-amber-600">Creating 90 checklist items across 7 phases & 15 stages</p>
-              </div>
-            </div>
+          {/* ═══ DEPARTMENT VIEW ═══ */}
+          {view === 'department' && (
+            <DepartmentWorkflowView collectiveId={selectedCollective} collectiveName={collective?.name} />
           )}
 
-          {/* Syncing loader */}
-          {syncing && (
-            <div className="flex items-center gap-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-xl p-4">
-              <Sparkles className="w-5 h-5 animate-pulse text-sky-600 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-sky-700">Smart Sync in progress...</p>
-                <p className="text-xs text-sky-600">Scanning all existing system data — bookings, payments, assets, documents</p>
-              </div>
-            </div>
-          )}
+          {/* ═══ PHASE CHECKLIST VIEW ═══ */}
+          {view === 'phases' && (
+            <div className="space-y-3">
+              {PHASES.map(phase => {
+                const c = phaseColors[phase.number];
+                const phaseTasks = filteredTasks.filter(t => t.phase_number === phase.number);
+                const allPhaseTasks = tasks.filter(t => t.phase_number === phase.number);
+                const phaseDone = allPhaseTasks.filter(t => t.status === 'completed').length;
+                const phasePct = getPhaseProgress(phase.number);
+                const expanded = expandedPhases[phase.number];
+                const stageNums = phase.stages;
 
-          {/* Sync result banner */}
-          {syncResult && !syncing && (
-            <div className="flex items-start gap-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-xl p-4">
-              <Bot className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-emerald-700">Auto-Sync Complete — {syncResult.workflow_progress?.completion_pct || 0}% workflow progress</p>
-                <p className="text-xs text-emerald-600 mt-0.5">
-                  Scanned: {syncResult.synced_entities?.marketing_assets || 0} assets · {syncResult.synced_entities?.bookings || 0} bookings · {syncResult.synced_entities?.payments || 0} payments · {syncResult.synced_entities?.documents || 0} documents · {syncResult.synced_entities?.surveys || 0} surveys
-                </p>
-              </div>
-              <button onClick={() => setSyncResult(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </div>
-          )}
+                return (
+                  <div key={phase.number} className={cn("rounded-xl border overflow-hidden shadow-sm", c.border)}>
+                    {/* Phase header */}
+                    <button
+                      onClick={() => setExpandedPhases(p => ({ ...p, [phase.number]: !p[phase.number] }))}
+                      className={cn("w-full flex items-center justify-between p-4 text-left", c.light)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0", c.bg)}>
+                          {phase.number}
+                        </div>
+                        <div>
+                          <p className={cn("font-bold font-jakarta text-sm", c.text)}>Phase {phase.number}: {phase.name}</p>
+                          <p className="text-xs text-muted-foreground">{phaseDone}/{allPhaseTasks.length} tasks · {phasePct}% complete</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="hidden sm:block w-28">
+                          <Progress value={phasePct} className="h-1.5" />
+                        </div>
+                        <span className={cn("text-sm font-bold", c.text)}>{phasePct}%</span>
+                        {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                    </button>
 
-          {!selectedCollective && (
-            <div className="bg-card rounded-xl border border-border p-8 text-center shadow-sm">
-              <Zap className="w-10 h-10 text-primary mx-auto mb-3 opacity-50" />
-              <h3 className="font-semibold font-jakarta text-foreground mb-1">Select a Collective</h3>
-              <p className="text-sm text-muted-foreground">Choose a collective above to view its auto-generated workflow. Workflows are created automatically when a collective is selected for the first time.</p>
-            </div>
-          )}
+                    {expanded && (
+                      <div className="divide-y divide-border bg-card">
+                        {stageNums.map(stageNum => {
+                          const stageTasks = phaseTasks.filter(t => t.stage_number === stageNum);
+                          const allStageTasks = tasks.filter(t => t.stage_number === stageNum);
+                          const stageDone = allStageTasks.filter(t => t.status === 'completed').length;
+                          const stageComplete = allStageTasks.length > 0 && stageDone === allStageTasks.length;
+                          const stageDepts = STAGE_DEPARTMENTS[stageNum] || [];
 
-          {selectedCollective && !initializing && tasks.length > 0 && (
-            <>
-              {/* Overall progress summary */}
-              <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold font-jakarta text-foreground">{selectedCollectiveObj?.name || 'Workflow Progress'}</h3>
-                    <p className="text-xs text-muted-foreground">{totalCompleted} of {tasks.length} checklist items complete · Phase {selectedCollectiveObj?.current_phase || 1} of 7</p>
-                  </div>
-                  <span className="text-2xl font-bold font-jakarta text-primary">{totalProgress}%</span>
-                </div>
-                <Progress value={totalProgress} className="h-2 mb-3" />
-                {/* Phase progress pills */}
-                <div className="flex gap-1.5 flex-wrap">
-                  {PHASES.map(phase => {
-                    const colors = phaseColorMap[phase.number];
-                    const pct = getPhaseProgress(phase.number);
-                    return (
-                      <button
-                        key={phase.number}
-                        onClick={() => togglePhase(phase.number)}
-                        className={cn("flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-medium border transition-all hover:opacity-80", colors.light, colors.border)}
-                      >
-                        <div className={cn("w-1.5 h-1.5 rounded-full", colors.bg)} />
-                        <span className={colors.text}>Ph.{phase.number}</span>
-                        <span className="text-muted-foreground">{pct}%</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ─── Department View ─── */}
-              {checklistSubView === 'department' && (
-                <DepartmentWorkflowView collectiveId={selectedCollective} collectiveName={selectedCollectiveObj?.name} />
-              )}
-
-              {/* ─── Full Checklist View ─── */}
-              {checklistSubView === 'full' && (
-                <div className="space-y-3">
-                  {/* Filters */}
-                  <div className="flex flex-wrap gap-3">
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        {Object.entries(taskStatusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={deptFilter} onValueChange={setDeptFilter}>
-                      <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Departments</SelectItem>
-                        {Object.entries(DEPT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Phase accordion */}
-                  {PHASES.map(phase => {
-                    const colors = phaseColorMap[phase.number];
-                    const progress = getPhaseProgress(phase.number);
-                    const expanded = expandedPhases[phase.number];
-                    const phaseTaskCount = tasks.filter(t => t.phase_number === phase.number).length;
-                    const phaseCompletedCount = tasks.filter(t => t.phase_number === phase.number && t.status === 'completed').length;
-                    return (
-                      <div key={phase.number} className={cn("rounded-xl border overflow-hidden shadow-sm", colors.border)}>
-                        <button onClick={() => togglePhase(phase.number)} className={cn("w-full flex items-center justify-between p-4 text-left", colors.light)}>
-                          <div className="flex items-center gap-3">
-                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold", colors.bg)}>{phase.number}</div>
-                            <div>
-                              <p className={cn("font-semibold font-jakarta text-sm", colors.text)}>Phase {phase.number}: {phase.name}</p>
-                              <p className="text-xs text-muted-foreground">{phaseCompletedCount}/{phaseTaskCount} tasks · {progress}% complete</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="hidden sm:block w-24"><Progress value={progress} className="h-1.5" /></div>
-                            <span className={cn("text-xs font-semibold", colors.text)}>{progress}%</span>
-                            {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                          </div>
-                        </button>
-
-                        {expanded && (
-                          <div className="divide-y divide-border bg-card">
-                            {phase.stages.map(stage => {
-                              const stageTasks = getTasksForStage(stage.number);
-                              const stageDone = stageTasks.filter(t => t.status === 'completed').length;
-                              const stageComplete = stageTasks.length > 0 && stageDone === stageTasks.length;
-                              return (
-                                <div key={stage.number}>
-                                  {/* Stage header */}
-                                  <div className={cn("flex items-center justify-between px-4 py-2.5", stageComplete ? "bg-emerald-800" : "bg-slate-800 dark:bg-slate-900")}>
-                                    <div className="flex items-center gap-3">
-                                      <span className="text-[10px] bg-white/10 text-white rounded px-2 py-0.5 font-mono font-bold">S{stage.number}</span>
-                                      <div>
-                                        <p className="text-xs font-bold text-white">{stage.name.toUpperCase()}</p>
-                                        <div className="flex items-center gap-1 mt-0.5">
-                                          {(STAGE_DEPARTMENTS[stage.number] || []).map(d => (
-                                            <span key={d} className="text-[9px] text-slate-300">{DEPT_LABELS[d]}</span>
-                                          ))}
-                                        </div>
-                                      </div>
+                          return (
+                            <div key={stageNum}>
+                              {/* Stage header */}
+                              <div className={cn("flex items-center justify-between px-4 py-2.5",
+                                stageComplete ? "bg-emerald-800" : "bg-slate-800 dark:bg-slate-900")}>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] bg-white/10 text-white rounded px-2 py-0.5 font-mono font-bold">S{stageNum}</span>
+                                  <div>
+                                    <p className="text-xs font-bold text-white">{STAGE_NAMES[stageNum]}</p>
+                                    <div className="flex gap-1 mt-0.5 flex-wrap">
+                                      {stageDepts.map(d => (
+                                        <span key={d} className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium", DEPT_CONFIG[d]?.badge)}>
+                                          {DEPT_CONFIG[d]?.short}
+                                        </span>
+                                      ))}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      {stageComplete && <CheckCircle className="w-4 h-4 text-emerald-300" />}
-                                      <span className="text-[10px] text-slate-300">{stageDone}/{stageTasks.length}</span>
-                                    </div>
-                                  </div>
-                                  {/* Task rows */}
-                                  <div className="divide-y divide-border/40">
-                                    {stageTasks.length === 0 ? (
-                                      <p className="text-xs text-muted-foreground italic py-2 pl-4">No tasks match current filters</p>
-                                    ) : stageTasks
-                                        .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-                                        .map((task, taskIdx) => {
-                                          const StatusIcon = taskStatusConfig[task.status]?.icon || Circle;
-                                          const isWarning = task.task_name.startsWith('⚠');
-                                          const isLoading = updatingTask === task.id;
-                                          return (
-                                            <div key={task.id} className={cn(
-                                              "flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors group",
-                                              isWarning && "bg-rose-50/50 dark:bg-rose-950/20",
-                                              task.status === 'completed' && "opacity-60"
-                                            )}>
-                                              <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-mono">{task.order_index || taskIdx + 1}</span>
-                                              <button
-                                                onClick={() => {
-                                                  const next = task.status === 'pending' ? 'in_progress' : task.status === 'in_progress' ? 'completed' : 'pending';
-                                                  updateTaskStatus(task, next);
-                                                }}
-                                                disabled={isLoading}
-                                                className="flex-shrink-0"
-                                              >
-                                                {isLoading
-                                                  ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                                                  : <StatusIcon className={cn("w-4 h-4", taskStatusConfig[task.status]?.class, taskStatusConfig[task.status]?.spin && "animate-spin")} />
-                                                }
-                                              </button>
-                                              <div className="flex-1 min-w-0">
-                                                <p className={cn("text-sm", task.status === 'completed' ? 'line-through text-muted-foreground' : isWarning ? 'text-rose-700 dark:text-rose-400 font-medium' : 'text-foreground')}>
-                                                  {task.task_name}
-                                                </p>
-                                              </div>
-                                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                                {task.status === 'completed' && task.notes?.includes('Auto-completed') && (
-                                                  <span title="Auto-completed by system" className="flex items-center gap-0.5 text-[9px] text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded hidden sm:inline-flex">
-                                                    <Bot className="w-2.5 h-2.5" /> Auto
-                                                  </span>
-                                                )}
-                                                <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden sm:inline-flex", priorityConfig[task.priority])}>{task.priority}</Badge>
-                                                <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden md:inline-flex", DEPT_COLORS[task.department])}>{DEPT_LABELS[task.department]}</Badge>
-                                                {task.requires_approval && <Badge className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700 hidden sm:inline-flex">Approval</Badge>}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                                <div className="flex items-center gap-2">
+                                  {stageComplete && <CheckCircle className="w-4 h-4 text-emerald-300" />}
+                                  <span className="text-[10px] text-slate-300 font-mono">{stageDone}/{allStageTasks.length}</span>
+                                </div>
+                              </div>
+
+                              {/* Task rows */}
+                              <div className="divide-y divide-border/40">
+                                {stageTasks.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic py-3 pl-14">No tasks match current filters</p>
+                                ) : stageTasks
+                                    .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+                                    .map((task, idx) => {
+                                      const sc = TASK_STATUS[task.status] || TASK_STATUS.pending;
+                                      const Icon = sc.icon;
+                                      const isWarning = task.task_name.startsWith('⚠');
+                                      const isLoading = updatingTask === task.id;
+                                      const deptCfg = DEPT_CONFIG[task.department];
+                                      return (
+                                        <div key={task.id} className={cn(
+                                          "flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors group",
+                                          isWarning && "bg-rose-50/40 dark:bg-rose-950/10",
+                                          task.status === 'completed' && "opacity-60"
+                                        )}>
+                                          <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-mono text-right">{task.order_index || idx + 1}</span>
+                                          <button
+                                            onClick={() => {
+                                              const next = task.status === 'pending' ? 'in_progress' : task.status === 'in_progress' ? 'completed' : 'pending';
+                                              updateTask(task, next);
+                                            }}
+                                            disabled={isLoading}
+                                            className="flex-shrink-0"
+                                          >
+                                            {isLoading
+                                              ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                              : <Icon className={cn("w-4 h-4", sc.cls, sc.spin && "animate-spin")} />}
+                                          </button>
+                                          <div className="flex-1 min-w-0">
+                                            <p className={cn("text-sm leading-snug",
+                                              task.status === 'completed' ? 'line-through text-muted-foreground' :
+                                              isWarning ? 'text-rose-700 dark:text-rose-400 font-medium' : 'text-foreground')}>
+                                              {task.task_name}
+                                            </p>
+                                          </div>
+                                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                                            {task.status === 'completed' && task.notes?.includes('Auto-completed') && (
+                                              <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
+                                                <Bot className="w-2.5 h-2.5" /> Auto
+                                              </span>
+                                            )}
+                                            <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden sm:inline-flex", PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
+                                            {deptCfg && <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden md:inline-flex", deptCfg.badge)}>{deptCfg.short}</Badge>}
+                                            {task.requires_approval && <Badge className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700 hidden sm:inline-flex">Approval</Badge>}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
