@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import PricingEngine from '@/components/collectives/PricingEngine';
 import TravelDatesManager from '@/components/collectives/TravelDatesManager';
-import RoomConfigurator from '@/components/collectives/RoomConfigurator';
 import AISmartImport from '@/components/collectives/AISmartImport';
 import WorkflowProgressBadge from '@/components/workflow/WorkflowProgressBadge';
 
@@ -25,8 +24,8 @@ const statusConfig = {
   cancelled: { label: 'Cancelled', class: 'bg-rose-100 text-rose-700' },
 };
 
-const MODAL_TABS = ['ai_import', 'basic', 'pricing', 'dates', 'rooms', 'details'];
-const TAB_LABELS = { ai_import: '✦ AI Import', basic: 'Basic Info', pricing: 'Pricing', dates: 'Travel Dates', rooms: 'Rooms & Rates', details: 'Details' };
+const MODAL_TABS = ['ai_import', 'basic', 'pricing', 'dates', 'details'];
+const TAB_LABELS = { ai_import: '✦ AI Import', basic: 'Basic Info', pricing: 'Pricing', dates: 'Travel Dates', details: 'Details' };
 
 export default function Collectives() {
   const [collectives, setCollectives] = useState([]);
@@ -71,14 +70,14 @@ export default function Collectives() {
 
   const openAdd = () => {
     setEditingCollective(null);
-    setFormData({ status: 'draft', travel_type: 'international', base_price_currency: 'PHP', exchange_rate: 1, current_phase: 1, current_stage: 1, travel_dates: [], room_configurations: [] });
+    setFormData({ status: 'draft', travel_type: 'international', base_price_currency: 'PHP', exchange_rate: 1, current_phase: 1, current_stage: 1, travel_dates: [] });
     setActiveTab('ai_import');
     setShowModal(true);
   };
 
   const openEdit = (c) => {
     setEditingCollective(c);
-    setFormData({ ...c, travel_dates: c.travel_dates || [], room_configurations: c.room_configurations || [] });
+    setFormData({ ...c, travel_dates: c.travel_dates || [] });
     setActiveTab('basic');
     setShowModal(true);
   };
@@ -409,13 +408,6 @@ export default function Collectives() {
           {activeTab === 'dates' && (
             <div className="mt-2">
               <TravelDatesManager formData={formData} setFormData={setFormData} />
-            </div>
-          )}
-
-          {/* Tab: Rooms & Rates */}
-          {activeTab === 'rooms' && (
-            <div className="mt-2">
-              <RoomConfigurator formData={formData} setFormData={setFormData} />
             </div>
           )}
 

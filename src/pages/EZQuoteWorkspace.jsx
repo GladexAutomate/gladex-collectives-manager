@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
   Plus, Search, Save, RefreshCw, CheckCircle, ArrowRight,
-  Calculator, FileText, Plane, Hotel, DollarSign, Info,
-  Package, Zap, Trash2, MoreVertical, Clock
+  Calculator, FileText, Plane, DollarSign,
+  Package, Zap, Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,15 +27,6 @@ const CURRENCIES = [
   { value: 'AUD', symbol: 'A$', label: 'AUD' },
 ];
 
-const HOTEL_CATEGORIES = [
-  { value: 'budget', label: '🏨 Budget' },
-  { value: 'standard', label: '🏨 Standard' },
-  { value: 'deluxe', label: '🏨 Deluxe' },
-  { value: '4star', label: '⭐ 4-Star' },
-  { value: '5star', label: '⭐ 5-Star' },
-  { value: 'luxury', label: '👑 Luxury' },
-];
-
 const STATUS_CONFIG = {
   draft:               { label: 'Draft',         class: 'bg-slate-100 text-slate-600' },
   for_approval:        { label: 'For Approval',  class: 'bg-purple-100 text-purple-700' },
@@ -48,13 +39,6 @@ const STATUS_CONFIG = {
   cancelled:           { label: 'Cancelled',      class: 'bg-rose-100 text-rose-700' },
 };
 
-const BLANK_HOTEL = () => ({
-  id: Date.now() + Math.random(),
-  category: 'standard', hotel_name: '', location: '',
-  twin: '', triple: '', quad: '', solo: '',
-  child_no_bed: '', child_bed: '', infant: '',
-});
-
 const BLANK_QUOTE = () => ({
   package_name: '', destination: '', travel_type: 'international',
   operator_name: '', departure_date: '', return_date: '', nights: '',
@@ -64,7 +48,6 @@ const BLANK_QUOTE = () => ({
   commission_per_pax: 0, downpayment_required: 0,
   inclusions: '', exclusions: '', cancellation_policy: '',
   optional_tours: '', flight_details: '', remarks: '',
-  hotel_rows: [BLANK_HOTEL()],
   status: 'draft',
 });
 
@@ -123,7 +106,6 @@ function EditorTabs({ active, onChange }) {
   const tabs = [
     { key: 'info', label: 'Package Info', icon: Package },
     { key: 'pricing', label: 'Pricing', icon: DollarSign },
-    { key: 'hotels', label: 'Hotels', icon: Hotel },
     { key: 'content', label: 'Inclusions & Terms', icon: FileText },
   ];
   return (
@@ -277,7 +259,6 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
       optional_tours: c.optional_tours || '',
       flight_details: c.flight_details || '',
       remarks: c.remarks || '',
-      hotel_rows: [BLANK_HOTEL()],
       status: c.status || 'draft',
     });
   }, []);
@@ -371,11 +352,6 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
     const published = pkgAssets.find(a => a.status === 'published');
     return (published || pkgAssets[0])?.file_url || null;
   };
-
-  // ── Hotel row helpers ──
-  const updateHotelRow = (id, key, val) => setQ('hotel_rows', quote.hotel_rows.map(r => r.id === id ? { ...r, [key]: val } : r));
-  const addHotelRow = () => setQ('hotel_rows', [...quote.hotel_rows, BLANK_HOTEL()]);
-  const removeHotelRow = (id) => { if (quote.hotel_rows.length > 1) setQ('hotel_rows', quote.hotel_rows.filter(r => r.id !== id)); };
 
   const isEditorVisible = selectedCollective || isNewPackage;
 
@@ -673,67 +649,6 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                         <span className="text-sm font-semibold">₱{balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                       </div>
                     </F>
-                  </div>
-                </div>
-              )}
-
-              {/* ── HOTELS TAB ── */}
-              {activeEditorTab === 'hotels' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Info className="w-3.5 h-3.5" /> Click any cell to edit. Add one row per hotel or category.
-                    </p>
-                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={addHotelRow}>
-                      <Plus className="w-3 h-3" /> Add Row
-                    </Button>
-                  </div>
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-muted/60 border-b border-border">
-                          <th className="text-left px-3 py-2 font-semibold text-muted-foreground w-28">Category</th>
-                          <th className="text-left px-3 py-2 font-semibold text-muted-foreground w-32">Hotel Name</th>
-                          <th className="text-left px-3 py-2 font-semibold text-muted-foreground w-24">Location</th>
-                          {['Twin', 'Triple', 'Quad', 'Solo', 'Child NB', 'Child Bed', 'Infant'].map(h => (
-                            <th key={h} className="text-right px-3 py-2 font-semibold text-amber-700 w-20">{h} (₱)</th>
-                          ))}
-                          <th className="w-8" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {quote.hotel_rows.map((row, i) => (
-                          <tr key={row.id} className={cn("border-b border-border last:border-0 hover:bg-muted/20 transition-colors", i % 2 ? "bg-muted/5" : "")}>
-                            <td className="px-1 py-1">
-                              <Select value={row.category} onValueChange={v => updateHotelRow(row.id, 'category', v)}>
-                                <SelectTrigger className="h-7 text-[11px] border-0 bg-transparent"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {HOTEL_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
-                            </td>
-                            <td className="px-1 py-1">
-                              <input className="w-full px-2 py-1 text-xs rounded hover:bg-sky-50 dark:hover:bg-sky-950/20 transition-colors outline-none focus:bg-sky-50 dark:focus:bg-sky-950/20 border border-transparent focus:border-sky-300" value={row.hotel_name} onChange={e => updateHotelRow(row.id, 'hotel_name', e.target.value)} placeholder="Hotel name" />
-                            </td>
-                            <td className="px-1 py-1">
-                              <input className="w-full px-2 py-1 text-xs rounded hover:bg-sky-50 dark:hover:bg-sky-950/20 transition-colors outline-none focus:bg-sky-50 border border-transparent focus:border-sky-300" value={row.location} onChange={e => updateHotelRow(row.id, 'location', e.target.value)} placeholder="City" />
-                            </td>
-                            {['twin', 'triple', 'quad', 'solo', 'child_no_bed', 'child_bed', 'infant'].map(k => (
-                              <td key={k} className="px-1 py-1">
-                                <input type="number" className="w-full px-2 py-1 text-xs text-right rounded hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors outline-none focus:bg-amber-50 border border-transparent focus:border-amber-300" value={row[k] || ''} onChange={e => updateHotelRow(row.id, k, Number(e.target.value))} placeholder="—" />
-                              </td>
-                            ))}
-                            <td className="px-1 py-1 text-center">
-                              {quote.hotel_rows.length > 1 && (
-                                <button onClick={() => removeHotelRow(row.id)} className="w-6 h-6 rounded hover:bg-rose-100 dark:hover:bg-rose-950/40 flex items-center justify-center text-rose-400 hover:text-rose-600 transition-colors">
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
               )}

@@ -122,50 +122,6 @@
       "type": "number",
       "description": "Required downpayment amount in PHP"
     },
-    "room_configurations": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "room_type": {
-            "type": "string",
-            "enum": [
-              "twin_sharing",
-              "triple_sharing",
-              "quad_sharing",
-              "solo_room",
-              "family_room"
-            ]
-          },
-          "price": {
-            "type": "number"
-          },
-          "slots": {
-            "type": "number"
-          }
-        }
-      }
-    },
-    "rate_child_no_bed": {
-      "type": "number",
-      "description": "Child without bed rate (6 y/o below & max 1.1m height)"
-    },
-    "rate_adult_child_bed": {
-      "type": "number",
-      "description": "Adult & child with bed rate"
-    },
-    "rate_single_supplement": {
-      "type": "number",
-      "description": "Single supplement rate"
-    },
-    "rate_child": {
-      "type": "number",
-      "description": "Child rate (6 y/o below)"
-    },
-    "rate_infant": {
-      "type": "number",
-      "description": "Estimated infant fee"
-    },
     "internal_deadline": {
       "type": "string",
       "format": "date"
