@@ -118,6 +118,8 @@ export default function Workflow() {
     if (cid) setSelectedCollective(cid);
   }, []);
 
+  // Load tasks on-demand when collective changes — NO real-time subscription
+  // (subscription + optimistic updates = recursive loop)
   useEffect(() => {
     if (!selectedCollective) { setTasks([]); setTasksLoading(false); setTasksError(null); return; }
 
@@ -140,15 +142,7 @@ export default function Workflow() {
         }
       });
 
-    // Selective real-time sync: only listen while this collective is active
-    const unsub = base44.entities.ChecklistTask.subscribe(e => {
-      if (e.data?.collective_id !== selectedCollective) return;
-      if (e.type === 'create') setTasks(p => [...p, e.data]);
-      else if (e.type === 'update') setTasks(p => p.map(t => t.id === e.id ? e.data : t));
-      else if (e.type === 'delete') setTasks(p => p.filter(t => t.id !== e.id));
-    });
-
-    return () => { cancelled = true; unsub(); };
+    return () => { cancelled = true; };
   }, [selectedCollective]);
 
   const autoInitWorkflow = async (id) => {
@@ -188,6 +182,7 @@ export default function Workflow() {
   };
 
   const handleTaskToggle = async (task, newStatus) => {
+    // Persist only — TaskRow handles its own optimistic UI
     await base44.entities.ChecklistTask.update(task.id, {
       status: newStatus,
       completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
@@ -195,8 +190,9 @@ export default function Workflow() {
         ? ((task.notes ? task.notes + ' | ' : '') + 'Manually confirmed')
         : task.notes,
     });
+    // Update local tasks array to keep progress counters in sync
     setTasks(p => p.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    // Debounced — prevents recursive calls when toggling multiple tasks quickly
+    // Debounced background update — does not block UI
     triggerProgressUpdate(selectedCollective);
   };
 

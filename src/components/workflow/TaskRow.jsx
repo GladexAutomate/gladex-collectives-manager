@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { CheckCircle, Circle, Loader2, AlertTriangle, X, Bot, Lock, Zap } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { CheckCircle, Circle, Loader2, AlertTriangle, Lock, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -22,46 +22,52 @@ const DEPT_CONFIG = {
 };
 
 export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
-  // Sync local status when parent task prop changes (e.g. real-time subscription update)
-  const [localStatus, setLocalStatus] = useState(task.status);
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  useEffect(() => {
-    setLocalStatus(task.status);
-  }, [task.status]);
+  // Use task.status as the source of truth — only override locally while saving
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  // Track the "displayed" status independently so we can do optimistic UI
+  const [displayStatus, setDisplayStatus] = useState(task.status);
+  // Keep a ref to the last committed status so we can rollback on error
+  const committedStatus = useRef(task.status);
 
   const isAuto = task.completion_mode === 'auto';
-  const isWarning = task.task_name.startsWith('⚠');
+  const isWarning = task.task_name?.startsWith('⚠');
   const deptCfg = DEPT_CONFIG[task.department];
 
-  const isDone = localStatus === 'completed';
-  const isInProgress = localStatus === 'in_progress';
-  const isDelayed = localStatus === 'delayed';
+  const isDone = displayStatus === 'completed';
+  const isInProgress = displayStatus === 'in_progress';
+  const isDelayed = displayStatus === 'delayed';
 
   const handleClick = async () => {
     if (isAuto && !isDone) return;
-    if (isUpdating) return;
+    if (saving) return;
 
+    const prev = committedStatus.current;
     const next = isDone ? 'pending' : isInProgress ? 'completed' : 'in_progress';
 
-    // Optimistic update — instant UI
-    setLocalStatus(next);
-    setIsUpdating(true);
+    // Optimistic update
+    setDisplayStatus(next);
+    setSaving(true);
+    setSaveFailed(false);
+
     try {
       await onToggle(task, next);
+      committedStatus.current = next;
     } catch {
-      // Rollback on failure
-      setLocalStatus(localStatus);
+      // Rollback to last committed status
+      setDisplayStatus(prev);
+      setSaveFailed(true);
+      setTimeout(() => setSaveFailed(false), 3000);
     } finally {
-      setIsUpdating(false);
+      setSaving(false);
     }
   };
 
   const StatusIcon = () => {
-    if (isUpdating) return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />;
+    if (saving) return <Loader2 className="w-4 h-4 animate-spin text-amber-500" />;
     if (isDone) return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-    if (isInProgress) return <Loader2 className="w-4 h-4 text-sky-500 animate-spin" />;
     if (isDelayed) return <AlertTriangle className="w-4 h-4 text-rose-500" />;
+    if (isInProgress) return <Circle className="w-4 h-4 text-sky-400" />;
     return <Circle className="w-4 h-4 text-slate-300" />;
   };
 
@@ -69,22 +75,23 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
     <div className={cn(
       "flex items-center gap-3 px-4 py-2.5 transition-colors group",
       isWarning ? "bg-rose-50/50 dark:bg-rose-950/20" : "hover:bg-muted/40",
-      isDone && "opacity-60"
+      isDone && !saving && "opacity-60"
     )}>
       {/* Index */}
       <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-mono text-right">
         {task.order_index || idx + 1}
       </span>
 
-      {/* Toggle button — manual tasks are clickable, auto tasks show as locked unless done */}
+      {/* Toggle button */}
       <button
         onClick={handleClick}
-        disabled={isAuto && !isDone}
+        disabled={(isAuto && !isDone) || saving}
         title={isAuto ? (isDone ? 'Auto-completed by system' : 'Auto-synced — completes automatically') : 'Click to update status'}
         className={cn(
           "flex-shrink-0 transition-transform",
-          !isAuto && !isDone && "hover:scale-110 cursor-pointer",
-          isAuto && !isDone && "cursor-default opacity-60"
+          !isAuto && !saving && "hover:scale-110 cursor-pointer",
+          (isAuto && !isDone) && "cursor-default opacity-60",
+          saving && "cursor-wait"
         )}
       >
         <StatusIcon />
@@ -100,11 +107,16 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
         )}>
           {task.task_name}
         </p>
+        {saving && (
+          <p className="text-[10px] text-amber-600 mt-0.5">Saving...</p>
+        )}
+        {saveFailed && (
+          <p className="text-[10px] text-rose-600 mt-0.5">Save failed — please try again</p>
+        )}
       </div>
 
       {/* Right-side badges */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        {/* Hybrid mode badge — always visible */}
         {isAuto ? (
           <span className={cn(
             "inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-medium border",
