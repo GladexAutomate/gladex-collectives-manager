@@ -36,6 +36,15 @@
         "management"
       ]
     },
+    "completion_mode": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "manual"
+      ],
+      "default": "manual",
+      "description": "auto = system detects from module activity; manual = department confirms external action"
+    },
     "assigned_to": {
       "type": "string"
     },

@@ -3,8 +3,7 @@ import { base44 } from '@/api/base44Client';
 import {
   CheckCircle, Circle, Loader2, AlertTriangle, X,
   ChevronDown, ChevronRight, Bot, Sparkles, RefreshCw,
-  Zap, BarChart2, Users, Clock, CheckSquare, ListChecks,
-  Building2, Filter
+  Zap, Clock, CheckSquare, ListChecks, Building2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import DepartmentWorkflowView from '@/components/workflow/DepartmentWorkflowView';
+import TaskRow from '@/components/workflow/TaskRow';
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 const PHASES = [
@@ -68,16 +68,11 @@ const DEPT_CONFIG = {
 };
 
 const TASK_STATUS = {
-  pending:     { icon: Circle,        label: 'Pending',     cls: 'text-slate-400' },
-  in_progress: { icon: Loader2,       label: 'In Progress', cls: 'text-sky-500',     spin: true },
-  completed:   { icon: CheckCircle,   label: 'Done',        cls: 'text-emerald-500' },
-  delayed:     { icon: AlertTriangle, label: 'Delayed',     cls: 'text-rose-500' },
-  cancelled:   { icon: X,            label: 'Cancelled',   cls: 'text-slate-400' },
-};
-
-const PRIORITY_COLORS = {
-  low: 'bg-slate-100 text-slate-600', medium: 'bg-sky-100 text-sky-700',
-  high: 'bg-amber-100 text-amber-700', urgent: 'bg-rose-100 text-rose-700',
+  pending:     { label: 'Pending' },
+  in_progress: { label: 'In Progress' },
+  completed:   { label: 'Done' },
+  delayed:     { label: 'Delayed' },
+  cancelled:   { label: 'Cancelled' },
 };
 
 const LIFECYCLE_LABELS = {
@@ -103,7 +98,7 @@ export default function Workflow() {
   const [syncing, setSyncing] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
-  const [updatingTask, setUpdatingTask] = useState(null);
+
 
   useEffect(() => {
     base44.entities.Collective.list().then(setCollectives);
@@ -159,15 +154,15 @@ export default function Workflow() {
     setTasks(fresh); setRegenerating(false);
   };
 
-  const updateTask = async (task, newStatus) => {
-    setUpdatingTask(task.id);
-    const now = new Date().toISOString();
+  const handleTaskToggle = async (task, newStatus) => {
     await base44.entities.ChecklistTask.update(task.id, {
       status: newStatus,
-      completed_at: newStatus === 'completed' ? now : null,
+      completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
+      notes: newStatus === 'completed' && task.completion_mode === 'manual'
+        ? ((task.notes ? task.notes + ' | ' : '') + 'Manually confirmed')
+        : task.notes,
     });
     setTasks(p => p.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    setUpdatingTask(null);
     base44.functions.invoke('updateWorkflowProgress', { collective_id: selectedCollective }).catch(() => {});
   };
 
@@ -484,51 +479,15 @@ export default function Workflow() {
                                   <p className="text-xs text-muted-foreground italic py-3 pl-14">No tasks match current filters</p>
                                 ) : stageTasks
                                     .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
-                                    .map((task, idx) => {
-                                      const sc = TASK_STATUS[task.status] || TASK_STATUS.pending;
-                                      const Icon = sc.icon;
-                                      const isWarning = task.task_name.startsWith('⚠');
-                                      const isLoading = updatingTask === task.id;
-                                      const deptCfg = DEPT_CONFIG[task.department];
-                                      return (
-                                        <div key={task.id} className={cn(
-                                          "flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors group",
-                                          isWarning && "bg-rose-50/40 dark:bg-rose-950/10",
-                                          task.status === 'completed' && "opacity-60"
-                                        )}>
-                                          <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-mono text-right">{task.order_index || idx + 1}</span>
-                                          <button
-                                            onClick={() => {
-                                              const next = task.status === 'pending' ? 'in_progress' : task.status === 'in_progress' ? 'completed' : 'pending';
-                                              updateTask(task, next);
-                                            }}
-                                            disabled={isLoading}
-                                            className="flex-shrink-0"
-                                          >
-                                            {isLoading
-                                              ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                                              : <Icon className={cn("w-4 h-4", sc.cls, sc.spin && "animate-spin")} />}
-                                          </button>
-                                          <div className="flex-1 min-w-0">
-                                            <p className={cn("text-sm leading-snug",
-                                              task.status === 'completed' ? 'line-through text-muted-foreground' :
-                                              isWarning ? 'text-rose-700 dark:text-rose-400 font-medium' : 'text-foreground')}>
-                                              {task.task_name}
-                                            </p>
-                                          </div>
-                                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                                            {task.status === 'completed' && task.notes?.includes('Auto-completed') && (
-                                              <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] text-sky-600 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded">
-                                                <Bot className="w-2.5 h-2.5" /> Auto
-                                              </span>
-                                            )}
-                                            <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden sm:inline-flex", PRIORITY_COLORS[task.priority])}>{task.priority}</Badge>
-                                            {deptCfg && <Badge className={cn("text-[9px] px-1.5 py-0.5 hidden md:inline-flex", deptCfg.badge)}>{deptCfg.short}</Badge>}
-                                            {task.requires_approval && <Badge className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700 hidden sm:inline-flex">Approval</Badge>}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                                    .map((task, idx) => (
+                                      <TaskRow
+                                        key={task.id}
+                                        task={task}
+                                        idx={idx}
+                                        onToggle={handleTaskToggle}
+                                        showDept={deptFilter === 'all'}
+                                      />
+                                    ))}
                               </div>
                             </div>
                           );
