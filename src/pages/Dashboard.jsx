@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
   Globe, Users, DollarSign, TrendingUp, Plane, Clock,
-  CheckSquare, AlertTriangle, Star, Package, BarChart3, CalendarDays
+  AlertTriangle, Star, BarChart3
 } from 'lucide-react';
 import KPICard from '@/components/dashboard/KPICard';
 import RecentActivity from '@/components/dashboard/RecentActivity';
@@ -30,34 +30,29 @@ export default function Dashboard() {
   const [collectives, setCollectives] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Load only critical operational data — no checklist tasks on dashboard
     Promise.all([
-      base44.entities.Collective.list(),
-      base44.entities.Booking.list(),
-      base44.entities.Payment.list(),
-      base44.entities.ChecklistTask.list(),
-    ]).then(([c, b, p, t]) => {
+      base44.entities.Collective.list('-updated_date', 50),
+      base44.entities.Booking.list('-updated_date', 100),
+      base44.entities.Payment.filter({ status: 'verified' }, '-payment_date', 100),
+    ]).then(([c, b, p]) => {
       setCollectives(c);
       setBookings(b);
       setPayments(p);
-      setTasks(t);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
 
-  const activeCollectives = collectives.filter(c => ['active', 'launched', 'ongoing'].includes(c.status)).length;
-  const totalRevenue = payments.filter(p => p.status === 'verified').reduce((sum, p) => sum + (p.amount || 0), 0);
+  const activeCollectives = collectives.filter(c => ['open_booking', 'confirmed_departure', 'ongoing'].includes(c.status)).length;
+  // Payments are already pre-filtered to verified only
+  const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const pendingPayments = bookings.filter(b => !b.full_payment_paid && b.status !== 'cancelled').length;
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
-  const totalTasks = tasks.length;
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const upcomingDepartures = collectives.filter(c => c.departure_date && new Date(c.departure_date) >= new Date()).length;
   const visaPending = bookings.filter(b => b.visa_status === 'pending').length;
   const totalPax = bookings.reduce((sum, b) => sum + (b.pax_count || 1), 0);
-  const delayedTasks = tasks.filter(t => t.status === 'delayed').length;
 
   const formatCurrency = (val) => {
     if (val >= 1000000) return `₱${(val / 1000000).toFixed(1)}M`;
@@ -91,8 +86,8 @@ export default function Dashboard() {
             </div>
             <div className="w-px h-12 bg-white/20" />
             <div className="text-center">
-              <p className="text-3xl font-bold text-emerald-400">{completionRate}%</p>
-              <p className="text-xs text-blue-200">Tasks Complete</p>
+              <p className="text-3xl font-bold text-emerald-400">{upcomingDepartures}</p>
+              <p className="text-xs text-blue-200">Upcoming Trips</p>
             </div>
           </div>
         </div>
@@ -106,8 +101,6 @@ export default function Dashboard() {
         <KPICard title="Pending Payments" value={pendingPayments} subtitle="Need follow-up" icon={Clock} color="rose" />
         <KPICard title="Visa Pending" value={visaPending} subtitle="Clients awaiting" icon={AlertTriangle} color="purple" />
         <KPICard title="Departures" value={upcomingDepartures} subtitle="Upcoming trips" icon={Plane} color="sky" />
-        <KPICard title="Tasks Complete" value={`${completionRate}%`} subtitle={`${completedTasks}/${totalTasks} tasks`} icon={CheckSquare} color="green" />
-        <KPICard title="Delayed Tasks" value={delayedTasks} subtitle="Need attention" icon={AlertTriangle} color="rose" />
         <KPICard title="Commission" value={formatCurrency(totalRevenue * 0.12)} subtitle="Estimated" icon={TrendingUp} color="gold" />
         <KPICard title="Satisfaction" value="4.7★" subtitle="Avg client rating" icon={Star} color="gold" trend={3} trendLabel="vs last month" />
       </div>

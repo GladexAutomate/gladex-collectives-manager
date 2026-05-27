@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
   CheckCircle, Circle, Loader2, AlertTriangle, X,
@@ -89,6 +89,8 @@ const LIFECYCLE_COLORS = {
 export default function Workflow() {
   const [collectives, setCollectives] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState(null);
   const [selectedCollective, setSelectedCollective] = useState('');
   const [view, setView] = useState('department'); // 'department' | 'phases'
   const [deptFilter, setDeptFilter] = useState('all');
@@ -99,32 +101,46 @@ export default function Workflow() {
   const [regenerating, setRegenerating] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
 
+  // Debounce ref — prevents rapid-fire updateWorkflowProgress calls
+  const progressDebounceRef = useRef(null);
+  const triggerProgressUpdate = useCallback((collectiveId) => {
+    if (progressDebounceRef.current) clearTimeout(progressDebounceRef.current);
+    progressDebounceRef.current = setTimeout(() => {
+      base44.functions.invoke('updateWorkflowProgress', { collective_id: collectiveId }).catch(() => {});
+    }, 1500);
+  }, []);
 
+  // Load collectives list once — no subscription needed (low-frequency changes)
   useEffect(() => {
-    base44.entities.Collective.list().then(setCollectives);
-    const unsub = base44.entities.Collective.subscribe(e => {
-      if (e.type === 'create') setCollectives(p => [...p, e.data]);
-      else if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
-      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
-    });
+    base44.entities.Collective.list('-updated_date', 100).then(setCollectives).catch(() => {});
     const params = new URLSearchParams(window.location.search);
     const cid = params.get('collective');
     if (cid) setSelectedCollective(cid);
-    return () => unsub();
   }, []);
 
   useEffect(() => {
-    if (!selectedCollective) { setTasks([]); return; }
+    if (!selectedCollective) { setTasks([]); setTasksLoading(false); setTasksError(null); return; }
 
     let cancelled = false;
+    setTasksLoading(true);
+    setTasksError(null);
+    setTasks([]);
+
     base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
       .then(data => {
         if (cancelled) return;
         setTasks(data);
+        setTasksLoading(false);
         if (data.length === 0) autoInitWorkflow(selectedCollective);
       })
-      .catch(() => { if (!cancelled) setTasks([]); });
+      .catch(() => {
+        if (!cancelled) {
+          setTasksError('Unable to load checklist. Please try again.');
+          setTasksLoading(false);
+        }
+      });
 
+    // Selective real-time sync: only listen while this collective is active
     const unsub = base44.entities.ChecklistTask.subscribe(e => {
       if (e.data?.collective_id !== selectedCollective) return;
       if (e.type === 'create') setTasks(p => [...p, e.data]);
@@ -180,7 +196,8 @@ export default function Workflow() {
         : task.notes,
     });
     setTasks(p => p.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    base44.functions.invoke('updateWorkflowProgress', { collective_id: selectedCollective }).catch(() => {});
+    // Debounced — prevents recursive calls when toggling multiple tasks quickly
+    triggerProgressUpdate(selectedCollective);
   };
 
   const collective = collectives.find(c => c.id === selectedCollective);
@@ -310,8 +327,28 @@ export default function Workflow() {
         </div>
       )}
 
+      {/* ── Tasks loading / error states ── */}
+      {selectedCollective && !initializing && tasksLoading && (
+        <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-6">
+          <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
+          <p className="text-sm text-muted-foreground">Loading checklist...</p>
+        </div>
+      )}
+      {selectedCollective && !initializing && tasksError && !tasksLoading && (
+        <div className="flex flex-col items-center gap-3 bg-card border border-rose-200 rounded-xl p-8 text-center">
+          <AlertTriangle className="w-8 h-8 text-rose-500" />
+          <p className="text-sm font-medium text-foreground">{tasksError}</p>
+          <Button size="sm" variant="outline" onClick={() => {
+            setTasksError(null); setTasksLoading(true);
+            base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
+              .then(d => { setTasks(d); setTasksLoading(false); })
+              .catch(() => { setTasksError('Unable to load checklist. Please try again.'); setTasksLoading(false); });
+          }}>Retry</Button>
+        </div>
+      )}
+
       {/* ── Main workflow content ── */}
-      {selectedCollective && !initializing && tasks.length > 0 && (
+      {selectedCollective && !initializing && !tasksLoading && !tasksError && tasks.length > 0 && (
         <>
           {/* ── Collective status bar ── */}
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
@@ -417,7 +454,20 @@ export default function Workflow() {
 
           {/* ═══ DEPARTMENT VIEW ═══ */}
           {view === 'department' && (
-            <DepartmentWorkflowView collectiveId={selectedCollective} collectiveName={collective?.name} />
+            <DepartmentWorkflowView
+              collectiveId={selectedCollective}
+              tasks={tasks}
+              loading={tasksLoading}
+              error={tasksError}
+              onRetry={() => {
+                setTasksError(null);
+                setTasksLoading(true);
+                base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
+                  .then(d => { setTasks(d); setTasksLoading(false); })
+                  .catch(() => { setTasksError('Unable to load checklist. Please try again.'); setTasksLoading(false); });
+              }}
+              onToggle={handleTaskToggle}
+            />
           )}
 
           {/* ═══ PHASE CHECKLIST VIEW ═══ */}

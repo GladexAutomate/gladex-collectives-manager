@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useState, useMemo } from 'react';
 import {
   CheckCircle, Circle, Loader2, AlertTriangle, X,
   ChevronDown, ChevronRight, Clock, CheckSquare, Zap
@@ -19,46 +18,13 @@ const DEPT_CONFIG = {
   management:          { label: 'Management',          short: 'MG', bg: 'bg-slate-500',   light: 'bg-slate-50 dark:bg-slate-900/40',   border: 'border-slate-200 dark:border-slate-700',   text: 'text-slate-700 dark:text-slate-400',   badge: 'bg-slate-100 text-slate-700' },
 };
 
-export default function DepartmentWorkflowView({ collectiveId }) {
-  const [tasks, setTasks] = useState([]);
+// Tasks are passed in from the parent (Workflow.jsx) which owns the subscription.
+// This component is display-only — no extra fetching or subscriptions.
+export default function DepartmentWorkflowView({ collectiveId, tasks = [], loading = false, error = null, onRetry, onToggle }) {
   const [selectedDept, setSelectedDept] = useState('all');
   const [collapsedStages, setCollapsedStages] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!collectiveId) { setLoading(false); return; }
 
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-
-    base44.entities.ChecklistTask.filter({ collective_id: collectiveId })
-      .then(t => { if (!cancelled) { setTasks(t); setLoading(false); } })
-      .catch(() => { if (!cancelled) { setError('Unable to load checklist. Please try again.'); setLoading(false); } });
-
-    const unsub = base44.entities.ChecklistTask.subscribe(e => {
-      if (e.data?.collective_id !== collectiveId) return;
-      if (e.type === 'create') setTasks(p => [...p, e.data]);
-      else if (e.type === 'update') setTasks(p => p.map(t => t.id === e.id ? e.data : t));
-      else if (e.type === 'delete') setTasks(p => p.filter(t => t.id !== e.id));
-    });
-
-    return () => { cancelled = true; unsub(); };
-  }, [collectiveId]);
-
-  const handleToggle = async (task, newStatus) => {
-    // Optimistic update already done in TaskRow — just persist
-    await base44.entities.ChecklistTask.update(task.id, {
-      status: newStatus,
-      completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
-      notes: newStatus === 'completed'
-        ? ((task.notes ? task.notes + ' | ' : '') + 'Manually confirmed')
-        : task.notes,
-    });
-    setTasks(p => p.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    base44.functions.invoke('updateWorkflowProgress', { collective_id: collectiveId }).catch(() => {});
-  };
 
   // Per-department stats
   const deptStats = Object.entries(DEPT_CONFIG).map(([dept, cfg]) => {
@@ -100,12 +66,7 @@ export default function DepartmentWorkflowView({ collectiveId }) {
     <div className="flex flex-col items-center justify-center py-12 gap-3 bg-card border border-border rounded-xl">
       <AlertTriangle className="w-8 h-8 text-rose-500" />
       <p className="text-sm font-medium text-foreground">{error}</p>
-      <button
-        onClick={() => { setError(null); setLoading(true); base44.entities.ChecklistTask.filter({ collective_id: collectiveId }).then(t => { setTasks(t); setLoading(false); }).catch(() => { setError('Unable to load checklist. Please try again.'); setLoading(false); }); }}
-        className="text-xs text-primary hover:underline"
-      >
-        Retry
-      </button>
+      {onRetry && <button onClick={onRetry} className="text-xs text-primary hover:underline">Retry</button>}
     </div>
   );
 
@@ -274,11 +235,11 @@ export default function DepartmentWorkflowView({ collectiveId }) {
                     .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
                     .map((task, idx) => (
                       <TaskRow
-                        key={task.id}
-                        task={task}
-                        idx={idx}
-                        onToggle={handleToggle}
-                        showDept={selectedDept === 'all'}
+                       key={task.id}
+                       task={task}
+                       idx={idx}
+                       onToggle={onToggle}
+                       showDept={selectedDept === 'all'}
                       />
                     ))}
                 </div>
