@@ -219,7 +219,7 @@ export default function Workflow() {
               {collectives.map(c => (
                 <SelectItem key={c.id} value={c.id}>
                   <div className="flex items-center gap-2">
-                    <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", LIFECYCLE_COLORS[c.status || 'draft'].split(' ')[0])} />
+                    <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", (LIFECYCLE_COLORS[c.status] || LIFECYCLE_COLORS.draft).split(' ')[0])} />
                     {c.name}
                   </div>
                 </SelectItem>
