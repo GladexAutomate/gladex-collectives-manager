@@ -11,21 +11,12 @@ import EZQuoteWorkspace from '@/pages/EZQuoteWorkspace';
 import WorkflowProgressBar from '@/components/workflow/WorkflowProgressBar';
 
 const STATUS_CONFIG = {
-  draft:               { label: 'Draft',              class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-  for_approval:        { label: 'For Approval',       class: 'bg-purple-100 text-purple-700' },
-  product_development: { label: 'Product Dev',        class: 'bg-amber-100 text-amber-700' },
-  marketing_prep:      { label: 'Marketing Prep',     class: 'bg-pink-100 text-pink-700' },
-  active:              { label: 'Active',              class: 'bg-emerald-100 text-emerald-700' },
-  launched:            { label: 'Launched',            class: 'bg-sky-100 text-sky-700' },
-  open_booking:        { label: 'Open Booking',       class: 'bg-teal-100 text-teal-700' },
-  reservation_ongoing: { label: 'Reservations Open',  class: 'bg-blue-100 text-blue-700' },
-  payment_verification:{ label: 'Payment Verification',class:'bg-indigo-100 text-indigo-700' },
-  documentation:       { label: 'Documentation',      class: 'bg-violet-100 text-violet-700' },
-  pre_departure:       { label: 'Pre-Departure',      class: 'bg-cyan-100 text-cyan-700' },
-  ongoing:             { label: 'Ongoing Travel',     class: 'bg-amber-100 text-amber-700' },
-  completed:           { label: 'Completed',          class: 'bg-purple-100 text-purple-700' },
-  post_evaluation:     { label: 'Post Evaluation',    class: 'bg-rose-100 text-rose-700' },
-  cancelled:           { label: 'Cancelled',          class: 'bg-rose-100 text-rose-700' },
+  draft:                { label: 'Draft',                class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
+  open_booking:         { label: '🟢 Open Booking',      class: 'bg-teal-100 text-teal-700 font-semibold' },
+  confirmed_departure:  { label: '✈ Confirmed Departure', class: 'bg-sky-100 text-sky-700 font-semibold' },
+  ongoing:              { label: '🌍 Ongoing Travel',     class: 'bg-amber-100 text-amber-700 font-semibold' },
+  completed:            { label: '✓ Completed',           class: 'bg-emerald-100 text-emerald-700 font-semibold' },
+  cancelled:            { label: 'Cancelled',             class: 'bg-rose-100 text-rose-700' },
 };
 
 export default function ProductDevelopment() {
@@ -78,7 +69,7 @@ export default function ProductDevelopment() {
 
   const stats = [
     { label: 'Total Packages', value: collectives.length, color: 'text-foreground', icon: Package },
-    { label: 'Active / Open', value: collectives.filter(c => ['active','launched','open_booking'].includes(c.status)).length, color: 'text-emerald-600', icon: TrendingUp },
+    { label: 'Open Booking', value: collectives.filter(c => c.status === 'open_booking').length, color: 'text-teal-600', icon: TrendingUp },
     { label: 'Total Booked Pax', value: totalPax, color: 'text-sky-600', icon: Users },
     { label: 'Est. Total Revenue', value: `₱${(totalRevenue/1000000).toFixed(1)}M`, color: 'text-amber-600', icon: DollarSign },
   ];

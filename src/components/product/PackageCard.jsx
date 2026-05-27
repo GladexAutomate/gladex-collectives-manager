@@ -16,11 +16,11 @@ export default function PackageCard({ collective: c, assetCount, bookingCount, s
 
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden card-hover">
-      {/* Phase progress bar */}
+      {/* Workflow completion progress bar */}
       <div className="h-1.5 w-full bg-muted">
         <div
-          className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all"
-          style={{ width: `${((c.current_phase || 1) / 7) * 100}%` }}
+          className={cn("h-full transition-all", (c.checklist_completion || 0) === 100 ? "bg-emerald-500" : "bg-gradient-to-r from-amber-500 to-orange-500")}
+          style={{ width: `${c.checklist_completion || ((c.current_phase || 1) / 7) * 100}%` }}
         />
       </div>
 

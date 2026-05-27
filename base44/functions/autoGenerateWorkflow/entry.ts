@@ -114,11 +114,7 @@ const DEFAULT_TASKS = [
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    // This function is called by entity automations (on collective create) — no user auth needed.
     const body = await req.json();
     // Support both direct calls {collective_id} and entity automation payloads {event, data}
     const collective_id = body.collective_id || body.event?.entity_id || body.data?.id;

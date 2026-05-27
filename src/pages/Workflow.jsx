@@ -54,9 +54,9 @@ const phaseColorMap = {
   7: { bg: 'bg-teal-500', text: 'text-teal-600', light: 'bg-teal-50 dark:bg-teal-950/20', border: 'border-teal-200 dark:border-teal-800' },
 };
 
-const LIFECYCLE_STAGES = ['draft', 'for_approval', 'product_development', 'marketing_prep', 'open_booking', 'reservation_ongoing', 'payment_verification', 'documentation', 'pre_departure', 'ongoing', 'completed'];
-const LIFECYCLE_LABELS = { draft: 'Draft', for_approval: 'For Approval', product_development: 'Product Dev', marketing_prep: 'Marketing Prep', open_booking: 'Open Booking', reservation_ongoing: 'Reservation Ongoing', payment_verification: 'Payment Verification', documentation: 'Documentation', pre_departure: 'Pre-Departure', ongoing: 'Ongoing Travel', completed: 'Completed' };
-const LIFECYCLE_COLORS = { draft: 'bg-slate-100 text-slate-600', for_approval: 'bg-purple-100 text-purple-700', product_development: 'bg-amber-100 text-amber-700', marketing_prep: 'bg-pink-100 text-pink-700', open_booking: 'bg-teal-100 text-teal-700', reservation_ongoing: 'bg-blue-100 text-blue-700', payment_verification: 'bg-orange-100 text-orange-700', documentation: 'bg-indigo-100 text-indigo-700', pre_departure: 'bg-violet-100 text-violet-700', ongoing: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700' };
+const LIFECYCLE_STAGES = ['draft', 'open_booking', 'confirmed_departure', 'ongoing', 'completed', 'cancelled'];
+const LIFECYCLE_LABELS = { draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure', ongoing: 'Ongoing Travel', completed: 'Completed', cancelled: 'Cancelled' };
+const LIFECYCLE_COLORS = { draft: 'bg-slate-100 text-slate-600', open_booking: 'bg-teal-100 text-teal-700', confirmed_departure: 'bg-sky-100 text-sky-700', ongoing: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-rose-100 text-rose-700' };
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function Workflow() {
@@ -183,10 +183,10 @@ export default function Workflow() {
 
   const selectedCollectiveObj = collectives.find(c => c.id === selectedCollective);
 
-  const kanbanCols = LIFECYCLE_STAGES.map(stage => ({
+  const kanbanCols = LIFECYCLE_STAGES.filter(s => s !== 'cancelled').map(stage => ({
     stage, label: LIFECYCLE_LABELS[stage], color: LIFECYCLE_COLORS[stage],
     items: collectives.filter(c => (c.status || 'draft') === stage),
-  })).filter(col => col.items.length > 0 || ['draft', 'product_development', 'open_booking', 'ongoing', 'completed'].includes(col.stage));
+  }));
 
   // ─── RENDER ───────────────────────────────────────────────────────────────────
   return (
@@ -221,10 +221,15 @@ export default function Workflow() {
           <div className="bg-card rounded-xl border border-border p-4 shadow-sm">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center"><p className="text-2xl font-bold font-jakarta text-primary">{collectives.length}</p><p className="text-xs text-muted-foreground">Total Collectives</p></div>
-              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-emerald-600">{collectives.filter(c => ['open_booking','reservation_ongoing'].includes(c.status)).length}</p><p className="text-xs text-muted-foreground">Booking Open</p></div>
+              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-teal-600">{collectives.filter(c => c.status === 'open_booking').length}</p><p className="text-xs text-muted-foreground">Open Booking</p></div>
               <div className="text-center"><p className="text-2xl font-bold font-jakarta text-amber-600">{collectives.filter(c => c.status === 'ongoing').length}</p><p className="text-xs text-muted-foreground">Ongoing Travel</p></div>
-              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-purple-600">{collectives.filter(c => c.status === 'completed').length}</p><p className="text-xs text-muted-foreground">Completed</p></div>
+              <div className="text-center"><p className="text-2xl font-bold font-jakarta text-emerald-600">{collectives.filter(c => c.status === 'completed').length}</p><p className="text-xs text-muted-foreground">Completed</p></div>
             </div>
+          </div>
+
+          {/* Open Booking info banner */}
+          <div className="bg-teal-50 dark:bg-teal-950/20 border border-teal-200 rounded-xl px-4 py-3 text-xs text-teal-700 dark:text-teal-300">
+            <span className="font-semibold">🟢 Open Booking</span> = Package is active and visible for selling — accepting bookings now. Departments may still be completing their assigned workflow tasks in parallel.
           </div>
 
           <div className="flex gap-4 overflow-x-auto pb-4">

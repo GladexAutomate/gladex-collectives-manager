@@ -14,22 +14,14 @@ import PricingEngine from '@/components/collectives/PricingEngine';
 import TravelDatesManager from '@/components/collectives/TravelDatesManager';
 import RoomConfigurator from '@/components/collectives/RoomConfigurator';
 import AISmartImport from '@/components/collectives/AISmartImport';
+import WorkflowProgressBadge from '@/components/workflow/WorkflowProgressBadge';
 
 const statusConfig = {
   draft: { label: 'Draft', class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-  for_approval: { label: 'For Approval', class: 'bg-purple-100 text-purple-700' },
-  product_development: { label: 'Product Dev', class: 'bg-amber-100 text-amber-700' },
-  marketing_prep: { label: 'Marketing Prep', class: 'bg-pink-100 text-pink-700' },
-  active: { label: 'Active', class: 'bg-emerald-100 text-emerald-700' },
-  launched: { label: 'Launched', class: 'bg-sky-100 text-sky-700' },
-  open_booking: { label: 'Open Booking', class: 'bg-teal-100 text-teal-700' },
-  reservation_ongoing: { label: 'Reservation Ongoing', class: 'bg-blue-100 text-blue-700' },
-  payment_verification: { label: 'Payment Verification', class: 'bg-orange-100 text-orange-700' },
-  documentation: { label: 'Documentation', class: 'bg-indigo-100 text-indigo-700' },
-  pre_departure: { label: 'Pre-Departure', class: 'bg-violet-100 text-violet-700' },
-  ongoing: { label: 'Ongoing Travel', class: 'bg-amber-100 text-amber-700' },
-  completed: { label: 'Completed', class: 'bg-purple-100 text-purple-700' },
-  post_evaluation: { label: 'Post-Evaluation', class: 'bg-rose-100 text-rose-700' },
+  open_booking: { label: '🟢 Open Booking', class: 'bg-teal-100 text-teal-700 font-semibold' },
+  confirmed_departure: { label: '✈ Confirmed Departure', class: 'bg-sky-100 text-sky-700 font-semibold' },
+  ongoing: { label: '🌍 Ongoing Travel', class: 'bg-amber-100 text-amber-700 font-semibold' },
+  completed: { label: '✓ Completed', class: 'bg-emerald-100 text-emerald-700 font-semibold' },
   cancelled: { label: 'Cancelled', class: 'bg-rose-100 text-rose-700' },
 };
 
@@ -181,9 +173,9 @@ export default function Collectives() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: 'Draft', status: 'draft', color: 'text-slate-600' },
-          { label: 'Active/Open', status: ['active', 'open_booking', 'launched'], color: 'text-emerald-600' },
-          { label: 'Ongoing', status: 'ongoing', color: 'text-amber-600' },
-          { label: 'Completed', status: 'completed', color: 'text-purple-600' },
+          { label: 'Open Booking', status: 'open_booking', color: 'text-teal-600' },
+          { label: 'Ongoing Travel', status: 'ongoing', color: 'text-amber-600' },
+          { label: 'Completed', status: 'completed', color: 'text-emerald-600' },
           { label: 'Cancelled', status: 'cancelled', color: 'text-rose-600' },
         ].map(s => {
           const count = Array.isArray(s.status)
@@ -282,6 +274,8 @@ export default function Collectives() {
                       </div>
                     </div>
                   )}
+
+                  <WorkflowProgressBadge collective={c} className="mb-3" />
 
                   <div className="flex gap-2 pt-3 border-t border-border">
                     <Button size="sm" variant="outline" className="flex-1 text-xs h-7 gap-1" onClick={() => navigate(`/workflow?collective=${c.id}`)}>
@@ -441,10 +435,6 @@ export default function Collectives() {
                 <Textarea rows={3} value={formData.terms_conditions || ''} onChange={e => setFormData({...formData, terms_conditions: e.target.value})} />
               </div>
               <div className="space-y-1.5">
-                <Label>Cancellation Policy</Label>
-                <Textarea rows={2} value={formData.cancellation_policy || ''} onChange={e => setFormData({...formData, cancellation_policy: e.target.value})} />
-              </div>
-              <div className="space-y-1.5">
                 <Label>Optional Tours</Label>
                 <Textarea rows={2} value={formData.optional_tours || ''} onChange={e => setFormData({...formData, optional_tours: e.target.value})} />
               </div>
@@ -452,7 +442,6 @@ export default function Collectives() {
                 <Label>Remarks</Label>
                 <Textarea rows={2} value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} />
               </div>
-
             </div>
           )}
 

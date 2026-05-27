@@ -189,9 +189,6 @@
     "terms_conditions": {
       "type": "string"
     },
-    "cancellation_policy": {
-      "type": "string"
-    },
     "optional_tours": {
       "type": "string"
     },
@@ -205,22 +202,14 @@
       "type": "string",
       "enum": [
         "draft",
-        "for_approval",
-        "product_development",
-        "marketing_prep",
-        "active",
-        "launched",
         "open_booking",
-        "reservation_ongoing",
-        "payment_verification",
-        "documentation",
-        "pre_departure",
+        "confirmed_departure",
         "ongoing",
         "completed",
-        "post_evaluation",
         "cancelled"
       ],
-      "default": "draft"
+      "default": "draft",
+      "description": "Package lifecycle: Draft \u2192 Open Booking \u2192 Confirmed Departure \u2192 Ongoing Travel \u2192 Completed"
     },
     "lifecycle_stage": {
       "type": "string",

@@ -158,17 +158,13 @@ function getCompletionRules(entity, data, oldData) {
       });
     }
 
-    // When status moves to for_approval or beyond = evaluate profitability
-    if (data.status && ['for_approval','product_development','marketing_prep','active','launched'].includes(data.status)) {
+    // When status moves to open_booking or beyond = package approved and active
+    if (data.status && ['open_booking','confirmed_departure','ongoing','completed'].includes(data.status)) {
       rules.push({
         collective_id,
         taskPatterns: ['evaluate profitability', 'review selling price competitiveness'],
-        reason: 'Collective moved to approval/active stage',
+        reason: 'Collective moved to open booking or beyond',
       });
-    }
-
-    // When status moves to active/launched = approved
-    if (data.status && ['active','launched','open_booking','reservation_ongoing'].includes(data.status)) {
       rules.push({
         collective_id,
         taskPatterns: [
@@ -184,7 +180,34 @@ function getCompletionRules(entity, data, oldData) {
           'endorse package in product update',
           'receive finalized package details',
         ],
-        reason: 'Package launched/active',
+        reason: 'Package open for booking / launched',
+      });
+    }
+
+    // Confirmed departure
+    if (data.status && ['confirmed_departure','ongoing','completed'].includes(data.status)) {
+      rules.push({
+        collective_id,
+        taskPatterns: ['reconfirm booking with operator', 'send passenger details to operator', 'secure booking confirmation'],
+        reason: 'Departure confirmed',
+      });
+    }
+
+    // Ongoing travel
+    if (data.status === 'ongoing') {
+      rules.push({
+        collective_id,
+        taskPatterns: ['request final itinerary', 'coordinate special requests', 'send travel vouchers', 'request emergency contact'],
+        reason: 'Travel ongoing',
+      });
+    }
+
+    // Completed travel
+    if (data.status === 'completed') {
+      rules.push({
+        collective_id,
+        taskPatterns: ['monitor trip status', 'coordinate during emergencies', 'monitor client satisfaction', 'record number of pax sold', 'record total revenue'],
+        reason: 'Trip completed',
       });
     }
 
