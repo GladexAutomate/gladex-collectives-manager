@@ -24,11 +24,18 @@ export default function DepartmentWorkflowView({ collectiveId }) {
   const [selectedDept, setSelectedDept] = useState('all');
   const [collapsedStages, setCollapsedStages] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!collectiveId) { setLoading(false); return; }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
     base44.entities.ChecklistTask.filter({ collective_id: collectiveId })
-      .then(t => { setTasks(t); setLoading(false); });
+      .then(t => { if (!cancelled) { setTasks(t); setLoading(false); } })
+      .catch(() => { if (!cancelled) { setError('Unable to load checklist. Please try again.'); setLoading(false); } });
 
     const unsub = base44.entities.ChecklistTask.subscribe(e => {
       if (e.data?.collective_id !== collectiveId) return;
@@ -36,7 +43,8 @@ export default function DepartmentWorkflowView({ collectiveId }) {
       else if (e.type === 'update') setTasks(p => p.map(t => t.id === e.id ? e.data : t));
       else if (e.type === 'delete') setTasks(p => p.filter(t => t.id !== e.id));
     });
-    return () => unsub();
+
+    return () => { cancelled = true; unsub(); };
   }, [collectiveId]);
 
   const handleToggle = async (task, newStatus) => {
@@ -82,10 +90,25 @@ export default function DepartmentWorkflowView({ collectiveId }) {
   const activeCfg = selectedDept !== 'all' ? DEPT_CONFIG[selectedDept] : null;
 
   if (loading) return (
-    <div className="flex items-center justify-center py-16">
+    <div className="flex flex-col items-center justify-center py-16 gap-3">
       <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <p className="text-xs text-muted-foreground">Loading workflow checklist...</p>
     </div>
   );
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-12 gap-3 bg-card border border-border rounded-xl">
+      <AlertTriangle className="w-8 h-8 text-rose-500" />
+      <p className="text-sm font-medium text-foreground">{error}</p>
+      <button
+        onClick={() => { setError(null); setLoading(true); base44.entities.ChecklistTask.filter({ collective_id: collectiveId }).then(t => { setTasks(t); setLoading(false); }).catch(() => { setError('Unable to load checklist. Please try again.'); setLoading(false); }); }}
+        className="text-xs text-primary hover:underline"
+      >
+        Retry
+      </button>
+    </div>
+  );
+
   if (tasks.length === 0) return null;
 
   const allDone = tasks.filter(t => t.status === 'completed').length;

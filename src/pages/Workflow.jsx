@@ -115,43 +115,60 @@ export default function Workflow() {
 
   useEffect(() => {
     if (!selectedCollective) { setTasks([]); return; }
-    base44.entities.ChecklistTask.filter({ collective_id: selectedCollective }).then(data => {
-      setTasks(data);
-      if (data.length === 0) autoInitWorkflow(selectedCollective);
-    });
+
+    let cancelled = false;
+    base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
+      .then(data => {
+        if (cancelled) return;
+        setTasks(data);
+        if (data.length === 0) autoInitWorkflow(selectedCollective);
+      })
+      .catch(() => { if (!cancelled) setTasks([]); });
+
     const unsub = base44.entities.ChecklistTask.subscribe(e => {
       if (e.data?.collective_id !== selectedCollective) return;
       if (e.type === 'create') setTasks(p => [...p, e.data]);
       else if (e.type === 'update') setTasks(p => p.map(t => t.id === e.id ? e.data : t));
       else if (e.type === 'delete') setTasks(p => p.filter(t => t.id !== e.id));
     });
-    return () => unsub();
+
+    return () => { cancelled = true; unsub(); };
   }, [selectedCollective]);
 
   const autoInitWorkflow = async (id) => {
     setInitializing(true);
-    await base44.functions.invoke('autoGenerateWorkflow', { collective_id: id });
-    const fresh = await base44.entities.ChecklistTask.filter({ collective_id: id });
-    setTasks(fresh);
-    setInitializing(false);
+    try {
+      await base44.functions.invoke('autoGenerateWorkflow', { collective_id: id });
+      const fresh = await base44.entities.ChecklistTask.filter({ collective_id: id });
+      setTasks(fresh);
+    } finally {
+      setInitializing(false);
+    }
   };
 
   const syncData = async () => {
     if (!selectedCollective) return;
     setSyncing(true); setSyncResult(null);
-    const res = await base44.functions.invoke('syncExistingData', { collective_id: selectedCollective });
-    const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
-    setTasks(fresh);
-    setSyncResult(res.data);
-    setSyncing(false);
+    try {
+      const res = await base44.functions.invoke('syncExistingData', { collective_id: selectedCollective });
+      const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
+      setTasks(fresh);
+      setSyncResult(res.data);
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const regenWorkflow = async () => {
     if (!selectedCollective) return;
     setRegenerating(true);
-    await base44.functions.invoke('autoGenerateWorkflow', { collective_id: selectedCollective, force_regenerate: true });
-    const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
-    setTasks(fresh); setRegenerating(false);
+    try {
+      await base44.functions.invoke('autoGenerateWorkflow', { collective_id: selectedCollective, force_regenerate: true });
+      const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
+      setTasks(fresh);
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   const handleTaskToggle = async (task, newStatus) => {

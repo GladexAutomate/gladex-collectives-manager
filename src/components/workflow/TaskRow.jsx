@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle, Circle, Loader2, AlertTriangle, X, Bot, Lock, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -22,21 +22,24 @@ const DEPT_CONFIG = {
 };
 
 export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
+  // Sync local status when parent task prop changes (e.g. real-time subscription update)
   const [localStatus, setLocalStatus] = useState(task.status);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  useEffect(() => {
+    setLocalStatus(task.status);
+  }, [task.status]);
+
   const isAuto = task.completion_mode === 'auto';
-  const isAutoCompleted = task.notes?.includes('Auto-completed');
   const isWarning = task.task_name.startsWith('⚠');
   const deptCfg = DEPT_CONFIG[task.department];
 
-  // Derive display status from local optimistic state
   const isDone = localStatus === 'completed';
   const isInProgress = localStatus === 'in_progress';
   const isDelayed = localStatus === 'delayed';
 
   const handleClick = async () => {
-    if (isAuto && !isDone) return; // auto tasks can't be manually completed unless already done (allow unchecking)
+    if (isAuto && !isDone) return;
     if (isUpdating) return;
 
     const next = isDone ? 'pending' : isInProgress ? 'completed' : 'in_progress';
@@ -44,8 +47,14 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
     // Optimistic update — instant UI
     setLocalStatus(next);
     setIsUpdating(true);
-    await onToggle(task, next);
-    setIsUpdating(false);
+    try {
+      await onToggle(task, next);
+    } catch {
+      // Rollback on failure
+      setLocalStatus(localStatus);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const StatusIcon = () => {
