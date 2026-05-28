@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, ArrowRight, Zap } from 'lucide-react';
+import { TrendingUp, ArrowRight, Zap, Info, Minus } from 'lucide-react';
 
 const CURRENCIES = [
   { value: 'PHP', label: 'PHP ₱', symbol: '₱', defaultRate: 1 },
@@ -189,6 +189,115 @@ export default function PricingEngine({ formData, setFormData }) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── NET REVENUE BREAKDOWN ─────────────────────────────────────────── */}
+      {sellingPrice > 0 && (
+        <NetRevenueBreakdown
+          sellingPrice={sellingPrice}
+          commission={commission}
+          downpayment={downpayment}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Net Revenue Breakdown Component ────────────────────────────────────────────
+function NetRevenueBreakdown({ sellingPrice, commission, downpayment }) {
+  const netRemaining = sellingPrice - commission - downpayment;
+  const isProfitable = netRemaining >= 0;
+
+  const fmt = (n) => '₱' + Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  const pct = (n) => sellingPrice > 0 ? ((n / sellingPrice) * 100).toFixed(1) + '%' : '0%';
+
+  return (
+    <div className="rounded-xl border-2 border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className="bg-slate-800 dark:bg-slate-900 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-amber-400" />
+          <span className="text-xs font-bold text-white tracking-wide uppercase">Net Revenue Breakdown</span>
+        </div>
+        <div className="group relative">
+          <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+          <div className="absolute right-0 bottom-full mb-2 w-64 bg-slate-900 text-slate-200 text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+            Net Remaining Revenue shows the estimated remaining amount after deducting commission and required downpayment from the selling price.
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="bg-white dark:bg-card divide-y divide-slate-100 dark:divide-slate-800">
+        {/* Selling Price row */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-xs font-semibold text-foreground">Selling Price</p>
+            <p className="text-[10px] text-muted-foreground">Base revenue per pax</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-bold font-jakarta text-foreground">{fmt(sellingPrice)}</p>
+            <p className="text-[10px] text-muted-foreground">100%</p>
+          </div>
+        </div>
+
+        {/* LESS label */}
+        <div className="px-4 py-1.5 bg-slate-50 dark:bg-muted/30">
+          <p className="text-[9px] font-bold tracking-widest text-muted-foreground uppercase">Less Deductions</p>
+        </div>
+
+        {/* Commission row */}
+        <div className="flex items-center justify-between px-4 py-3 pl-6">
+          <div className="flex items-center gap-2">
+            <Minus className="w-3 h-3 text-rose-400 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-foreground">Commission</p>
+              <p className="text-[10px] text-muted-foreground">Fixed per booking</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-semibold font-jakarta text-rose-600">
+              {commission > 0 ? `- ${fmt(commission)}` : '₱0'}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{commission > 0 ? pct(commission) : '—'}</p>
+          </div>
+        </div>
+
+        {/* Downpayment row */}
+        <div className="flex items-center justify-between px-4 py-3 pl-6">
+          <div className="flex items-center gap-2">
+            <Minus className="w-3 h-3 text-amber-400 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-foreground">Required Downpayment</p>
+              <p className="text-[10px] text-muted-foreground">Initial collection from client</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-semibold font-jakarta text-amber-600">
+              {downpayment > 0 ? `- ${fmt(downpayment)}` : '₱0'}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{downpayment > 0 ? pct(downpayment) : '—'}</p>
+          </div>
+        </div>
+
+        {/* Divider line */}
+        <div className="mx-4 border-t-2 border-dashed border-slate-200 dark:border-slate-700" />
+
+        {/* NET REMAINING REVENUE */}
+        <div className={`flex items-center justify-between px-4 py-4 ${isProfitable ? 'bg-emerald-50 dark:bg-emerald-950/20' : 'bg-rose-50 dark:bg-rose-950/20'}`}>
+          <div>
+            <p className="text-xs font-bold text-foreground uppercase tracking-wide">Net Remaining Revenue</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">After all deductions</p>
+          </div>
+          <div className="text-right">
+            <p className={`text-xl font-bold font-jakarta ${isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {isProfitable ? '' : '- '}{fmt(netRemaining)}
+            </p>
+            <p className={`text-[10px] font-semibold mt-0.5 ${isProfitable ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {pct(Math.abs(netRemaining))} of selling price · {isProfitable ? '✓ Profitable' : '⚠ Negative'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
