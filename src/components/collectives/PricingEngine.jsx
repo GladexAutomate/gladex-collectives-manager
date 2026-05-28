@@ -2,15 +2,19 @@ import { useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, ArrowRight } from 'lucide-react';
+import { TrendingUp, ArrowRight, Zap } from 'lucide-react';
 
 const CURRENCIES = [
-  { value: 'PHP', label: 'PHP ₱', symbol: '₱' },
-  { value: 'USD', label: 'USD $', symbol: '$' },
-  { value: 'EUR', label: 'EUR €', symbol: '€' },
-  { value: 'JPY', label: 'JPY ¥', symbol: '¥' },
-  { value: 'KRW', label: 'KRW ₩', symbol: '₩' },
-  { value: 'SGD', label: 'SGD S$', symbol: 'S$' },
+  { value: 'PHP', label: 'PHP ₱', symbol: '₱', defaultRate: 1 },
+  { value: 'USD', label: 'USD $', symbol: '$', defaultRate: 58 },
+  { value: 'EUR', label: 'EUR €', symbol: '€', defaultRate: 63 },
+  { value: 'JPY', label: 'JPY ¥', symbol: '¥', defaultRate: 0.39 },
+  { value: 'KRW', label: 'KRW ₩', symbol: '₩', defaultRate: 0.044 },
+  { value: 'SGD', label: 'SGD S$', symbol: 'S$', defaultRate: 43 },
+  { value: 'THB', label: 'THB ฿', symbol: '฿', defaultRate: 1.6 },
+  { value: 'AUD', label: 'AUD A$', symbol: 'A$', defaultRate: 38 },
+  { value: 'CNY', label: 'CNY ¥', symbol: 'CN¥', defaultRate: 8 },
+  { value: 'HKD', label: 'HKD HK$', symbol: 'HK$', defaultRate: 7.5 },
 ];
 
 export default function PricingEngine({ formData, setFormData }) {
@@ -24,7 +28,19 @@ export default function PricingEngine({ formData, setFormData }) {
   const downpayment = Number(formData.downpayment_required) || 0;
   const balance = sellingPrice - downpayment;
   const commission = Number(formData.commission_amount) || 0;
-  const profitPerPax = sellingPrice - basePHP - commission;
+
+  const currencyInfo = CURRENCIES.find(c => c.value === currency);
+  const currencySymbol = currencyInfo?.symbol || '₱';
+
+  // When currency changes, auto-fill the suggested exchange rate
+  const handleCurrencyChange = (val) => {
+    const selected = CURRENCIES.find(c => c.value === val);
+    setFormData(prev => ({
+      ...prev,
+      base_price_currency: val,
+      exchange_rate: val === 'PHP' ? 1 : (selected?.defaultRate || prev.exchange_rate || 1),
+    }));
+  };
 
   // Auto-update selling_price and base_price_php in parent form
   useEffect(() => {
@@ -38,19 +54,18 @@ export default function PricingEngine({ formData, setFormData }) {
   }, [foreignPrice, exchangeRate, markupAmount]);
 
   const set = (key, val) => setFormData(prev => ({ ...prev, [key]: val }));
-  const currencySymbol = CURRENCIES.find(c => c.value === currency)?.symbol || '₱';
 
   return (
     <div className="space-y-4">
       <h4 className="font-semibold text-sm font-jakarta text-foreground flex items-center gap-2">
-        <TrendingUp className="w-4 h-4 text-primary" /> Advanced Pricing Engine
+        <TrendingUp className="w-4 h-4 text-primary" /> Pricing Engine
       </h4>
 
       {/* Currency & Base Price */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <Label className="text-xs">Base Currency</Label>
-          <Select value={currency} onValueChange={v => set('base_price_currency', v)}>
+          <Select value={currency} onValueChange={handleCurrencyChange}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {CURRENCIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
@@ -61,18 +76,45 @@ export default function PricingEngine({ formData, setFormData }) {
           <Label className="text-xs">Base Cost Price ({currencySymbol})</Label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{currencySymbol}</span>
-            <Input type="number" className="pl-7" placeholder="0" value={formData.base_price_foreign || ''} onChange={e => set('base_price_foreign', Number(e.target.value))} />
+            <Input
+              type="number"
+              className="pl-7"
+              placeholder="0"
+              value={formData.base_price_foreign || ''}
+              onChange={e => set('base_price_foreign', Number(e.target.value))}
+            />
           </div>
         </div>
         {currency !== 'PHP' && (
           <div className="space-y-1.5">
-            <Label className="text-xs">Exchange Rate (→ PHP)</Label>
-            <Input type="number" step="0.01" placeholder="58.00" value={formData.exchange_rate || ''} onChange={e => set('exchange_rate', Number(e.target.value))} />
+            <Label className="text-xs flex items-center gap-1">
+              Exchange Rate (→ ₱)
+              <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded font-medium">
+                <Zap className="w-2 h-2 inline" /> Auto-filled
+              </span>
+            </Label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder={currencyInfo?.defaultRate?.toString() || '1'}
+              value={formData.exchange_rate || ''}
+              onChange={e => set('exchange_rate', Number(e.target.value))}
+            />
           </div>
         )}
       </div>
 
-      {/* Markup & Selling Price */}
+      {/* Live PHP conversion — always visible when foreign currency selected */}
+      {currency !== 'PHP' && foreignPrice > 0 && (
+        <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800 rounded-lg px-4 py-2.5 text-sm">
+          <span className="text-muted-foreground">{currencySymbol}{foreignPrice.toLocaleString()} × {exchangeRate} =</span>
+          <ArrowRight className="w-3.5 h-3.5 text-sky-500" />
+          <span className="font-bold text-sky-700 dark:text-sky-400 text-base">₱{basePHP.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          <span className="text-[10px] text-muted-foreground ml-auto">Auto-converted to PHP</span>
+        </div>
+      )}
+
+      {/* Markup & Commission */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-xs">Markup Amount (₱)</Label>
@@ -90,7 +132,7 @@ export default function PricingEngine({ formData, setFormData }) {
         </div>
       </div>
 
-      {/* Pricing Breakdown Visual */}
+      {/* Pricing Flow Summary */}
       {foreignPrice > 0 && (
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
           <div className="flex flex-wrap items-center justify-center gap-2 text-center">
@@ -102,8 +144,8 @@ export default function PricingEngine({ formData, setFormData }) {
               <>
                 <ArrowRight className="w-4 h-4 text-muted-foreground" />
                 <div className="px-3 py-2 bg-white dark:bg-card rounded-lg shadow-sm">
-                  <p className="text-[10px] text-muted-foreground">Converted PHP</p>
-                  <p className="font-bold text-sm font-jakarta text-sky-600">₱{basePHP.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground">PHP Equivalent</p>
+                  <p className="font-bold text-sm font-jakarta text-sky-600">₱{basePHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                 </div>
               </>
             )}
@@ -119,12 +161,12 @@ export default function PricingEngine({ formData, setFormData }) {
             <ArrowRight className="w-4 h-4 text-primary" />
             <div className="px-4 py-2 bg-primary rounded-lg shadow-sm">
               <p className="text-[10px] text-primary-foreground/80">Selling Price</p>
-              <p className="font-bold text-base font-jakarta text-primary-foreground">₱{sellingPrice.toLocaleString()}</p>
+              <p className="font-bold text-base font-jakarta text-primary-foreground">₱{sellingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
             </div>
           </div>
           {commission > 0 && (
             <p className="text-center text-xs text-muted-foreground mt-2">
-              Net after commission: <span className="font-semibold text-emerald-600">₱{(sellingPrice - commission).toLocaleString()}</span>
+              Net after commission: <span className="font-semibold text-emerald-600">₱{(sellingPrice - commission).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
             </p>
           )}
         </div>
@@ -143,7 +185,7 @@ export default function PricingEngine({ formData, setFormData }) {
           <div className="space-y-1.5">
             <Label className="text-xs">Remaining Balance</Label>
             <div className="h-9 px-3 flex items-center rounded-md border border-border bg-muted/50 text-sm font-semibold text-foreground">
-              ₱{balance.toLocaleString()}
+              ₱{balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
             </div>
           </div>
         )}
