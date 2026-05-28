@@ -20,11 +20,14 @@ const DEFAULT_TASKS = [
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Confirm commission structure', department: 'product_development', priority: 'high', order_index: 11, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Confirm guaranteed departure status', department: 'product_development', priority: 'medium', order_index: 12, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Confirm seat/blocking allocation availability', department: 'product_development', priority: 'high', order_index: 13, completion_mode: 'auto' },
+  // Stage 1 admin tasks (payment deadlines & cancellation policy — admin only)
+  { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Payment deadlines', department: 'admin', priority: 'high', order_index: 14, completion_mode: 'auto' },
+  { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 1, stage_name: 'Product Sourcing', task_name: 'Request complete package details from operator: Cancellation policy', department: 'admin', priority: 'medium', order_index: 15, completion_mode: 'manual' },
   // Stage 2 — Product Evaluation & Approval
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Evaluate profitability and commission margin', department: 'product_development', priority: 'high', requires_approval: true, order_index: 1, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Review selling price competitiveness', department: 'product_development', priority: 'high', order_index: 2, completion_mode: 'auto' },
-  { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Validate operator credibility and past performance', department: 'admin', priority: 'high', order_index: 3, completion_mode: 'manual' },
-  { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Review operator risk exposure documentation', department: 'admin', priority: 'high', order_index: 4, completion_mode: 'manual' },
+  { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Check risk exposure and operator credibility', department: 'admin', priority: 'high', order_index: 3, completion_mode: 'manual' },
+  { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Review payment schedules and deadlines', department: 'admin', priority: 'high', order_index: 4, completion_mode: 'manual' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 2, stage_name: 'Product Evaluation & Approval', task_name: 'Approve product for selling', department: 'management', priority: 'urgent', requires_approval: true, order_index: 5, completion_mode: 'auto' },
   // Stage 3 — Product Creation (package structure, pricing, itinerary only)
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 3, stage_name: 'Product Creation', task_name: 'Create internal EZquote', department: 'product_development', priority: 'high', order_index: 1, completion_mode: 'auto' },
@@ -35,6 +38,7 @@ const DEFAULT_TASKS = [
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 3, stage_name: 'Product Creation', task_name: 'Finalize flight details', department: 'product_development', priority: 'high', order_index: 6, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 3, stage_name: 'Product Creation', task_name: 'Prepare inclusions and exclusions list', department: 'product_development', priority: 'medium', order_index: 7, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 3, stage_name: 'Product Creation', task_name: 'Prepare terms and conditions', department: 'product_development', priority: 'medium', order_index: 8, completion_mode: 'auto' },
+  // NOTE: "Create optional tour list" removed entirely — not assigned to any department
   // Stage 4 — Internal Documentation (Admin — all operational/deadline documentation)
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Save operator tariff in Google Drive', department: 'admin', priority: 'high', order_index: 1, completion_mode: 'manual' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 4, stage_name: 'Internal Documentation', task_name: 'Save operator contact details', department: 'admin', priority: 'medium', order_index: 2, completion_mode: 'auto' },
@@ -53,6 +57,7 @@ const DEFAULT_TASKS = [
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Encode flight details', department: 'product_development', priority: 'high', order_index: 4, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Encode available slots', department: 'product_development', priority: 'high', order_index: 5, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 5, stage_name: 'Upload in Collectives Tracker', task_name: 'Add remarks and booking conditions', department: 'product_development', priority: 'medium', order_index: 6, completion_mode: 'auto' },
+  // NOTE: "Encode payment deadlines" moved to Stage 4 (admin)
   // Stage 6 — Marketing Endorsement
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Receive finalized package details', department: 'marketing', priority: 'high', order_index: 1, completion_mode: 'auto' },
   { phase_number: 1, phase_name: 'PRODUCT PREPARATION', stage_number: 6, stage_name: 'Marketing Endorsement', task_name: 'Create official marketing poster if needed', department: 'marketing', priority: 'high', order_index: 2, completion_mode: 'auto' },

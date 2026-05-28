@@ -1,14 +1,23 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Task names that were incorrectly assigned to product_development
-// and must be fully removed from all existing collectives.
-const TASKS_TO_DELETE = [
+// Tasks to DELETE entirely (not moved anywhere)
+const TASKS_TO_DELETE_ENTIRELY = [
+  'Create optional tour list',
+];
+
+// Tasks to REASSIGN from product_development to admin
+const TASKS_TO_REASSIGN_TO_ADMIN = [
   'Request complete package details from operator: Payment deadlines',
   'Request complete package details from operator: Cancellation policy',
   'Check risk exposure and operator credibility',
   'Review payment schedules and deadlines',
-  'Create optional tour list',
   'Encode payment deadlines',
+];
+
+// Old names that were renamed and need to be deleted (replaced by correct admin tasks already in template)
+const OLD_RENAMED_TASKS_TO_DELETE = [
+  'Validate operator credibility and past performance',
+  'Review operator risk exposure documentation',
 ];
 
 Deno.serve(async (req) => {
@@ -17,22 +26,37 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const collective_id = body.collective_id || null;
 
-    // Fetch matching tasks — scoped to one collective or all
     const filter = collective_id ? { collective_id } : {};
     const allTasks = await base44.asServiceRole.entities.ChecklistTask.filter(filter);
 
-    const toDelete = allTasks.filter(t =>
-      TASKS_TO_DELETE.some(name => t.task_name?.trim() === name.trim())
-    );
-
     let deleted = 0;
-    for (const task of toDelete) {
-      await base44.asServiceRole.entities.ChecklistTask.delete(task.id);
-      deleted++;
+    let reassigned = 0;
+
+    for (const task of allTasks) {
+      const name = task.task_name?.trim();
+
+      if (TASKS_TO_DELETE_ENTIRELY.some(n => n.trim() === name)) {
+        await base44.asServiceRole.entities.ChecklistTask.delete(task.id);
+        deleted++;
+      } else if (OLD_RENAMED_TASKS_TO_DELETE.some(n => n.trim() === name)) {
+        await base44.asServiceRole.entities.ChecklistTask.delete(task.id);
+        deleted++;
+      } else if (TASKS_TO_REASSIGN_TO_ADMIN.some(n => n.trim() === name) && task.department === 'product_development') {
+        await base44.asServiceRole.entities.ChecklistTask.update(task.id, { department: 'admin' });
+        reassigned++;
+      }
     }
 
     // Recalculate progress for affected collectives
-    const affectedIds = [...new Set(toDelete.map(t => t.collective_id).filter(Boolean))];
+    const affectedIds = [...new Set(allTasks
+      .filter(t => {
+        const name = t.task_name?.trim();
+        return TASKS_TO_DELETE_ENTIRELY.some(n => n.trim() === name)
+          || OLD_RENAMED_TASKS_TO_DELETE.some(n => n.trim() === name)
+          || (TASKS_TO_REASSIGN_TO_ADMIN.some(n => n.trim() === name) && t.department === 'product_development');
+      })
+      .map(t => t.collective_id).filter(Boolean))];
+
     for (const cid of affectedIds) {
       await base44.asServiceRole.functions.invoke('updateWorkflowProgress', { collective_id: cid });
     }
@@ -40,8 +64,9 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       deleted,
+      reassigned,
       affected_collectives: affectedIds.length,
-      message: `Removed ${deleted} misassigned tasks from ${affectedIds.length} collective(s). Progress recalculated.`,
+      message: `Deleted ${deleted} tasks, reassigned ${reassigned} tasks to admin across ${affectedIds.length} collective(s).`,
     });
 
   } catch (error) {
