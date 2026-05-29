@@ -122,6 +122,26 @@
       "type": "number",
       "description": "Required downpayment amount in PHP"
     },
+    "rate_twin": {
+      "type": "number",
+      "description": "Twin sharing rate per pax (PHP)"
+    },
+    "rate_triple": {
+      "type": "number",
+      "description": "Triple sharing rate per pax (PHP)"
+    },
+    "rate_quad": {
+      "type": "number",
+      "description": "Quad sharing rate per pax (PHP)"
+    },
+    "rate_single": {
+      "type": "number",
+      "description": "Single occupancy rate per pax (PHP)"
+    },
+    "rate_child": {
+      "type": "number",
+      "description": "Child rate per pax (PHP)"
+    },
     "internal_deadline": {
       "type": "string",
       "format": "date"

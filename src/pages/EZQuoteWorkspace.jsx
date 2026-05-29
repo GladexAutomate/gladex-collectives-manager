@@ -46,6 +46,7 @@ const BLANK_QUOTE = () => ({
   currency: 'USD', exchange_rate: 57, base_cost_foreign: '',
   markup_php: 0, markup_pct: 0, use_markup_pct: false,
   commission_per_pax: 0, downpayment_required: 0,
+  rate_twin: '', rate_triple: '', rate_quad: '', rate_single: '', rate_child: '',
   inclusions: '', exclusions: '', cancellation_policy: '',
   optional_tours: '', flight_details: '', remarks: '',
   status: 'draft',
@@ -204,6 +205,11 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
             selling_price: bPHP + mPHP,
             commission_amount: Number(next.commission_per_pax),
             downpayment_required: Number(next.downpayment_required),
+            rate_twin: Number(next.rate_twin) || undefined,
+            rate_triple: Number(next.rate_triple) || undefined,
+            rate_quad: Number(next.rate_quad) || undefined,
+            rate_single: Number(next.rate_single) || undefined,
+            rate_child: Number(next.rate_child) || undefined,
             total_slots: Number(next.pax_estimate) || 0,
             inclusions: next.inclusions,
             exclusions: next.exclusions,
@@ -253,6 +259,11 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
       use_markup_pct: false,
       commission_per_pax: c.commission_amount || 0,
       downpayment_required: c.downpayment_required || 0,
+      rate_twin: c.rate_twin || '',
+      rate_triple: c.rate_triple || '',
+      rate_quad: c.rate_quad || '',
+      rate_single: c.rate_single || '',
+      rate_child: c.rate_child || '',
       inclusions: c.inclusions || '',
       exclusions: c.exclusions || '',
       cancellation_policy: c.cancellation_policy || '',
@@ -301,6 +312,11 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
       selling_price: sellingPrice,
       commission_amount: Number(quote.commission_per_pax),
       downpayment_required: Number(quote.downpayment_required),
+      rate_twin: Number(quote.rate_twin) || undefined,
+      rate_triple: Number(quote.rate_triple) || undefined,
+      rate_quad: Number(quote.rate_quad) || undefined,
+      rate_single: Number(quote.rate_single) || undefined,
+      rate_child: Number(quote.rate_child) || undefined,
       total_slots: Number(quote.pax_estimate) || 0,
       available_slots: Number(quote.pax_estimate) || 0,
       inclusions: quote.inclusions,
@@ -509,11 +525,13 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                     <span className="text-sm font-black text-amber-600 font-jakarta">₱{sellingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground ml-auto">
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground ml-auto flex-wrap">
                   <span>Margin: <strong className="text-foreground">{grossMargin}%</strong></span>
                   <span>DP: <strong className="text-foreground">₱{Number(quote.downpayment_required).toLocaleString()}</strong></span>
                   <span>Est. Rev: <strong className="text-emerald-600">₱{(estRevenue / 1000).toFixed(0)}K</strong></span>
                   <span>Pax: <strong className="text-foreground">{quote.pax_estimate}</strong></span>
+                  {quote.rate_twin && <span>Twin: <strong className="text-amber-600">₱{Number(quote.rate_twin).toLocaleString()}</strong></span>}
+                  {quote.rate_single && <span>Solo: <strong className="text-purple-600">₱{Number(quote.rate_single).toLocaleString()}</strong></span>}
                 </div>
               </div>
             )}
@@ -649,6 +667,43 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                         <span className="text-sm font-semibold">₱{balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                       </div>
                     </F>
+                  </div>
+
+                  {/* ── Availability Rates ── */}
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
+                      <span className="text-xs font-bold text-white">Availability Rates</span>
+                      <span className="text-[10px] text-slate-400">Occupancy-based pricing in PHP</span>
+                    </div>
+                    <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {[
+                        { key: 'rate_twin',   label: 'Twin Sharing',     color: 'text-amber-700',   bg: 'bg-amber-50 dark:bg-amber-950/20',   border: 'border-amber-200' },
+                        { key: 'rate_triple', label: 'Triple Sharing',   color: 'text-sky-700',     bg: 'bg-sky-50 dark:bg-sky-950/20',       border: 'border-sky-200' },
+                        { key: 'rate_quad',   label: 'Quad Sharing',     color: 'text-emerald-700', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200' },
+                        { key: 'rate_single', label: 'Single Occupancy', color: 'text-purple-700',  bg: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200' },
+                        { key: 'rate_child',  label: 'Child Rate',       color: 'text-rose-700',    bg: 'bg-rose-50 dark:bg-rose-950/20',     border: 'border-rose-200' },
+                      ].map(r => (
+                        <div key={r.key} className={cn("rounded-lg border p-3 space-y-1.5", r.bg, r.border)}>
+                          <Label className={cn("text-[10px] font-semibold uppercase tracking-wide", r.color)}>{r.label}</Label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">₱</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              className="pl-6 h-8 text-sm font-semibold bg-white/80 dark:bg-card/80"
+                              value={quote[r.key]}
+                              onChange={e => setQ(r.key, e.target.value)}
+                            />
+                          </div>
+                          {quote[r.key] && Number(quote[r.key]) > 0 && (
+                            <p className={cn("text-[10px] font-bold tabular-nums", r.color)}>
+                              ₱{Number(quote[r.key]).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
