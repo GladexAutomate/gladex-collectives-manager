@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Trash2, Save, RefreshCw, ChevronDown, ChevronUp, CheckCircle, ArrowRight, Calculator, FileText, Plane, Hotel, Users, DollarSign, Info } from 'lucide-react';
+import { Plus, Trash2, Save, RefreshCw, ChevronDown, ChevronUp, CheckCircle, ArrowRight, Calculator, FileText, Plane, Hotel, Users, DollarSign, Info, TrendingUp } from 'lucide-react';
 import SmartPackagePad from '@/components/product/SmartPackagePad';
+import AvailabilityRatesPricing from '@/components/product/AvailabilityRatesPricing';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -540,7 +541,14 @@ export default function EZQuoteBuilder({ collectives }) {
         </div>
       </Section>
 
-      {/* ── 3. Hotel Category Pricing Table ── */}
+      {/* ── 3. Availability Rates & Exchange Rate ── */}
+      <Section title="Availability Rates & Exchange Rate" icon={TrendingUp} iconColor="text-amber-500">
+        <div className="pt-2">
+          <AvailabilityRatesPricing quote={quote} setQ={setQ} />
+        </div>
+      </Section>
+
+      {/* ── 4. Hotel Category Pricing Table ── */}
       <Section title="Hotel Category Pricing Table" icon={Hotel} iconColor="text-purple-500">
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
