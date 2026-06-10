@@ -24,7 +24,8 @@ export default function ProductDevelopment() {
   const [marketingAssets, setMarketingAssets] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('packages');
+  const urlParams = new URLSearchParams(window.location.search);
+  const [activeTab, setActiveTab] = useState(urlParams.get('tab') === 'ezquote' ? 'ezquote' : 'packages');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 

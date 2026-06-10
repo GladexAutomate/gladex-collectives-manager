@@ -46,8 +46,18 @@ const BLANK_QUOTE = () => ({
   currency: 'USD', exchange_rate: 57, base_cost_foreign: '',
   markup_php: 0, markup_pct: 0, use_markup_pct: false,
   commission_per_pax: 0, downpayment_required: 0,
-  rate_twin: '', rate_triple: '', rate_quad: '', rate_single: '', rate_child: '',
+  rate_twin: '', rate_twin_age_min: '', rate_twin_age_max: '',
+  rate_triple: '', rate_triple_age_min: '', rate_triple_age_max: '',
+  rate_quad: '', rate_quad_age_min: '', rate_quad_age_max: '',
+  rate_single: '', rate_single_age_min: '', rate_single_age_max: '',
+  rate_solo: '', rate_solo_age_min: '', rate_solo_age_max: '',
+  rate_single_supplement: '',
+  rate_child_no_bed: '', rate_child_no_bed_age_min: '', rate_child_no_bed_age_max: '',
+  rate_child: '', rate_child_age_min: '', rate_child_age_max: '',
+  rate_infant: '', rate_infant_age_min: '', rate_infant_age_max: '',
+  slots_for_confirmation: false,
   inclusions: '', exclusions: '', cancellation_policy: '',
+  itinerary: '', terms_conditions: '',
   optional_tours: '', flight_details: '', remarks: '',
   status: 'draft',
 });
@@ -107,7 +117,9 @@ function EditorTabs({ active, onChange }) {
   const tabs = [
     { key: 'info', label: 'Package Info', icon: Package },
     { key: 'pricing', label: 'Pricing', icon: DollarSign },
-    { key: 'content', label: 'Inclusions & Terms', icon: FileText },
+    { key: 'content', label: 'Inclusions', icon: FileText },
+    { key: 'itinerary', label: 'Itinerary', icon: FileText },
+    { key: 'terms', label: 'Terms & Conditions', icon: FileText },
   ];
   return (
     <div className="flex border-b border-border bg-muted/20 overflow-x-auto">
@@ -205,15 +217,22 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
             selling_price: bPHP + mPHP,
             commission_amount: Number(next.commission_per_pax),
             downpayment_required: Number(next.downpayment_required),
-            rate_twin: Number(next.rate_twin) || undefined,
-            rate_triple: Number(next.rate_triple) || undefined,
-            rate_quad: Number(next.rate_quad) || undefined,
-            rate_single: Number(next.rate_single) || undefined,
-            rate_child: Number(next.rate_child) || undefined,
+            rate_twin: Number(next.rate_twin) || undefined, rate_twin_age_min: Number(next.rate_twin_age_min) || undefined, rate_twin_age_max: Number(next.rate_twin_age_max) || undefined,
+            rate_triple: Number(next.rate_triple) || undefined, rate_triple_age_min: Number(next.rate_triple_age_min) || undefined, rate_triple_age_max: Number(next.rate_triple_age_max) || undefined,
+            rate_quad: Number(next.rate_quad) || undefined, rate_quad_age_min: Number(next.rate_quad_age_min) || undefined, rate_quad_age_max: Number(next.rate_quad_age_max) || undefined,
+            rate_single: Number(next.rate_single) || undefined, rate_single_age_min: Number(next.rate_single_age_min) || undefined, rate_single_age_max: Number(next.rate_single_age_max) || undefined,
+            rate_solo: Number(next.rate_solo) || undefined, rate_solo_age_min: Number(next.rate_solo_age_min) || undefined, rate_solo_age_max: Number(next.rate_solo_age_max) || undefined,
+            rate_single_supplement: Number(next.rate_single_supplement) || undefined,
+            rate_child_no_bed: Number(next.rate_child_no_bed) || undefined, rate_child_no_bed_age_min: Number(next.rate_child_no_bed_age_min) || undefined, rate_child_no_bed_age_max: Number(next.rate_child_no_bed_age_max) || undefined,
+            rate_child: Number(next.rate_child) || undefined, rate_child_age_min: Number(next.rate_child_age_min) || undefined, rate_child_age_max: Number(next.rate_child_age_max) || undefined,
+            rate_infant: Number(next.rate_infant) || undefined, rate_infant_age_min: Number(next.rate_infant_age_min) || undefined, rate_infant_age_max: Number(next.rate_infant_age_max) || undefined,
+            slots_for_confirmation: next.slots_for_confirmation || false,
             total_slots: Number(next.pax_estimate) || 0,
             inclusions: next.inclusions,
             exclusions: next.exclusions,
             cancellation_policy: next.cancellation_policy,
+            itinerary: next.itinerary,
+            terms_conditions: next.terms_conditions,
             optional_tours: next.optional_tours,
             flight_details: next.flight_details,
             remarks: next.remarks,
@@ -259,14 +278,21 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
       use_markup_pct: false,
       commission_per_pax: c.commission_amount || 0,
       downpayment_required: c.downpayment_required || 0,
-      rate_twin: c.rate_twin || '',
-      rate_triple: c.rate_triple || '',
-      rate_quad: c.rate_quad || '',
-      rate_single: c.rate_single || '',
-      rate_child: c.rate_child || '',
+      rate_twin: c.rate_twin || '', rate_twin_age_min: c.rate_twin_age_min || '', rate_twin_age_max: c.rate_twin_age_max || '',
+      rate_triple: c.rate_triple || '', rate_triple_age_min: c.rate_triple_age_min || '', rate_triple_age_max: c.rate_triple_age_max || '',
+      rate_quad: c.rate_quad || '', rate_quad_age_min: c.rate_quad_age_min || '', rate_quad_age_max: c.rate_quad_age_max || '',
+      rate_single: c.rate_single || '', rate_single_age_min: c.rate_single_age_min || '', rate_single_age_max: c.rate_single_age_max || '',
+      rate_solo: c.rate_solo || '', rate_solo_age_min: c.rate_solo_age_min || '', rate_solo_age_max: c.rate_solo_age_max || '',
+      rate_single_supplement: c.rate_single_supplement || '',
+      rate_child_no_bed: c.rate_child_no_bed || '', rate_child_no_bed_age_min: c.rate_child_no_bed_age_min || '', rate_child_no_bed_age_max: c.rate_child_no_bed_age_max || '',
+      rate_child: c.rate_child || '', rate_child_age_min: c.rate_child_age_min || '', rate_child_age_max: c.rate_child_age_max || '',
+      rate_infant: c.rate_infant || '', rate_infant_age_min: c.rate_infant_age_min || '', rate_infant_age_max: c.rate_infant_age_max || '',
+      slots_for_confirmation: c.slots_for_confirmation || false,
       inclusions: c.inclusions || '',
       exclusions: c.exclusions || '',
       cancellation_policy: c.cancellation_policy || '',
+      itinerary: c.itinerary || '',
+      terms_conditions: c.terms_conditions || '',
       optional_tours: c.optional_tours || '',
       flight_details: c.flight_details || '',
       remarks: c.remarks || '',
@@ -312,16 +338,23 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
       selling_price: sellingPrice,
       commission_amount: Number(quote.commission_per_pax),
       downpayment_required: Number(quote.downpayment_required),
-      rate_twin: Number(quote.rate_twin) || undefined,
-      rate_triple: Number(quote.rate_triple) || undefined,
-      rate_quad: Number(quote.rate_quad) || undefined,
-      rate_single: Number(quote.rate_single) || undefined,
-      rate_child: Number(quote.rate_child) || undefined,
+      rate_twin: Number(quote.rate_twin) || undefined, rate_twin_age_min: Number(quote.rate_twin_age_min) || undefined, rate_twin_age_max: Number(quote.rate_twin_age_max) || undefined,
+      rate_triple: Number(quote.rate_triple) || undefined, rate_triple_age_min: Number(quote.rate_triple_age_min) || undefined, rate_triple_age_max: Number(quote.rate_triple_age_max) || undefined,
+      rate_quad: Number(quote.rate_quad) || undefined, rate_quad_age_min: Number(quote.rate_quad_age_min) || undefined, rate_quad_age_max: Number(quote.rate_quad_age_max) || undefined,
+      rate_single: Number(quote.rate_single) || undefined, rate_single_age_min: Number(quote.rate_single_age_min) || undefined, rate_single_age_max: Number(quote.rate_single_age_max) || undefined,
+      rate_solo: Number(quote.rate_solo) || undefined, rate_solo_age_min: Number(quote.rate_solo_age_min) || undefined, rate_solo_age_max: Number(quote.rate_solo_age_max) || undefined,
+      rate_single_supplement: Number(quote.rate_single_supplement) || undefined,
+      rate_child_no_bed: Number(quote.rate_child_no_bed) || undefined, rate_child_no_bed_age_min: Number(quote.rate_child_no_bed_age_min) || undefined, rate_child_no_bed_age_max: Number(quote.rate_child_no_bed_age_max) || undefined,
+      rate_child: Number(quote.rate_child) || undefined, rate_child_age_min: Number(quote.rate_child_age_min) || undefined, rate_child_age_max: Number(quote.rate_child_age_max) || undefined,
+      rate_infant: Number(quote.rate_infant) || undefined, rate_infant_age_min: Number(quote.rate_infant_age_min) || undefined, rate_infant_age_max: Number(quote.rate_infant_age_max) || undefined,
+      slots_for_confirmation: quote.slots_for_confirmation || false,
       total_slots: Number(quote.pax_estimate) || 0,
       available_slots: Number(quote.pax_estimate) || 0,
       inclusions: quote.inclusions,
       exclusions: quote.exclusions,
       cancellation_policy: quote.cancellation_policy,
+      itinerary: quote.itinerary,
+      terms_conditions: quote.terms_conditions,
       optional_tours: quote.optional_tours,
       flight_details: quote.flight_details,
       remarks: quote.remarks,
@@ -370,6 +403,19 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
   };
 
   const isEditorVisible = selectedCollective || isNewPackage;
+
+  // ── Package Completion Validation (BRD 4.6) ──
+  const hasRates = !!(quote.rate_twin || quote.rate_triple || quote.rate_quad || quote.rate_single || quote.rate_solo || quote.rate_child_no_bed || quote.rate_child || quote.rate_infant);
+  const hasSlots = quote.slots_for_confirmation || (Number(quote.pax_estimate) > 0);
+  const hasItinerary = !!(quote.itinerary && quote.itinerary.trim());
+  const hasTerms = !!(quote.terms_conditions && quote.terms_conditions.trim());
+  const completionItems = [
+    { key: 'rates', label: 'Package Rates', done: hasRates, tab: 'pricing' },
+    { key: 'slots', label: 'Slot Allocation', done: hasSlots, tab: 'info' },
+    { key: 'itinerary', label: 'Itinerary', done: hasItinerary, tab: 'itinerary' },
+    { key: 'terms', label: 'Terms & Conditions', done: hasTerms, tab: 'terms' },
+  ];
+  const completionPct = Math.round((completionItems.filter(i => i.done).length / completionItems.length) * 100);
 
   return (
     <div className="flex h-full min-h-[600px] bg-background rounded-xl border border-border overflow-hidden">
@@ -536,6 +582,26 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
               </div>
             )}
 
+            {/* Package Completion Validation (BRD 4.6) */}
+            <div className={cn("px-5 py-2 border-b border-border flex flex-wrap items-center gap-3", completionPct === 100 ? "bg-emerald-50 dark:bg-emerald-950/20" : "bg-amber-50/60 dark:bg-amber-950/10")}>
+              <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">Publication Checklist:</span>
+              {completionItems.map(item => (
+                <button
+                  key={item.key}
+                  onClick={() => setActiveEditorTab(item.tab)}
+                  className={cn(
+                    "flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors",
+                    item.done
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800"
+                      : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 hover:bg-amber-200"
+                  )}
+                >
+                  <span>{item.done ? '✓' : '⚠'}</span> {item.label}
+                </button>
+              ))}
+              <span className={cn("ml-auto text-[10px] font-bold", completionPct === 100 ? "text-emerald-600" : "text-amber-600")}>{completionPct}% Ready</span>
+            </div>
+
             {/* Editor Tabs */}
             <EditorTabs active={activeEditorTab} onChange={setActiveEditorTab} />
 
@@ -582,6 +648,24 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                   </F>
                   <F label="Guaranteed Dept. Pax">
                     <Input type="number" placeholder="Min pax to confirm" value={quote.guaranteed_departure_pax} onChange={e => setQ('guaranteed_departure_pax', Number(e.target.value))} className="h-9" />
+                  </F>
+                  <F label="Slots Allocation">
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Input type="number" placeholder="e.g. 30" value={quote.pax_estimate} onChange={e => setQ('pax_estimate', Number(e.target.value))} className={cn("h-9", quote.slots_for_confirmation && 'opacity-40 pointer-events-none')} disabled={quote.slots_for_confirmation} />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setQ('slots_for_confirmation', !quote.slots_for_confirmation)}
+                        className={cn("flex items-center gap-2 w-full px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
+                          quote.slots_for_confirmation
+                            ? "bg-amber-500 text-white border-amber-500"
+                            : "bg-muted/50 text-muted-foreground border-border hover:border-amber-400")}
+                      >
+                        <span className={cn("w-3 h-3 rounded-full border-2 flex-shrink-0", quote.slots_for_confirmation ? "bg-white border-white" : "border-muted-foreground")} />
+                        For Confirmation
+                      </button>
+                    </div>
                   </F>
                   <F label="Flight Details" className="col-span-2 md:col-span-3">
                     <Input placeholder="e.g. PR 405 MNL-NRT · PR 406 NRT-MNL" value={quote.flight_details} onChange={e => setQ('flight_details', e.target.value)} className="h-9" />
@@ -673,36 +757,67 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                   <div className="rounded-lg border border-border overflow-hidden">
                     <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
                       <span className="text-xs font-bold text-white">Availability Rates</span>
-                      <span className="text-[10px] text-slate-400">Occupancy-based pricing in PHP</span>
+                      <span className="text-[10px] text-slate-400">Occupancy-based pricing in PHP · with applicable age ranges</span>
                     </div>
-                    <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                      {[
-                        { key: 'rate_twin',   label: 'Twin Sharing',     color: 'text-amber-700',   bg: 'bg-amber-50 dark:bg-amber-950/20',   border: 'border-amber-200' },
-                        { key: 'rate_triple', label: 'Triple Sharing',   color: 'text-sky-700',     bg: 'bg-sky-50 dark:bg-sky-950/20',       border: 'border-sky-200' },
-                        { key: 'rate_quad',   label: 'Quad Sharing',     color: 'text-emerald-700', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200' },
-                        { key: 'rate_single', label: 'Single Occupancy', color: 'text-purple-700',  bg: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200' },
-                        { key: 'rate_child',  label: 'Child Rate',       color: 'text-rose-700',    bg: 'bg-rose-50 dark:bg-rose-950/20',     border: 'border-rose-200' },
-                      ].map(r => (
-                        <div key={r.key} className={cn("rounded-lg border p-3 space-y-1.5", r.bg, r.border)}>
-                          <Label className={cn("text-[10px] font-semibold uppercase tracking-wide", r.color)}>{r.label}</Label>
-                          <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">₱</span>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              className="pl-6 h-8 text-sm font-semibold bg-white/80 dark:bg-card/80"
-                              value={quote[r.key]}
-                              onChange={e => setQ(r.key, e.target.value)}
-                            />
+                    <div className="p-4 space-y-3">
+                      {/* Room/Occupancy Rates */}
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {[
+                          { key: 'rate_twin',   label: 'Twin Sharing',       color: 'text-amber-700',   bg: 'bg-amber-50 dark:bg-amber-950/20',   border: 'border-amber-200' },
+                          { key: 'rate_triple', label: 'Triple Sharing',     color: 'text-sky-700',     bg: 'bg-sky-50 dark:bg-sky-950/20',       border: 'border-sky-200' },
+                          { key: 'rate_quad',   label: 'Quad Sharing',       color: 'text-emerald-700', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200' },
+                          { key: 'rate_single', label: 'Single Occupancy',   color: 'text-purple-700',  bg: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200' },
+                          { key: 'rate_solo',   label: 'Solo Rate',          color: 'text-indigo-700',  bg: 'bg-indigo-50 dark:bg-indigo-950/20', border: 'border-indigo-200' },
+                          { key: 'rate_single_supplement', label: 'Single Supplement', color: 'text-orange-700', bg: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-200', noAge: true },
+                        ].map(r => (
+                          <div key={r.key} className={cn("rounded-lg border p-3 space-y-2", r.bg, r.border)}>
+                            <Label className={cn("text-[10px] font-semibold uppercase tracking-wide", r.color)}>{r.label}</Label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">₱</span>
+                              <Input type="number" step="0.01" placeholder="0.00" className="pl-6 h-8 text-sm font-semibold bg-white/80 dark:bg-card/80" value={quote[r.key]} onChange={e => setQ(r.key, e.target.value)} />
+                            </div>
+                            {!r.noAge && (
+                              <div className="flex gap-1 items-center">
+                                <span className="text-[9px] text-muted-foreground w-14">Age Range:</span>
+                                <Input type="number" placeholder="Min" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={quote[`${r.key}_age_min`]} onChange={e => setQ(`${r.key}_age_min`, e.target.value)} />
+                                <span className="text-[9px] text-muted-foreground">–</span>
+                                <Input type="number" placeholder="Max" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={quote[`${r.key}_age_max`]} onChange={e => setQ(`${r.key}_age_max`, e.target.value)} />
+                              </div>
+                            )}
+                            {quote[r.key] && Number(quote[r.key]) > 0 && (
+                              <p className={cn("text-[10px] font-bold tabular-nums", r.color)}>₱{Number(quote[r.key]).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                            )}
                           </div>
-                          {quote[r.key] && Number(quote[r.key]) > 0 && (
-                            <p className={cn("text-[10px] font-bold tabular-nums", r.color)}>
-                              ₱{Number(quote[r.key]).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+
+                      {/* Child / Infant Rates */}
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-1">Child & Infant Rates</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {[
+                          { key: 'rate_child_no_bed', label: 'Child No Bed',  color: 'text-rose-700',  bg: 'bg-rose-50 dark:bg-rose-950/20',   border: 'border-rose-200' },
+                          { key: 'rate_child',        label: 'Child w/ Bed',  color: 'text-pink-700',  bg: 'bg-pink-50 dark:bg-pink-950/20',   border: 'border-pink-200' },
+                          { key: 'rate_infant',       label: 'Infant Fee',    color: 'text-fuchsia-700', bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/20', border: 'border-fuchsia-200' },
+                        ].map(r => (
+                          <div key={r.key} className={cn("rounded-lg border p-3 space-y-2", r.bg, r.border)}>
+                            <Label className={cn("text-[10px] font-semibold uppercase tracking-wide", r.color)}>{r.label}</Label>
+                            <div className="relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">₱</span>
+                              <Input type="number" step="0.01" placeholder="0.00" className="pl-6 h-8 text-sm font-semibold bg-white/80 dark:bg-card/80" value={quote[r.key]} onChange={e => setQ(r.key, e.target.value)} />
+                            </div>
+                            <div className="flex gap-1 items-center">
+                              <span className="text-[9px] text-muted-foreground w-14">Age Range:</span>
+                              <Input type="number" placeholder="Min" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={quote[`${r.key}_age_min`]} onChange={e => setQ(`${r.key}_age_min`, e.target.value)} />
+                              <span className="text-[9px] text-muted-foreground">–</span>
+                              <Input type="number" placeholder="Max" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={quote[`${r.key}_age_max`]} onChange={e => setQ(`${r.key}_age_max`, e.target.value)} />
+                            </div>
+                            {quote[r.key] && Number(quote[r.key]) > 0 && (
+                              <p className={cn("text-[10px] font-bold tabular-nums", r.color)}>₱{Number(quote[r.key]).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -726,6 +841,54 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                   <F label="Remarks" className="md:col-span-2">
                     <Textarea rows={2} value={quote.remarks} onChange={e => setQ('remarks', e.target.value)} className="text-xs resize-none" />
                   </F>
+                </div>
+              )}
+
+              {/* ── ITINERARY TAB ── */}
+              {activeEditorTab === 'itinerary' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Day-by-Day Itinerary</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Required before package publication. Describe each day's activities.</p>
+                    </div>
+                    {quote.itinerary ? (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">✓ Filled</span>
+                    ) : (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold">⚠ Required</span>
+                    )}
+                  </div>
+                  <Textarea
+                    rows={20}
+                    placeholder={"Day 1 – Arrival\n• Arrive at [Airport], check-in at hotel\n• Welcome dinner\n\nDay 2 – City Tour\n• Breakfast at hotel\n• Morning: Visit [landmark]\n• Afternoon: Shopping at [area]\n• Evening: Free time\n\nDay 3 – [Destination]\n• ..."}
+                    value={quote.itinerary}
+                    onChange={e => setQ('itinerary', e.target.value)}
+                    className="text-xs font-mono resize-none min-h-[400px]"
+                  />
+                </div>
+              )}
+
+              {/* ── TERMS & CONDITIONS TAB ── */}
+              {activeEditorTab === 'terms' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Terms & Conditions</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Required before package publication. Include booking, payment, and cancellation policies.</p>
+                    </div>
+                    {quote.terms_conditions ? (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">✓ Filled</span>
+                    ) : (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold">⚠ Required</span>
+                    )}
+                  </div>
+                  <Textarea
+                    rows={20}
+                    placeholder={"1. BOOKING & PAYMENT\n• A downpayment of [amount] is required to confirm the booking.\n• Full payment is due [X] days before departure.\n\n2. CANCELLATION POLICY\n• Cancellations made [X] days before: [refund policy]\n• No-shows: Non-refundable\n\n3. INCLUSIONS\n• Rates are per person based on twin sharing.\n\n4. EXCLUSIONS\n• Visa fees, travel insurance, personal expenses.\n\n5. GENERAL CONDITIONS\n• The company reserves the right to modify the itinerary..."}
+                    value={quote.terms_conditions}
+                    onChange={e => setQ('terms_conditions', e.target.value)}
+                    className="text-xs font-mono resize-none min-h-[400px]"
+                  />
                 </div>
               )}
             </div>

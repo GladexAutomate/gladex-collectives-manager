@@ -70,6 +70,11 @@
       "type": "number",
       "default": 0
     },
+    "slots_for_confirmation": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, slots are on-request/for confirmation basis"
+    },
     "available_slots": {
       "type": "number",
       "default": 0
@@ -126,21 +131,95 @@
       "type": "number",
       "description": "Twin sharing rate per pax (PHP)"
     },
+    "rate_twin_age_min": {
+      "type": "number",
+      "description": "Twin rate minimum age"
+    },
+    "rate_twin_age_max": {
+      "type": "number",
+      "description": "Twin rate maximum age"
+    },
     "rate_triple": {
       "type": "number",
       "description": "Triple sharing rate per pax (PHP)"
+    },
+    "rate_triple_age_min": {
+      "type": "number"
+    },
+    "rate_triple_age_max": {
+      "type": "number"
     },
     "rate_quad": {
       "type": "number",
       "description": "Quad sharing rate per pax (PHP)"
     },
+    "rate_quad_age_min": {
+      "type": "number"
+    },
+    "rate_quad_age_max": {
+      "type": "number"
+    },
     "rate_single": {
       "type": "number",
       "description": "Single occupancy rate per pax (PHP)"
     },
+    "rate_single_age_min": {
+      "type": "number"
+    },
+    "rate_single_age_max": {
+      "type": "number"
+    },
+    "rate_solo": {
+      "type": "number",
+      "description": "Solo rate (same room, no sharing supplement)"
+    },
+    "rate_solo_age_min": {
+      "type": "number"
+    },
+    "rate_solo_age_max": {
+      "type": "number"
+    },
+    "rate_single_supplement": {
+      "type": "number",
+      "description": "Single supplement add-on fee"
+    },
+    "rate_child_no_bed": {
+      "type": "number",
+      "description": "Child no bed rate per pax (PHP)"
+    },
+    "rate_child_no_bed_age_min": {
+      "type": "number"
+    },
+    "rate_child_no_bed_age_max": {
+      "type": "number"
+    },
     "rate_child": {
       "type": "number",
-      "description": "Child rate per pax (PHP)"
+      "description": "Child with bed rate per pax (PHP)"
+    },
+    "rate_child_age_min": {
+      "type": "number"
+    },
+    "rate_child_age_max": {
+      "type": "number"
+    },
+    "rate_infant": {
+      "type": "number",
+      "description": "Infant fee (PHP)"
+    },
+    "rate_infant_age_min": {
+      "type": "number"
+    },
+    "rate_infant_age_max": {
+      "type": "number"
+    },
+    "itinerary": {
+      "type": "string",
+      "description": "Day-by-day itinerary content"
+    },
+    "terms_conditions": {
+      "type": "string",
+      "description": "Full terms and conditions text"
     },
     "internal_deadline": {
       "type": "string",
@@ -162,7 +241,7 @@
     "exclusions": {
       "type": "string"
     },
-    "terms_conditions": {
+    "cancellation_policy": {
       "type": "string"
     },
     "optional_tours": {
@@ -185,11 +264,10 @@
         "cancelled"
       ],
       "default": "draft",
-      "description": "Package lifecycle: Draft \u2192 Open Booking \u2192 Confirmed Departure \u2192 Ongoing Travel \u2192 Completed"
+      "description": "Package lifecycle"
     },
     "lifecycle_stage": {
-      "type": "string",
-      "description": "Current lifecycle status label"
+      "type": "string"
     },
     "current_phase": {
       "type": "number",

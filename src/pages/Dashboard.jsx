@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
   Globe, Users, DollarSign, TrendingUp, Plane, Clock,
-  AlertTriangle, Star, BarChart3
+  AlertTriangle, Star, BarChart3, Package, Calculator, Plus, ArrowRight
 } from 'lucide-react';
 import KPICard from '@/components/dashboard/KPICard';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import UpcomingDepartures from '@/components/dashboard/UpcomingDepartures';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { Link } from 'react-router-dom';
 
 const bookingTrend = [
   { month: 'Jan', bookings: 28, revenue: 420000 },
@@ -90,6 +91,39 @@ export default function Dashboard() {
               <p className="text-xs text-blue-200">Upcoming Trips</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Product Development Quick Access (BRD 4.1) */}
+      <div className="bg-card rounded-xl border border-border p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-amber-500" />
+            <span className="font-semibold text-sm font-jakarta text-foreground">Product Development</span>
+          </div>
+          <Link to="/product-development" className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-amber-600 transition-colors">
+            View all <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Link to="/product-development" className="flex flex-col items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors group">
+            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center">
+              <Plus className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 text-center">Create Package</span>
+          </Link>
+          <Link to="/collectives" className="flex flex-col items-center gap-2 p-3 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-950/40 transition-colors group">
+            <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center">
+              <Globe className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-[10px] font-semibold text-sky-700 dark:text-sky-400 text-center">Collectives</span>
+          </Link>
+          <Link to="/product-development?tab=ezquote" className="flex flex-col items-center gap-2 p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors group">
+            <div className="w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center">
+              <Calculator className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 text-center">EZQuote</span>
+          </Link>
         </div>
       </div>
 
