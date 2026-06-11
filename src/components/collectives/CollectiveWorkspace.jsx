@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import {
   Save, RefreshCw, CheckCircle, ArrowRight, Plus, Search,
   FileText, Plane, DollarSign, Package, Calculator,
-  Trash2, Sparkles, Globe, Eye, GitBranch
+  Trash2, Sparkles, Globe, Eye, GitBranch, Menu
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -401,12 +401,17 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
   const completionPct = Math.round((completionItems.filter(i => i.done).length / completionItems.length) * 100);
 
   const isEditorVisible = selectedCollective || isNew;
+  const [showList, setShowList] = useState(true);
 
   return (
     <div className="flex h-full min-h-[700px] bg-background rounded-xl border border-border overflow-hidden">
 
       {/* ── LEFT: Collective List Panel ── */}
-      <div className="w-64 flex-shrink-0 flex flex-col border-r border-border bg-card">
+      <div className={cn(
+        "flex-shrink-0 flex flex-col border-r border-border bg-card transition-all",
+        showList ? "w-64" : "w-0 overflow-hidden",
+        "md:w-64 md:overflow-visible"
+      )}>
         <div className="px-3 py-3 border-b border-border space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Collectives</span>
@@ -474,16 +479,25 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
         ) : (
           <>
             {/* Topbar */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card/80 flex-shrink-0">
-              <div className="min-w-0">
-                <h3 className="font-bold text-sm font-jakarta text-foreground truncate">
-                  {form.name || 'New Collective'}
-                </h3>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                  {selectedCollective && <code className="font-mono bg-muted px-1.5 py-0.5 rounded">{generateRefCode(selectedCollective)}</code>}
-                  {form.destination && <span>{form.destination}</span>}
-                  {sellingPrice > 0 && <span className="text-amber-600 font-semibold">₱{sellingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}/pax</span>}
-                </p>
+            <div className="flex items-center justify-between px-3 md:px-5 py-3 border-b border-border bg-card/80 flex-shrink-0 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  onClick={() => setShowList(v => !v)}
+                  className="md:hidden p-1.5 rounded hover:bg-muted text-muted-foreground flex-shrink-0"
+                  title="Toggle list"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm font-jakarta text-foreground truncate">
+                    {form.name || 'New Collective'}
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                    {selectedCollective && <code className="font-mono bg-muted px-1.5 py-0.5 rounded">{generateRefCode(selectedCollective)}</code>}
+                    {form.destination && <span>{form.destination}</span>}
+                    {sellingPrice > 0 && <span className="text-amber-600 font-semibold">₱{sellingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}/pax</span>}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Select value={form.status} onValueChange={v => setF('status', v)}>
@@ -786,8 +800,8 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
               {/* ── TRAVEL DATES ── */}
               {activeTab === 'dates' && (
                 <TravelDatesManager
-                  formData={{ travel_dates: form.travel_dates }}
-                  setFormData={data => setF('travel_dates', data.travel_dates)}
+                  travelDates={form.travel_dates || []}
+                  onChange={dates => setF('travel_dates', dates)}
                 />
               )}
 
