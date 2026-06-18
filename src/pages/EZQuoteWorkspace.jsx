@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import SmartImportSidebar, { generateRefCode } from '@/components/product/SmartImportSidebar';
 import PricingDatesManager from '@/components/collectives/PricingDatesManager';
-import CopyPackageButton from '@/components/collectives/CopyPackageButton';
+import CopyPackageButton, { RawPackageJSON } from '@/components/collectives/CopyPackageButton';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -767,6 +767,13 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                 </div>
               )}
             </div>
+
+            {/* Raw Package JSON Viewer */}
+            {selectedCollective && (
+              <div className="px-5 pb-4 flex-shrink-0">
+                <RawPackageJSON pkg={selectedCollective} />
+              </div>
+            )}
           </>
         )}
       </div>

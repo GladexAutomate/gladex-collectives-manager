@@ -1,141 +1,213 @@
-import { Copy, Check } from 'lucide-react';
+import { Copy, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { generateRefCode } from '@/components/product/SmartImportSidebar';
+import { useState } from 'react';
+
+// ── Smart date range: "Jun 22–26, 2026" instead of "Jun 22 – Jun 26 — Jun 22, 2026 — Jun 26, 2026" ──
+function formatDateRange(dep, ret) {
+  if (!dep && !ret) return '';
+  const df = { month: 'short', day: 'numeric', year: 'numeric' };
+  const dD = dep ? new Date(dep + 'T00:00:00') : null;
+  const dR = ret ? new Date(ret + 'T00:00:00') : null;
+  if (!dD) return dR.toLocaleDateString('en-US', df);
+  if (!dR) return dD.toLocaleDateString('en-US', df);
+  // same month & year → "Jun 22–26, 2026"
+  if (dD.getMonth() === dR.getMonth() && dD.getFullYear() === dR.getFullYear()) {
+    const month = dD.toLocaleDateString('en-US', { month: 'short' });
+    return `${month} ${dD.getDate()}–${dR.getDate()}, ${dD.getFullYear()}`;
+  }
+  // same year → "Jun 22 – Jul 5, 2026"
+  if (dD.getFullYear() === dR.getFullYear()) {
+    const mD = dD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const mR = dR.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${mD} – ${mR}, ${dD.getFullYear()}`;
+  }
+  return `${dD.toLocaleDateString('en-US', df)} – ${dR.toLocaleDateString('en-US', df)}`;
+}
+
+// ── Parse itinerary text into day-by-day sections ──
+function parseItineraryDays(raw) {
+  if (!raw?.trim()) return null;
+  // Split on "Day" patterns like "Day 1", "Day 1 –", "DAY 1:", etc.
+  const dayPattern = /(?:^|\n)(?=Day\s*\d+)/gi;
+  const segments = raw.split(dayPattern).filter(Boolean);
+  // If no day headers found, return as single block
+  if (segments.length <= 1) {
+    // Try to find any day-like structure
+    const lines = raw.split('\n').filter(l => l.trim());
+    if (lines.length === 0) return null;
+    return [{ label: 'ITINERARY', body: lines.join('\n').trim() }];
+  }
+  return segments.map(s => {
+    const sTrim = s.trim();
+    const firstNewline = sTrim.indexOf('\n');
+    const header = firstNewline > 0 ? sTrim.substring(0, firstNewline).trim() : sTrim;
+    const body = firstNewline > 0 ? sTrim.substring(firstNewline + 1).trim() : '';
+    return { label: header.toUpperCase(), body };
+  });
+}
 
 // ── Format a collective/package into clean copy-paste text ──────────────────
 export function formatPackageForCopy(pkg) {
   const parts = [];
+  const na = 'N/A';
 
-  // Name
-  const name = pkg.name || pkg.destination || 'Unnamed Package';
+  const push = (label, value) => {
+    if (value == null || value === '') {
+      parts.push(`${label}:`);
+      parts.push(na);
+    } else {
+      parts.push(`${label}:`);
+      parts.push(String(value));
+    }
+    parts.push('');
+  };
+
+  // ── HEADER ──
+  const name = pkg.name || pkg.package_name || pkg.destination || 'Unnamed Package';
   parts.push(`PACKAGE NAME: ${name.toUpperCase()}`);
   parts.push('');
 
-  // Destination
-  if (pkg.destination) {
-    parts.push(`DESTINATION:`);
-    parts.push(pkg.destination);
-    parts.push('');
-  }
+  push('PACKAGE ID', pkg.id);
 
-  // Travel Dates – prefer travel_dates array, fallback to single dates
-  const dates = pkg.travel_dates?.length
+  // ── BASIC INFO ──
+  push('DESTINATION', pkg.destination);
+  const refCode = generateRefCode(pkg);
+  push('PACKAGE CODE', refCode);
+  push('PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
+
+  // ── STATUS ──
+  const statusLabels = {
+    draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure',
+    ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled'
+  };
+  push('STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
+  push('LIFECYCLE STAGE', pkg.lifecycle_stage);
+  push('BOOKED PAX', pkg.booked_pax != null ? pkg.booked_pax : null);
+  push('TOTAL SLOTS', pkg.total_slots != null ? pkg.total_slots : null);
+  push('AVAILABLE SLOTS', pkg.available_slots != null ? pkg.available_slots : null);
+
+  // ── OPERATOR & CARRIER ──
+  push('OPERATOR', pkg.operator_name);
+  push('FLIGHT / AIRLINE', pkg.flight_details);
+  push('HOTEL DETAILS', pkg.hotel_details);
+
+  // ── TRAVEL DATES ──
+  const tDates = pkg.travel_dates?.length
     ? pkg.travel_dates.map(d => {
         const label = d.label || '';
-        const dep = d.departure_date ? new Date(d.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-        const ret = d.return_date ? new Date(d.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-        return [label, dep, ret].filter(Boolean).join(' — ') || [dep, ret].filter(Boolean).join('–');
+        const range = formatDateRange(d.departure_date, d.return_date);
+        return label ? `${label}: ${range}` : range;
       }).filter(Boolean)
     : [];
-  if (dates.length) {
-    parts.push(`TRAVEL DATES:`);
-    dates.forEach(d => parts.push(d));
+  if (tDates.length > 0) {
+    parts.push('TRAVEL DATES:');
+    tDates.forEach(d => parts.push(d));
     parts.push('');
   } else {
-    const dep = pkg.departure_date
-      ? new Date(pkg.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : '';
-    const ret = pkg.return_date
-      ? new Date(pkg.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : '';
-    if (dep || ret) {
-      parts.push(`TRAVEL DATES:`);
-      parts.push(`${dep}${ret ? ' – ' + ret : ''}`);
-      parts.push('');
-    }
+    // fallback to single dates
+    const range = formatDateRange(pkg.departure_date, pkg.return_date);
+    if (range) { parts.push('TRAVEL DATES:'); parts.push(range); parts.push(''); }
   }
 
-  // Operator / Airline
-  if (pkg.operator_name) {
-    parts.push(pkg.travel_type === 'domestic' ? `OPERATOR:` : `OPERATOR:`);
-    parts.push(pkg.operator_name);
-    parts.push('');
-  }
-  if (pkg.flight_details) {
-    parts.push(`FLIGHT / AIRLINE:`);
-    parts.push(pkg.flight_details);
-    parts.push('');
-  }
+  // ── DEADLINES ──
+  if (pkg.internal_deadline) push('INTERNAL DEADLINE', new Date(pkg.internal_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+  if (pkg.supplier_deadline) push('SUPPLIER DEADLINE', new Date(pkg.supplier_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
 
-  // Hotel
-  if (pkg.hotel_details) {
-    parts.push(`HOTEL:`);
-    parts.push(pkg.hotel_details);
-    parts.push('');
-  }
-
-  // Currency
+  // ── PRICING ──
   const currency = pkg.base_price_currency || pkg.currency || 'PHP';
   const currMap = { PHP: '₱', USD: '$', EUR: '€', JPY: '¥', KRW: '₩', SGD: 'S$', HKD: 'HK$', AUD: 'A$' };
+  const sym = currMap[currency] || currency;
 
-  // Price
-  const price = Number(pkg.selling_price || pkg.base_price || pkg.base_price_php || 0);
-  if (price > 0) {
-    const sym = currMap[currency] || currency;
-    parts.push(`PRICE:`);
-    parts.push(`${sym} ${price.toLocaleString('en-US')} per person`);
+  const baseForeign = Number(pkg.base_price_foreign || 0);
+  const exRate = Number(pkg.exchange_rate || 1);
+  const basePHP = Number(pkg.base_price_php || 0);
+  const markup = Number(pkg.markup_amount || 0);
+  const sellPrice = Number(pkg.selling_price || pkg.base_price || 0);
+
+  if (baseForeign > 0 && currency !== 'PHP') push(`BASE PRICE (${currency})`, `${sym}${baseForeign.toLocaleString('en-US')}`);
+  if (basePHP > 0 && currency !== 'PHP') push('BASE PRICE (PHP)', `₱${basePHP.toLocaleString('en-US')}`);
+  if (exRate && currency !== 'PHP') push('EXCHANGE RATE', `1 ${currency} = ₱${exRate}`);
+  if (markup > 0) push('MARKUP', `₱${markup.toLocaleString('en-US')}`);
+  if (sellPrice > 0) push('SELLING PRICE', `${sym} ${sellPrice.toLocaleString('en-US')} per person`);
+
+  push('COMMISSION', pkg.commission_amount != null ? `₱${Number(pkg.commission_amount).toLocaleString('en-US')}` : null);
+  push('DOWNPAYMENT', pkg.downpayment_required != null ? `₱${Number(pkg.downpayment_required).toLocaleString('en-US')}` : null);
+
+  // ── OCCUPANCY RATES ──
+  const rateFields = [
+    ['TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
+    ['TRIPLE (per pax)', pkg.rate_triple, pkg.rate_triple_age_min, pkg.rate_triple_age_max],
+    ['QUAD (per pax)', pkg.rate_quad, pkg.rate_quad_age_min, pkg.rate_quad_age_max],
+    ['SINGLE (per pax)', pkg.rate_single, pkg.rate_single_age_min, pkg.rate_single_age_max],
+    ['SOLO', pkg.rate_solo, pkg.rate_solo_age_min, pkg.rate_solo_age_max],
+    ['SINGLE SUPPLEMENT', pkg.rate_single_supplement],
+    ['CHILD NO BED', pkg.rate_child_no_bed, pkg.rate_child_no_bed_age_min, pkg.rate_child_no_bed_age_max],
+    ['CHILD WITH BED', pkg.rate_child, pkg.rate_child_age_min, pkg.rate_child_age_max],
+    ['INFANT', pkg.rate_infant, pkg.rate_infant_age_min, pkg.rate_infant_age_max],
+  ];
+
+  let hasAnyRate = false;
+  rateFields.forEach(([label, rate, min, max]) => {
+    const num = Number(rate);
+    if (num > 0) {
+      hasAnyRate = true;
+      let line = `₱${num.toLocaleString('en-US')}`;
+      if (min != null || max != null) {
+        const ageRange = [min != null ? `${min}y` : '', max != null ? `${max}y` : ''].filter(Boolean).join('–');
+        if (ageRange) line += ` (Ages ${ageRange})`;
+      }
+      push(label, line);
+    }
+  });
+
+  if (!hasAnyRate) {
+    // Still show the label for awareness
+    parts.push('OCCUPANCY RATES:');
+    parts.push(na);
     parts.push('');
   }
 
-  // Commission
-  const commission = Number(pkg.commission_amount || pkg.commission_per_pax || 0);
-  if (commission > 0) {
-    parts.push(`COMMISSION:`);
-    parts.push(`₱ ${commission.toLocaleString('en-US')}`);
-    parts.push('');
-  }
-
-  // Downpayment
-  const dp = Number(pkg.downpayment_required || 0);
-  if (dp > 0) {
-    parts.push(`DOWNPAYMENT:`);
-    parts.push(`₱ ${dp.toLocaleString('en-US')}`);
-    parts.push('');
-  }
-
-  // Inclusions
-  if (pkg.inclusions?.trim()) {
-    parts.push(`PACKAGE INCLUSIONS:`);
-    pkg.inclusions.split('\n').forEach(line => {
-      const trimmed = line.trim();
-      if (trimmed) parts.push(trimmed.startsWith('•') || trimmed.startsWith('-') ? trimmed : `• ${trimmed}`);
+  // ── CONTENT ──
+  const bulletField = (label, raw) => {
+    if (!raw?.trim()) { parts.push(`${label}:`); parts.push(na); parts.push(''); return; }
+    parts.push(`${label}:`);
+    raw.split('\n').forEach(line => {
+      const t = line.trim();
+      if (t) parts.push(t.startsWith('•') || t.startsWith('-') || t.startsWith('✔') || t.startsWith('✘') ? t : `• ${t}`);
     });
     parts.push('');
-  }
+  };
 
-  // Exclusions
-  if (pkg.exclusions?.trim()) {
-    parts.push(`PACKAGE EXCLUSIONS:`);
-    pkg.exclusions.split('\n').forEach(line => {
-      const trimmed = line.trim();
-      if (trimmed) parts.push(trimmed.startsWith('•') || trimmed.startsWith('-') ? trimmed : `• ${trimmed}`);
+  bulletField('PACKAGE INCLUSIONS', pkg.inclusions);
+  bulletField('PACKAGE EXCLUSIONS', pkg.exclusions);
+  bulletField('OPTIONAL TOURS', pkg.optional_tours);
+
+  // ── ITINERARY ──
+  const days = parseItineraryDays(pkg.itinerary);
+  if (days) {
+    days.forEach(d => {
+      parts.push(d.label);
+      if (d.body) parts.push(d.body);
+      parts.push('');
     });
-    parts.push('');
+  } else {
+    push('ITINERARY', null);
   }
 
-  // Optional Tours
-  if (pkg.optional_tours?.trim()) {
-    parts.push(`OPTIONAL TOURS:`);
-    pkg.optional_tours.split('\n').forEach(line => {
-      const trimmed = line.trim();
-      if (trimmed) parts.push(trimmed.startsWith('•') || trimmed.startsWith('-') ? trimmed : `• ${trimmed}`);
-    });
-    parts.push('');
-  }
+  // ── OTHER CONTENT ──
+  push('TERMS & CONDITIONS', pkg.terms_conditions);
+  push('CANCELLATION POLICY', pkg.cancellation_policy);
+  push('REMARKS', pkg.remarks);
 
-  // Cancellation
-  if (pkg.cancellation_policy?.trim()) {
-    parts.push(`CANCELLATION POLICY:`);
-    parts.push(pkg.cancellation_policy.trim());
-    parts.push('');
-  }
+  // ── SLOT FLAGS ──
+  if (pkg.slots_for_confirmation) push('SLOT TYPE', 'For Confirmation (on-request)');
+  if (pkg.guaranteed_departure) push('GUARANTEED DEPARTURE', 'Yes');
 
-  // Remarks
-  if (pkg.remarks?.trim()) {
-    parts.push(`REMARKS:`);
-    parts.push(pkg.remarks.trim());
-    parts.push('');
-  }
+  // ── URLs ──
+  push('PACKAGE IMAGE URL', pkg.image_url);
+  push('MARKETING MATERIALS URL', pkg.marketing_materials_url);
 
   return parts.join('\n').trim();
 }
@@ -172,5 +244,31 @@ export default function CopyPackageButton({ pkg, size, variant, className }) {
       <Copy className="w-3.5 h-3.5" />
       <span className="hidden sm:inline">Copy</span>
     </Button>
+  );
+}
+
+// ── Raw JSON Viewer toggle (for admin debug) ─────────────────────────────────
+export function RawPackageJSON({ pkg }) {
+  const [open, setOpen] = useState(false);
+  if (!pkg) return null;
+  const cleanPkg = { ...pkg };
+  // Remove large internal fields if they're huge
+  const json = JSON.stringify(cleanPkg, null, 2);
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {open ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+        {open ? 'Hide Raw JSON' : 'View Raw Package JSON'}
+      </button>
+      {open && (
+        <pre className="mt-2 bg-muted/50 border border-border rounded-lg p-3 text-[10px] font-mono text-muted-foreground max-h-64 overflow-auto whitespace-pre-wrap">
+          {json}
+        </pre>
+      )}
+    </div>
   );
 }
