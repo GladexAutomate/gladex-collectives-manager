@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import AISmartImport from '@/components/collectives/AISmartImport';
-import TravelDatesManager from '@/components/collectives/TravelDatesManager';
+import PricingDatesManager from '@/components/collectives/PricingDatesManager';
 import WorkflowProgressBadge from '@/components/workflow/WorkflowProgressBadge';
 import { useNavigate } from 'react-router-dom';
 import { generateRefCode } from '@/components/product/SmartImportSidebar';
@@ -80,8 +80,7 @@ function EditorTabs({ active, onChange, collective }) {
   const tabs = [
     { key: 'ai_import', label: '✦ AI Import',   icon: Sparkles, gold: true },
     { key: 'info',      label: 'Package Info',  icon: Package },
-    { key: 'pricing',   label: 'Pricing',       icon: DollarSign },
-    { key: 'dates',     label: 'Travel Dates',  icon: Calculator },
+    { key: 'pricing_dates', label: 'Pricing & Dates', icon: DollarSign },
     { key: 'content',   label: 'Inclusions',    icon: FileText },
     { key: 'itinerary', label: 'Itinerary',     icon: FileText },
     { key: 'terms',     label: 'Terms',         icon: FileText },
@@ -393,7 +392,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
   const hasItinerary = !!(form.itinerary && form.itinerary.trim());
   const hasTerms = !!(form.terms_conditions && form.terms_conditions.trim());
   const completionItems = [
-    { key: 'rates', label: 'Rates', done: hasRates, tab: 'pricing' },
+    { key: 'rates', label: 'Rates', done: hasRates, tab: 'pricing_dates' },
     { key: 'slots', label: 'Slots', done: hasSlots, tab: 'info' },
     { key: 'itinerary', label: 'Itinerary', done: hasItinerary, tab: 'itinerary' },
     { key: 'terms', label: 'Terms', done: hasTerms, tab: 'terms' },
@@ -651,157 +650,14 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                 </div>
               )}
 
-              {/* ── PRICING ── */}
-              {activeTab === 'pricing' && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <F label="Base Currency">
-                      <Select value={form.currency} onValueChange={v => setF('currency', v)}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value} – {c.label}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </F>
-                    <F label={`Base Cost (${currSymbol})`}>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{currSymbol}</span>
-                        <Input type="number" className="pl-7 h-9 text-sm" value={form.base_price_foreign} onChange={e => setF('base_price_foreign', e.target.value)} />
-                      </div>
-                    </F>
-                    {form.currency !== 'PHP' && (
-                      <F label="Exchange Rate (→ PHP)">
-                        <Input type="number" className="h-9 text-sm" placeholder="e.g. 57.50" value={form.exchange_rate} onChange={e => setF('exchange_rate', Number(e.target.value))} />
-                      </F>
-                    )}
-                    <F label="Base Cost PHP">
-                      <div className="h-9 flex items-center px-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-md">
-                        <span className="text-sm font-bold text-sky-700">₱{basePHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                      </div>
-                    </F>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <F label="Markup Type">
-                      <Select value={form._use_markup_pct ? 'pct' : 'fixed'} onValueChange={v => setF('_use_markup_pct', v === 'pct')}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed" className="text-xs">Fixed Amount (₱)</SelectItem>
-                          <SelectItem value="pct" className="text-xs">Percentage (%)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </F>
-                    <F label={form._use_markup_pct ? 'Markup %' : 'Markup Amount (₱)'}>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{form._use_markup_pct ? '%' : '₱'}</span>
-                        <Input type="number" className="pl-7 h-9 text-sm"
-                          value={form._use_markup_pct ? form.markup_pct : form.markup_amount}
-                          onChange={e => form._use_markup_pct ? setF('markup_pct', Number(e.target.value)) : setF('markup_amount', Number(e.target.value))}
-                        />
-                      </div>
-                    </F>
-                    <F label="Gross Margin">
-                      <div className="h-9 flex items-center px-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-md">
-                        <span className="text-sm font-bold text-emerald-700">{grossMargin}%</span>
-                      </div>
-                    </F>
-                    <F label="Selling Price / Pax">
-                      <div className="h-9 flex items-center px-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 rounded-md">
-                        <span className="text-sm font-black text-amber-700">₱{sellingPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                      </div>
-                    </F>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <F label="Commission / Pax (₱)">
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span>
-                        <Input type="number" className="pl-7 h-9 text-sm" value={form.commission_amount} onChange={e => setF('commission_amount', Number(e.target.value))} />
-                      </div>
-                    </F>
-                    <F label="Required Downpayment (₱)">
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span>
-                        <Input type="number" className="pl-7 h-9 text-sm" value={form.downpayment_required} onChange={e => setF('downpayment_required', Number(e.target.value))} />
-                      </div>
-                    </F>
-                    <F label="Balance after DP">
-                      <div className="h-9 flex items-center px-3 bg-muted rounded-md">
-                        <span className="text-sm font-semibold">₱{balance.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                      </div>
-                    </F>
-                  </div>
-
-                  {/* Availability Rates */}
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
-                      <span className="text-xs font-bold text-white">Availability Rates</span>
-                      <span className="text-[10px] text-slate-400">Occupancy-based pricing in PHP · with applicable age ranges</span>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {[
-                          { key: 'rate_twin',   label: 'Twin Sharing',       color: 'text-amber-700',   bg: 'bg-amber-50 dark:bg-amber-950/20',   border: 'border-amber-200' },
-                          { key: 'rate_triple', label: 'Triple Sharing',     color: 'text-sky-700',     bg: 'bg-sky-50 dark:bg-sky-950/20',       border: 'border-sky-200' },
-                          { key: 'rate_quad',   label: 'Quad Sharing',       color: 'text-emerald-700', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200' },
-                          { key: 'rate_single', label: 'Single Occupancy',   color: 'text-purple-700',  bg: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200' },
-                          { key: 'rate_solo',   label: 'Solo Rate',          color: 'text-indigo-700',  bg: 'bg-indigo-50 dark:bg-indigo-950/20', border: 'border-indigo-200' },
-                          { key: 'rate_single_supplement', label: 'Single Supplement', color: 'text-orange-700', bg: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-200', noAge: true },
-                        ].map(r => (
-                          <div key={r.key} className={cn("rounded-lg border p-3 space-y-2", r.bg, r.border)}>
-                            <Label className={cn("text-[10px] font-semibold uppercase tracking-wide", r.color)}>{r.label}</Label>
-                            <div className="relative">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">₱</span>
-                              <Input type="number" step="0.01" placeholder="0.00" className="pl-6 h-8 text-sm font-semibold bg-white/80 dark:bg-card/80" value={form[r.key]} onChange={e => setF(r.key, e.target.value)} />
-                            </div>
-                            {!r.noAge && (
-                              <div className="flex gap-1 items-center">
-                                <span className="text-[9px] text-muted-foreground w-14">Age Range:</span>
-                                <Input type="number" placeholder="Min" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={form[`${r.key}_age_min`]} onChange={e => setF(`${r.key}_age_min`, e.target.value)} />
-                                <span className="text-[9px] text-muted-foreground">–</span>
-                                <Input type="number" placeholder="Max" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={form[`${r.key}_age_max`]} onChange={e => setF(`${r.key}_age_max`, e.target.value)} />
-                              </div>
-                            )}
-                            {form[r.key] && Number(form[r.key]) > 0 && (
-                              <p className={cn("text-[10px] font-bold tabular-nums", r.color)}>₱{Number(form[r.key]).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-1">Child & Infant Rates</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {[
-                          { key: 'rate_child_no_bed', label: 'Child No Bed',  color: 'text-rose-700',  bg: 'bg-rose-50 dark:bg-rose-950/20',   border: 'border-rose-200' },
-                          { key: 'rate_child',        label: 'Child w/ Bed',  color: 'text-pink-700',  bg: 'bg-pink-50 dark:bg-pink-950/20',   border: 'border-pink-200' },
-                          { key: 'rate_infant',       label: 'Infant Fee',    color: 'text-fuchsia-700', bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/20', border: 'border-fuchsia-200' },
-                        ].map(r => (
-                          <div key={r.key} className={cn("rounded-lg border p-3 space-y-2", r.bg, r.border)}>
-                            <Label className={cn("text-[10px] font-semibold uppercase tracking-wide", r.color)}>{r.label}</Label>
-                            <div className="relative">
-                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">₱</span>
-                              <Input type="number" step="0.01" placeholder="0.00" className="pl-6 h-8 text-sm font-semibold bg-white/80 dark:bg-card/80" value={form[r.key]} onChange={e => setF(r.key, e.target.value)} />
-                            </div>
-                            <div className="flex gap-1 items-center">
-                              <span className="text-[9px] text-muted-foreground w-14">Age Range:</span>
-                              <Input type="number" placeholder="Min" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={form[`${r.key}_age_min`]} onChange={e => setF(`${r.key}_age_min`, e.target.value)} />
-                              <span className="text-[9px] text-muted-foreground">–</span>
-                              <Input type="number" placeholder="Max" className="h-6 text-[10px] px-1.5 bg-white/60 dark:bg-card/60" value={form[`${r.key}_age_max`]} onChange={e => setF(`${r.key}_age_max`, e.target.value)} />
-                            </div>
-                            {form[r.key] && Number(form[r.key]) > 0 && (
-                              <p className={cn("text-[10px] font-bold tabular-nums", r.color)}>₱{Number(form[r.key]).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── TRAVEL DATES ── */}
-              {activeTab === 'dates' && (
-                <TravelDatesManager
+              {/* ── PRICING & DATES ── */}
+              {activeTab === 'pricing_dates' && (
+                <PricingDatesManager
+                  form={form} setF={setF}
+                  basePHP={basePHP} markupPHP={markupPHP} sellingPrice={sellingPrice} grossMargin={grossMargin}
+                  currency={form.currency} baseForeign={baseForeign} exRate={exRate}
                   travelDates={form.travel_dates || []}
-                  onChange={dates => setF('travel_dates', dates)}
+                  onChangeDates={dates => setF('travel_dates', dates)}
                 />
               )}
 

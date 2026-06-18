@@ -22,7 +22,7 @@
     },
     "travel_dates": {
       "type": "array",
-      "description": "Multiple available travel date ranges",
+      "description": "Multiple available travel date ranges, each with optional per-date pricing overrides",
       "items": {
         "type": "object",
         "properties": {
@@ -33,6 +33,9 @@
             "type": "string"
           },
           "return_date": {
+            "type": "string"
+          },
+          "cutoff_date": {
             "type": "string"
           },
           "total_slots": {
@@ -54,6 +57,104 @@
               "closed"
             ],
             "default": "open"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "use_custom_pricing": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true, this date uses its own occupancy rates instead of package-level defaults"
+          },
+          "base_price_foreign": {
+            "type": "number"
+          },
+          "exchange_rate": {
+            "type": "number"
+          },
+          "base_price_php": {
+            "type": "number"
+          },
+          "markup_amount": {
+            "type": "number"
+          },
+          "selling_price": {
+            "type": "number"
+          },
+          "rate_twin": {
+            "type": "number"
+          },
+          "rate_twin_age_min": {
+            "type": "number"
+          },
+          "rate_twin_age_max": {
+            "type": "number"
+          },
+          "rate_triple": {
+            "type": "number"
+          },
+          "rate_triple_age_min": {
+            "type": "number"
+          },
+          "rate_triple_age_max": {
+            "type": "number"
+          },
+          "rate_quad": {
+            "type": "number"
+          },
+          "rate_quad_age_min": {
+            "type": "number"
+          },
+          "rate_quad_age_max": {
+            "type": "number"
+          },
+          "rate_single": {
+            "type": "number"
+          },
+          "rate_single_age_min": {
+            "type": "number"
+          },
+          "rate_single_age_max": {
+            "type": "number"
+          },
+          "rate_solo": {
+            "type": "number"
+          },
+          "rate_solo_age_min": {
+            "type": "number"
+          },
+          "rate_solo_age_max": {
+            "type": "number"
+          },
+          "rate_single_supplement": {
+            "type": "number"
+          },
+          "rate_child_no_bed": {
+            "type": "number"
+          },
+          "rate_child_no_bed_age_min": {
+            "type": "number"
+          },
+          "rate_child_no_bed_age_max": {
+            "type": "number"
+          },
+          "rate_child": {
+            "type": "number"
+          },
+          "rate_child_age_min": {
+            "type": "number"
+          },
+          "rate_child_age_max": {
+            "type": "number"
+          },
+          "rate_infant": {
+            "type": "number"
+          },
+          "rate_infant_age_min": {
+            "type": "number"
+          },
+          "rate_infant_age_max": {
+            "type": "number"
           }
         }
       }
@@ -129,15 +230,13 @@
     },
     "rate_twin": {
       "type": "number",
-      "description": "Twin sharing rate per pax (PHP)"
+      "description": "Twin sharing rate per pax (PHP) \u2014 package-level default"
     },
     "rate_twin_age_min": {
-      "type": "number",
-      "description": "Twin rate minimum age"
+      "type": "number"
     },
     "rate_twin_age_max": {
-      "type": "number",
-      "description": "Twin rate maximum age"
+      "type": "number"
     },
     "rate_triple": {
       "type": "number",
