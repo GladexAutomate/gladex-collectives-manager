@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import AISmartImport from '@/components/collectives/AISmartImport';
 import PricingDatesManager from '@/components/collectives/PricingDatesManager';
+import CopyPackageButton from '@/components/collectives/CopyPackageButton';
 import WorkflowProgressBadge from '@/components/workflow/WorkflowProgressBadge';
 import { useNavigate } from 'react-router-dom';
 import { generateRefCode } from '@/components/product/SmartImportSidebar';
@@ -144,12 +145,17 @@ function CollectiveListItem({ c, isSelected, onSelect, onDelete, coverImage }) {
           </div>
         </div>
       </button>
-      <button
-        onClick={e => { e.stopPropagation(); onDelete(c); }}
-        className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 opacity-0 group-hover:opacity-100 transition-all"
-      >
-        <Trash2 className="w-3 h-3" />
-      </button>
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+        <CopyPackageButton pkg={c} size="iconSm" variant="ghost"
+          className="w-5 h-5 rounded text-muted-foreground hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30 [&_svg]:w-3 [&_svg]:h-3"
+        />
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(c); }}
+          className="w-5 h-5 rounded flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -510,6 +516,9 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                   </SelectContent>
                 </Select>
                 {autoSaved && <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Auto-saved</span>}
+                {(selectedCollective || form) && (
+                  <CopyPackageButton pkg={{ ...selectedCollective, ...form }} size="sm" variant="outline" className="h-7 text-xs gap-1" />
+                )}
                 {selectedCollective?.id && (
                   <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={handleGenerateWorkflow} disabled={generatingWorkflow}>
                     <GitBranch className="w-3 h-3" /> {generatingWorkflow ? 'Starting...' : 'Workflow'}

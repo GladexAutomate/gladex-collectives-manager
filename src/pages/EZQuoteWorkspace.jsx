@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import SmartImportSidebar, { generateRefCode } from '@/components/product/SmartImportSidebar';
 import PricingDatesManager from '@/components/collectives/PricingDatesManager';
+import CopyPackageButton from '@/components/collectives/CopyPackageButton';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -102,13 +103,18 @@ function PackageListItem({ collective, isSelected, onSelect, onDelete, coverImag
           </div>
         </div>
       </button>
-      {/* Delete action — appears on hover */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDelete(collective); }}
-        className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 opacity-0 group-hover:opacity-100 transition-all"
-      >
-        <Trash2 className="w-3 h-3" />
-      </button>
+      {/* Hover actions — Copy + Delete */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+        <CopyPackageButton pkg={collective} size="iconSm" variant="ghost"
+          className="w-5 h-5 rounded text-muted-foreground hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30 [&_svg]:w-3 [&_svg]:h-3"
+        />
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(collective); }}
+          className="w-5 h-5 rounded flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -537,6 +543,9 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                   <span className="text-[10px] text-emerald-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" /> Auto-saved
                   </span>
+                )}
+                {(selectedCollective || quote) && (
+                  <CopyPackageButton pkg={{ ...selectedCollective, ...quote, name: quote.package_name }} size="sm" variant="outline" className="h-7 text-xs gap-1" />
                 )}
                 <Button
                   size="sm"
