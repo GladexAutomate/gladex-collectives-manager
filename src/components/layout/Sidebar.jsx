@@ -3,7 +3,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Globe, CheckSquare, Package, Megaphone,
   FileText, Truck, Star, BarChart3, ClipboardList,
-  Bell, Settings, ChevronLeft, ChevronRight
+  Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,8 @@ const navItems = [
   { icon: CheckSquare, label: 'Workflow', path: '/workflow' },
   { icon: Package, label: 'Product Dev', path: '/product-development' },
   { icon: Megaphone, label: 'Marketing', path: '/marketing' },
+  { icon: Users, label: 'Sales', path: '/sales' },
+  { icon: CreditCard, label: 'Accounting', path: '/accounting' },
   { icon: ClipboardList, label: 'Admin Operations', path: '/admin-operations' },
   { icon: FileText, label: 'Documents', path: '/documents' },
   { icon: Truck, label: 'Operations', path: '/operations' },

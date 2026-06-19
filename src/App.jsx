@@ -19,6 +19,8 @@ import Operations from './pages/Operations';
 import Feedback from './pages/Feedback';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Sales from './pages/Sales';
+import Payments from './pages/Payments';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -51,6 +53,8 @@ const AuthenticatedApp = () => {
         <Route path="/workflow" element={<Workflow />} />
         <Route path="/product-development" element={<ProductDevelopment />} />
         <Route path="/marketing" element={<Marketing />} />
+        <Route path="/sales" element={<Sales />} />
+        <Route path="/accounting" element={<Payments />} />
         <Route path="/admin-operations" element={<AdminOperations />} />
 
         <Route path="/documents" element={<Documents />} />
