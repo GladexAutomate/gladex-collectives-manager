@@ -3,9 +3,10 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Globe, CheckSquare, Package, Megaphone,
   FileText, Truck, Star, BarChart3, ClipboardList,
-  Bell, Settings, ChevronLeft, ChevronRight
+  Bell, Settings, ChevronLeft, ChevronRight, ChevronDown, Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DEPARTMENT_LIST } from '@/lib/departments';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -22,6 +23,7 @@ const navItems = [
 
 export default function Sidebar({ collapsed, onToggle }) {
   const location = useLocation();
+  const [deptOpen, setDeptOpen] = useState(true);
 
   return (
     <aside className={cn(
@@ -82,6 +84,42 @@ export default function Sidebar({ collapsed, onToggle }) {
             </Link>
           );
         })}
+
+        {/* ── Departments ── */}
+        <div className="pt-2">
+          {!collapsed && (
+            <button
+              onClick={() => setDeptOpen(v => !v)}
+              className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--sidebar-foreground))] opacity-60 hover:opacity-100 transition-opacity"
+            >
+              <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5" /> Departments</span>
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", !deptOpen && "-rotate-90")} />
+            </button>
+          )}
+          {(deptOpen || collapsed) && DEPARTMENT_LIST.map(d => {
+            const path = `/department/${d.key}`;
+            const isActive = location.pathname === path;
+            return (
+              <Link
+                key={d.key}
+                to={path}
+                title={d.label}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-150",
+                  collapsed ? "justify-center" : "",
+                  isActive
+                    ? "sidebar-item-active text-[hsl(var(--sidebar-primary))]"
+                    : "text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))]"
+                )}
+              >
+                <span className={cn("flex-shrink-0 rounded-md flex items-center justify-center text-white text-[9px] font-bold", d.bg, collapsed ? "w-6 h-6" : "w-5 h-5")}>
+                  {d.short}
+                </span>
+                {!collapsed && <span className="text-sm font-medium truncate">{d.label}</span>}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Bottom */}
