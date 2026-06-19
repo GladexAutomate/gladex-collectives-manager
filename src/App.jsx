@@ -14,7 +14,6 @@ import ProductDevelopment from './pages/ProductDevelopment';
 import Marketing from './pages/Marketing';
 import AdminOperations from './pages/AdminOperations';
 
-import Department from './pages/Department';
 import Documents from './pages/Documents';
 import Operations from './pages/Operations';
 import Feedback from './pages/Feedback';
@@ -53,7 +52,6 @@ const AuthenticatedApp = () => {
         <Route path="/product-development" element={<ProductDevelopment />} />
         <Route path="/marketing" element={<Marketing />} />
         <Route path="/admin-operations" element={<AdminOperations />} />
-        <Route path="/department/:deptKey" element={<Department />} />
 
         <Route path="/documents" element={<Documents />} />
         <Route path="/operations" element={<Operations />} />
