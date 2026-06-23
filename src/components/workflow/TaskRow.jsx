@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { CheckCircle, Circle, Loader2, AlertTriangle, Lock, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -22,13 +22,18 @@ const DEPT_CONFIG = {
 };
 
 export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
-  // Use task.status as the source of truth — only override locally while saving
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  // Track the "displayed" status independently so we can do optimistic UI
   const [displayStatus, setDisplayStatus] = useState(task.status);
-  // Keep a ref to the last committed status so we can rollback on error
   const committedStatus = useRef(task.status);
+
+  // Sync local display state whenever the task prop changes from parent
+  useEffect(() => {
+    if (!saving) {
+      setDisplayStatus(task.status);
+      committedStatus.current = task.status;
+    }
+  }, [task.status, saving]);
 
   const isAuto = task.completion_mode === 'auto';
   const isWarning = task.task_name?.startsWith('⚠');
@@ -74,29 +79,29 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
   };
 
   return (
-    <div className={cn(
-      "flex items-center gap-3 px-4 py-2.5 transition-colors group",
-      isWarning ? "bg-rose-50/50 dark:bg-rose-950/20" : "hover:bg-muted/40",
-      isDone && !saving && "opacity-60"
-    )}>
+    <div
+      onClick={handleClick}
+      className={cn(
+        "flex items-center gap-3 px-4 py-2.5 transition-colors group select-none",
+        isWarning ? "bg-rose-50/50 dark:bg-rose-950/20" : "hover:bg-muted/40 cursor-pointer",
+        isDone && !saving && "opacity-60",
+        saving && "cursor-wait"
+      )}
+    >
       {/* Index */}
       <span className="text-[10px] text-muted-foreground w-6 flex-shrink-0 font-mono text-right">
         {task.order_index || idx + 1}
       </span>
 
-      {/* Toggle button — clickable for all tasks including auto-sync */}
-      <button
-        onClick={handleClick}
-        disabled={saving}
-        title={isAuto ? (isDone ? 'Auto-completed — click to revert' : 'Auto-sync — click to manually complete') : 'Click to update status'}
+      {/* Toggle icon */}
+      <div
         className={cn(
           "flex-shrink-0 transition-transform",
-          !saving && "hover:scale-110 cursor-pointer",
-          saving && "cursor-wait"
+          !saving && "group-hover:scale-110"
         )}
       >
         <StatusIcon />
-      </button>
+      </div>
 
       {/* Task name */}
       <div className="flex-1 min-w-0">
