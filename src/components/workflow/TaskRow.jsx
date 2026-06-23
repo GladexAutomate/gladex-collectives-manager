@@ -39,11 +39,12 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
   const isDelayed = displayStatus === 'delayed';
 
   const handleClick = async () => {
-    if (isAuto && !isDone) return;
     if (saving) return;
 
     const prev = committedStatus.current;
     const next = isDone ? 'pending' : isInProgress ? 'completed' : 'in_progress';
+
+    console.log('[TaskRow] toggle', { task_id: task.id, task_name: task.task_name, mode: task.completion_mode, from: prev, to: next });
 
     // Optimistic update
     setDisplayStatus(next);
@@ -53,7 +54,8 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
     try {
       await onToggle(task, next);
       committedStatus.current = next;
-    } catch {
+    } catch (err) {
+      console.error('[TaskRow] toggle failed', { task_id: task.id, error: err?.message });
       // Rollback to last committed status
       setDisplayStatus(prev);
       setSaveFailed(true);
@@ -82,15 +84,14 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
         {task.order_index || idx + 1}
       </span>
 
-      {/* Toggle button */}
+      {/* Toggle button — clickable for all tasks including auto-sync */}
       <button
         onClick={handleClick}
-        disabled={(isAuto && !isDone) || saving}
-        title={isAuto ? (isDone ? 'Auto-completed by system' : 'Auto-synced — completes automatically') : 'Click to update status'}
+        disabled={saving}
+        title={isAuto ? (isDone ? 'Auto-completed — click to revert' : 'Auto-sync — click to manually complete') : 'Click to update status'}
         className={cn(
           "flex-shrink-0 transition-transform",
-          !isAuto && !saving && "hover:scale-110 cursor-pointer",
-          (isAuto && !isDone) && "cursor-default opacity-60",
+          !saving && "hover:scale-110 cursor-pointer",
           saving && "cursor-wait"
         )}
       >
