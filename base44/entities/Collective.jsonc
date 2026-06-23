@@ -356,6 +356,7 @@
       "type": "string",
       "enum": [
         "draft",
+        "active",
         "open_booking",
         "confirmed_departure",
         "ongoing",
@@ -363,7 +364,7 @@
         "cancelled"
       ],
       "default": "draft",
-      "description": "Package lifecycle"
+      "description": "Package lifecycle \u2014 becomes 'active' once Phase 1 (Product Dev) and Phase 2 (Marketing) are both complete"
     },
     "lifecycle_stage": {
       "type": "string"

@@ -6,6 +6,7 @@ import CollectiveWorkspace from '@/components/collectives/CollectiveWorkspace';
 
 const statusConfig = {
   draft:               { label: 'Draft',               color: 'text-slate-600' },
+  active:              { label: 'Active',               color: 'text-emerald-600' },
   open_booking:        { label: 'Open Booking',         color: 'text-teal-600' },
   confirmed_departure: { label: 'Confirmed Departure',  color: 'text-sky-600' },
   ongoing:             { label: 'Ongoing Travel',       color: 'text-amber-600' },
@@ -47,7 +48,7 @@ export default function Collectives() {
   // Stats
   const totalPax = collectives.reduce((s, c) => s + (c.booked_pax || 0), 0);
   const totalRevenue = collectives.reduce((s, c) => s + ((c.selling_price || 0) * (c.booked_pax || 0)), 0);
-  const activeCount = collectives.filter(c => ['open_booking', 'confirmed_departure', 'ongoing'].includes(c.status)).length;
+  const activeCount = collectives.filter(c => ['active', 'confirmed_departure', 'ongoing'].includes(c.status)).length;
 
   if (loading) {
     return (

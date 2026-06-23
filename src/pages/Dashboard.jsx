@@ -47,7 +47,7 @@ export default function Dashboard() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const activeCollectives = collectives.filter(c => ['open_booking', 'confirmed_departure', 'ongoing'].includes(c.status)).length;
+  const activeCollectives = collectives.filter(c => ['active', 'confirmed_departure', 'ongoing'].includes(c.status)).length;
   // Payments are already pre-filtered to verified only
   const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const pendingPayments = bookings.filter(b => !b.full_payment_paid && b.status !== 'cancelled').length;

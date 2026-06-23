@@ -11,15 +11,17 @@ const PHASES = [
 ];
 
 // Maps active workflow stage to the simplified lifecycle status.
-// Stages 1-7 = still being prepared for selling = draft
-// Stages 8-10 = accepting bookings & payments = open_booking
-// Stages 11 = documentation = open_booking (still selling)
+// Stages 1-8 = Product Development + Marketing/Launching (Phases 1-2) = draft
+//   Package stays draft until BOTH Phase 1 (Product Dev) AND Phase 2 (Marketing) are complete
+// Stages 9-11 = Sales + Documentation (Phases 3-4) = active
+//   Package auto-activates once Marketing completes its rollout checklist and approves for Sales
 // Stages 12-13 = departure confirmed / travel active = confirmed_departure / ongoing
 // Stages 14-15 = post-travel = completed
 const STAGE_TO_STATUS = {
   1: 'draft', 2: 'draft', 3: 'draft', 4: 'draft', 5: 'draft', 6: 'draft',
-  7: 'open_booking', 8: 'open_booking', 9: 'open_booking', 10: 'open_booking',
-  11: 'open_booking', 12: 'confirmed_departure', 13: 'ongoing',
+  7: 'draft', 8: 'draft',
+  9: 'active', 10: 'active', 11: 'active',
+  12: 'confirmed_departure', 13: 'ongoing',
   14: 'completed', 15: 'completed',
 };
 
@@ -68,7 +70,7 @@ Deno.serve(async (req) => {
     }
 
     // Determine collective status based on active stage
-    const newStatus = completionPct === 100 ? 'completed' : (STAGE_TO_STATUS[activeStage] || 'product_development');
+    const newStatus = completionPct === 100 ? 'completed' : (STAGE_TO_STATUS[activeStage] || 'draft');
 
     await base44.asServiceRole.entities.Collective.update(collective_id, {
       current_phase: activePhase,

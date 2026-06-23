@@ -34,6 +34,7 @@ const CURRENCIES = [
 
 const STATUS_CONFIG = {
   draft:                { label: 'Draft',              class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
+  active:               { label: '🟢 Active',           class: 'bg-emerald-100 text-emerald-700 font-semibold' },
   open_booking:         { label: '🟢 Open Booking',   class: 'bg-teal-100 text-teal-700 font-semibold' },
   confirmed_departure:  { label: '✈ Confirmed',       class: 'bg-sky-100 text-sky-700 font-semibold' },
   ongoing:              { label: '🌍 Ongoing',         class: 'bg-amber-100 text-amber-700 font-semibold' },

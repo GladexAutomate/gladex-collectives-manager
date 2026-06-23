@@ -28,6 +28,8 @@ const visaStatusConfig = {
   rejected: 'bg-rose-100 text-rose-700',
 };
 
+const SALES_READY_STATUSES = ['active', 'confirmed_departure', 'ongoing'];
+
 export default function Sales() {
   const [bookings, setBookings] = useState([]);
   const [collectives, setCollectives] = useState([]);
@@ -38,6 +40,7 @@ export default function Sales() {
   const [editingBooking, setEditingBooking] = useState(null);
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const loadData = () => {
     Promise.all([
@@ -55,16 +58,28 @@ export default function Sales() {
   const openAdd = () => {
     setEditingBooking(null);
     setFormData({ status: 'inquiry', source: 'direct', visa_status: 'not_required', pax_count: 1 });
+    setFormError('');
     setShowModal(true);
   };
 
   const openEdit = (b) => {
     setEditingBooking(b);
     setFormData({ ...b });
+    setFormError('');
     setShowModal(true);
   };
 
   const handleSave = async () => {
+    setFormError('');
+    const selectedCollective = collectives.find(c => c.id === formData.collective_id);
+    if (!selectedCollective) {
+      setFormError('Please select a collective.');
+      return;
+    }
+    if (!SALES_READY_STATUSES.includes(selectedCollective.status)) {
+      setFormError('This package is not yet Active. Sales can only receive packages marked as Active.');
+      return;
+    }
     setSaving(true);
     if (editingBooking) {
       await base44.entities.Booking.update(editingBooking.id, formData);
@@ -218,11 +233,15 @@ export default function Sales() {
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div className="md:col-span-2 space-y-1.5">
-              <Label>Collective *</Label>
+              <Label>Collective * <span className="text-xs font-normal text-muted-foreground">(Only Active packages are available for booking)</span></Label>
               <Select value={formData.collective_id} onValueChange={v => setFormData({...formData, collective_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select collective" /></SelectTrigger>
                 <SelectContent>
-                  {collectives.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) || (editingBooking && c.id === editingBooking.collective_id)).map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} {!SALES_READY_STATUSES.includes(c.status) && <span className="text-xs text-muted-foreground ml-1">({c.status})</span>}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -318,6 +337,9 @@ export default function Sales() {
               <Textarea rows={2} value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} />
             </div>
           </div>
+          {formError && (
+            <p className="text-sm text-rose-500 bg-rose-50 dark:bg-rose-950/20 px-3 py-2 rounded-lg mt-4">{formError}</p>
+          )}
           <div className="flex justify-end gap-3 mt-6">
             <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving} className="gradient-gold text-white border-0">

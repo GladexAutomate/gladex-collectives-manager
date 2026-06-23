@@ -158,8 +158,8 @@ function getCompletionRules(entity, data, oldData) {
       });
     }
 
-    // When status moves to open_booking or beyond = package approved and active
-    if (data.status && ['open_booking','confirmed_departure','ongoing','completed'].includes(data.status)) {
+    // When status moves to active or beyond = package approved for sales
+    if (data.status && ['active','open_booking','confirmed_departure','ongoing','completed'].includes(data.status)) {
       rules.push({
         collective_id,
         taskPatterns: ['evaluate profitability', 'review selling price competitiveness'],
