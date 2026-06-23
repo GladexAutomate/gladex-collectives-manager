@@ -28,7 +28,7 @@ const visaStatusConfig = {
   rejected: 'bg-rose-100 text-rose-700',
 };
 
-const SALES_READY_STATUSES = ['active', 'confirmed_departure', 'ongoing'];
+const SALES_READY_STATUSES = ['active', 'open_booking', 'confirmed_departure', 'ongoing'];
 
 export default function Sales() {
   const [bookings, setBookings] = useState([]);
@@ -53,7 +53,16 @@ export default function Sales() {
     }).catch(() => setLoading(false));
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+    // Real-time subscription so newly activated packages appear immediately
+    const unsub = base44.entities.Collective.subscribe(e => {
+      if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
+      else if (e.type === 'create') setCollectives(p => [...p, e.data]);
+      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
+    });
+    return () => { unsub(); };
+  }, []);
 
   const openAdd = () => {
     setEditingBooking(null);
@@ -237,11 +246,15 @@ export default function Sales() {
               <Select value={formData.collective_id} onValueChange={v => setFormData({...formData, collective_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select collective" /></SelectTrigger>
                 <SelectContent>
-                  {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) || (editingBooking && c.id === editingBooking.collective_id)).map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} {!SALES_READY_STATUSES.includes(c.status) && <span className="text-xs text-muted-foreground ml-1">({c.status})</span>}
-                    </SelectItem>
-                  ))}
+                  {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) || (editingBooking && c.id === editingBooking.collective_id)).length === 0 ? (
+                    <SelectItem value="_none" disabled>No active packages available</SelectItem>
+                  ) : (
+                    collectives.filter(c => SALES_READY_STATUSES.includes(c.status) || (editingBooking && c.id === editingBooking.collective_id)).map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {!SALES_READY_STATUSES.includes(c.status) && <span className="text-xs text-muted-foreground ml-1">({c.status})</span>}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

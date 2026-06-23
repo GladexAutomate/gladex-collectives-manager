@@ -21,8 +21,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     // Support both direct calls and entity automation payloads
-    // For ChecklistTask automations: the collective_id is inside body.data.collective_id
-    const collective_id = body.collective_id || body.data?.collective_id || body.event?.entity_id || body.data?.id;
+    // Direct call: { collective_id: "..." }
+    // Entity automation: { event: {...}, data: { collective_id: "..." }, old_data: {...} }
+    // For delete events, data may be null — use old_data as fallback
+    const collective_id = body.collective_id || body.data?.collective_id || body.old_data?.collective_id;
     if (!collective_id) {
       return Response.json({ error: 'collective_id is required' }, { status: 400 });
     }
@@ -104,9 +106,14 @@ Deno.serve(async (req) => {
       status: newStatus,
     });
 
+    // Sales visibility eligibility
+    const SALES_READY_STATUSES = ['active', 'open_booking', 'confirmed_departure', 'ongoing'];
+    const salesEligible = SALES_READY_STATUSES.includes(newStatus);
+    console.log('[updateWorkflowProgress] Sales visibility eligible:', salesEligible, '(' + (salesEligible ? 'visible in dropdown' : 'hidden from dropdown') + ')');
+
     console.log('[updateWorkflowProgress] saved status:', newStatus);
     if (newStatus === 'active' && currentCollective?.status === 'draft') {
-      console.log('[updateWorkflowProgress] ✅ PACKAGE ACTIVATED — moved from draft to active');
+      console.log('[updateWorkflowProgress] ✅ PACKAGE ACTIVATED — moved from draft to active — now visible to Sales');
     }
 
     return Response.json({
@@ -115,6 +122,10 @@ Deno.serve(async (req) => {
       active_phase: activePhase,
       active_stage: activeStage,
       completion_pct: completionPct,
+      product_dev_complete: productDevComplete,
+      marketing_complete: marketingComplete,
+      activation_ready: activationReady,
+      sales_eligible: salesEligible,
       previous_status: currentCollective?.status,
       new_status: newStatus,
     });

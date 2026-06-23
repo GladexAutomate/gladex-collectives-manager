@@ -112,12 +112,19 @@ export default function Workflow() {
     }, 1500);
   }, []);
 
-  // Load collectives list once — no subscription needed (low-frequency changes)
+  // Load collectives list and subscribe to real-time status updates
+  // (updateWorkflowProgress changes status in the background — UI must reflect it)
   useEffect(() => {
     base44.entities.Collective.list('-updated_date', 100).then(setCollectives).catch(() => {});
+    const unsub = base44.entities.Collective.subscribe(e => {
+      if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
+      else if (e.type === 'create') setCollectives(p => [e.data, ...p]);
+      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
+    });
     const params = new URLSearchParams(window.location.search);
     const cid = params.get('collective');
     if (cid) setSelectedCollective(cid);
+    return () => { unsub(); };
   }, []);
 
   // Load tasks on-demand when collective changes — NO real-time subscription
