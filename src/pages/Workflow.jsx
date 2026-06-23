@@ -106,7 +106,9 @@ export default function Workflow() {
   const triggerProgressUpdate = useCallback((collectiveId) => {
     if (progressDebounceRef.current) clearTimeout(progressDebounceRef.current);
     progressDebounceRef.current = setTimeout(() => {
-      base44.functions.invoke('updateWorkflowProgress', { collective_id: collectiveId }).catch(() => {});
+      base44.functions.invoke('updateWorkflowProgress', { collective_id: collectiveId })
+        .then(res => console.log('[Workflow] updateWorkflowProgress response:', res.data))
+        .catch(err => console.error('[Workflow] updateWorkflowProgress failed:', err));
     }, 1500);
   }, []);
 

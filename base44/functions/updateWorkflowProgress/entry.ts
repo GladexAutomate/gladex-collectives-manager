@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.32';
 
 const PHASES = [
   { number: 1, stages: [1,2,3,4,5,6] },
@@ -31,13 +31,15 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     // Support both direct calls and entity automation payloads
-    const collective_id = body.collective_id || body.event?.entity_id || body.data?.id;
+    // For ChecklistTask automations: the collective_id is inside body.data.collective_id
+    const collective_id = body.collective_id || body.data?.collective_id || body.event?.entity_id || body.data?.id;
     if (!collective_id) {
       return Response.json({ error: 'collective_id is required' }, { status: 400 });
     }
 
     const allTasks = await base44.asServiceRole.entities.ChecklistTask.filter({ collective_id });
     if (allTasks.length === 0) {
+      console.log('[updateWorkflowProgress] No tasks found for collective:', collective_id);
       return Response.json({ message: 'No tasks found', collective_id });
     }
 
@@ -50,13 +52,19 @@ Deno.serve(async (req) => {
 
     for (const phase of PHASES) {
       const phaseTasks = allTasks.filter(t => t.phase_number === phase.number);
+      const phaseDone = phaseTasks.filter(t => t.status === 'completed').length;
       const phaseComplete = phaseTasks.length > 0 && phaseTasks.every(t => t.status === 'completed');
+      console.log(`[updateWorkflowProgress] Phase ${phase.number}: ${phaseDone}/${phaseTasks.length} done → ${phaseComplete ? 'COMPLETE' : 'INCOMPLETE'}`);
+
       if (!phaseComplete) {
         activePhase = phase.number;
         // Find the first incomplete stage in this phase
         for (const stageNum of phase.stages) {
           const stageTasks = allTasks.filter(t => t.stage_number === stageNum);
+          const stageDone = stageTasks.filter(t => t.status === 'completed').length;
           const stageComplete = stageTasks.length > 0 && stageTasks.every(t => t.status === 'completed');
+          const pendingNames = stageTasks.filter(t => t.status !== 'completed').map(t => t.task_name);
+          console.log(`[updateWorkflowProgress]   Stage ${stageNum}: ${stageDone}/${stageTasks.length} done → ${stageComplete ? 'COMPLETE' : 'INCOMPLETE'}${pendingNames.length ? ' | pending: ' + pendingNames.join(', ') : ''}`);
           if (!stageComplete) {
             activeStage = stageNum;
             break;
@@ -72,6 +80,16 @@ Deno.serve(async (req) => {
     // Determine collective status based on active stage
     const newStatus = completionPct === 100 ? 'completed' : (STAGE_TO_STATUS[activeStage] || 'draft');
 
+    console.log('[updateWorkflowProgress] ── ACTIVATION TRIGGER ──');
+    console.log('[updateWorkflowProgress] collective_id:', collective_id);
+    console.log('[updateWorkflowProgress] overall completion:', completedCount + '/' + allTasks.length, '=', completionPct + '%');
+    console.log('[updateWorkflowProgress] current workflow stage:', activeStage);
+    console.log('[updateWorkflowProgress] calculated status:', newStatus);
+
+    // Fetch current collective to compare
+    const currentCollective = await base44.asServiceRole.entities.Collective.get(collective_id);
+    console.log('[updateWorkflowProgress] previous status:', currentCollective?.status, '| previous stage:', currentCollective?.current_stage);
+
     await base44.asServiceRole.entities.Collective.update(collective_id, {
       current_phase: activePhase,
       current_stage: activeStage,
@@ -79,12 +97,18 @@ Deno.serve(async (req) => {
       status: newStatus,
     });
 
+    console.log('[updateWorkflowProgress] saved status:', newStatus, '| saved stage:', activeStage);
+    if (newStatus === 'active' && currentCollective?.status === 'draft') {
+      console.log('[updateWorkflowProgress] ✅ PACKAGE ACTIVATED — moved from draft to active');
+    }
+
     return Response.json({
       success: true,
       collective_id,
       active_phase: activePhase,
       active_stage: activeStage,
       completion_pct: completionPct,
+      previous_status: currentCollective?.status,
       new_status: newStatus,
     });
 
