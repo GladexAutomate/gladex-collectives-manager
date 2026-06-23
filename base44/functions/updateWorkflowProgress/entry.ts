@@ -10,20 +10,10 @@ const PHASES = [
   { number: 7, stages: [15] },
 ];
 
-// Maps active workflow stage to the simplified lifecycle status.
-// Stages 1-8 = Product Development + Marketing/Launching (Phases 1-2) = draft
-//   Package stays draft until BOTH Phase 1 (Product Dev) AND Phase 2 (Marketing) are complete
-// Stages 9-11 = Sales + Documentation (Phases 3-4) = active
-//   Package auto-activates once Marketing completes its rollout checklist and approves for Sales
-// Stages 12-13 = departure confirmed / travel active = confirmed_departure / ongoing
-// Stages 14-15 = post-travel = completed
-const STAGE_TO_STATUS = {
-  1: 'draft', 2: 'draft', 3: 'draft', 4: 'draft', 5: 'draft', 6: 'draft',
-  7: 'draft', 8: 'draft',
-  9: 'active', 10: 'active', 11: 'active',
-  12: 'confirmed_departure', 13: 'ongoing',
-  14: 'completed', 15: 'completed',
-};
+// ── ACTIVATION RULE (per Product Development Manager) ──
+// "Active" status requires ONLY Product Development + Marketing task completion.
+// Other departments (admin, operations, visa, management, accounting) do NOT block activation.
+// Later lifecycle stages (confirmed_departure, ongoing, completed) are checked by stage-level tasks.
 
 Deno.serve(async (req) => {
   try {
@@ -46,49 +36,66 @@ Deno.serve(async (req) => {
     const completedCount = allTasks.filter(t => t.status === 'completed').length;
     const completionPct = Math.round((completedCount / allTasks.length) * 100);
 
-    // Determine current active phase and stage
+    // Track overall phase/stage for Workflow UI (informational — does NOT drive status)
     let activePhase = 1;
     let activeStage = 1;
-
     for (const phase of PHASES) {
       const phaseTasks = allTasks.filter(t => t.phase_number === phase.number);
-      const phaseDone = phaseTasks.filter(t => t.status === 'completed').length;
       const phaseComplete = phaseTasks.length > 0 && phaseTasks.every(t => t.status === 'completed');
-      console.log(`[updateWorkflowProgress] Phase ${phase.number}: ${phaseDone}/${phaseTasks.length} done → ${phaseComplete ? 'COMPLETE' : 'INCOMPLETE'}`);
-
       if (!phaseComplete) {
         activePhase = phase.number;
-        // Find the first incomplete stage in this phase
         for (const stageNum of phase.stages) {
           const stageTasks = allTasks.filter(t => t.stage_number === stageNum);
-          const stageDone = stageTasks.filter(t => t.status === 'completed').length;
-          const stageComplete = stageTasks.length > 0 && stageTasks.every(t => t.status === 'completed');
-          const pendingNames = stageTasks.filter(t => t.status !== 'completed').map(t => t.task_name);
-          console.log(`[updateWorkflowProgress]   Stage ${stageNum}: ${stageDone}/${stageTasks.length} done → ${stageComplete ? 'COMPLETE' : 'INCOMPLETE'}${pendingNames.length ? ' | pending: ' + pendingNames.join(', ') : ''}`);
-          if (!stageComplete) {
+          if (!(stageTasks.length > 0 && stageTasks.every(t => t.status === 'completed'))) {
             activeStage = stageNum;
             break;
           }
         }
         break;
       }
-      // All phases complete
       activePhase = phase.number;
       activeStage = phase.stages[phase.stages.length - 1];
     }
 
-    // Determine collective status based on active stage
-    const newStatus = completionPct === 100 ? 'completed' : (STAGE_TO_STATUS[activeStage] || 'draft');
+    // ── DEPARTMENT-BASED ACTIVATION ──
+    // Active = Product Development complete AND Marketing complete (ONLY these two departments)
+    const productDevTasks = allTasks.filter(t => t.department === 'product_development');
+    const marketingTasks = allTasks.filter(t => t.department === 'marketing');
+    const productDevComplete = productDevTasks.length > 0 && productDevTasks.every(t => t.status === 'completed');
+    const marketingComplete = marketingTasks.length > 0 && marketingTasks.every(t => t.status === 'completed');
+    const activationReady = productDevComplete && marketingComplete;
 
-    console.log('[updateWorkflowProgress] ── ACTIVATION TRIGGER ──');
+    // Later lifecycle stages (checked by stage-level task completion)
+    const departureTasks = allTasks.filter(t => t.stage_number === 12);
+    const travelTasks = allTasks.filter(t => t.stage_number === 13);
+    const postTravelTasks = allTasks.filter(t => t.stage_number >= 14);
+    const departureComplete = departureTasks.length > 0 && departureTasks.every(t => t.status === 'completed');
+    const travelComplete = travelTasks.length > 0 && travelTasks.every(t => t.status === 'completed');
+    const postTravelComplete = postTravelTasks.length > 0 && postTravelTasks.every(t => t.status === 'completed');
+
+    let newStatus;
+    if (completionPct === 100 || postTravelComplete) {
+      newStatus = 'completed';
+    } else if (travelComplete) {
+      newStatus = 'ongoing';
+    } else if (departureComplete) {
+      newStatus = 'confirmed_departure';
+    } else if (activationReady) {
+      newStatus = 'active';
+    } else {
+      newStatus = 'draft';
+    }
+
+    console.log('[updateWorkflowProgress] ── ACTIVATION CHECK ──');
     console.log('[updateWorkflowProgress] collective_id:', collective_id);
     console.log('[updateWorkflowProgress] overall completion:', completedCount + '/' + allTasks.length, '=', completionPct + '%');
-    console.log('[updateWorkflowProgress] current workflow stage:', activeStage);
+    console.log('[updateWorkflowProgress] Product Dev:', productDevTasks.filter(t => t.status === 'completed').length + '/' + productDevTasks.length, '→', productDevComplete ? 'COMPLETE' : 'INCOMPLETE');
+    console.log('[updateWorkflowProgress] Marketing:', marketingTasks.filter(t => t.status === 'completed').length + '/' + marketingTasks.length, '→', marketingComplete ? 'COMPLETE' : 'INCOMPLETE');
+    console.log('[updateWorkflowProgress] activation ready (PD + Marketing):', activationReady);
     console.log('[updateWorkflowProgress] calculated status:', newStatus);
 
-    // Fetch current collective to compare
     const currentCollective = await base44.asServiceRole.entities.Collective.get(collective_id);
-    console.log('[updateWorkflowProgress] previous status:', currentCollective?.status, '| previous stage:', currentCollective?.current_stage);
+    console.log('[updateWorkflowProgress] previous status:', currentCollective?.status);
 
     await base44.asServiceRole.entities.Collective.update(collective_id, {
       current_phase: activePhase,
@@ -97,7 +104,7 @@ Deno.serve(async (req) => {
       status: newStatus,
     });
 
-    console.log('[updateWorkflowProgress] saved status:', newStatus, '| saved stage:', activeStage);
+    console.log('[updateWorkflowProgress] saved status:', newStatus);
     if (newStatus === 'active' && currentCollective?.status === 'draft') {
       console.log('[updateWorkflowProgress] ✅ PACKAGE ACTIVATED — moved from draft to active');
     }
