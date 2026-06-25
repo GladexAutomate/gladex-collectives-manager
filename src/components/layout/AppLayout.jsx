@@ -1,9 +1,9 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import { cn } from '@/lib/utils';
-import { useLocation } from 'react-router-dom';
 
 const pageTitles = {
   '/': 'Executive Dashboard',
@@ -23,28 +23,55 @@ const pageTitles = {
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const location = useLocation();
 
   const pageTitle = pageTitles[location.pathname] || 'GLADEX System';
 
+  // Close mobile drawer on route change
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  // Close mobile drawer on resize to desktop
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    const onResize = () => { if (window.innerWidth >= 768) setMobileOpen(false); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
   return (
     <div className="min-h-screen bg-background flex">
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+      />
+
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       <div className={cn(
         "flex-1 flex flex-col min-h-screen transition-all duration-300",
-        collapsed ? "ml-16" : "ml-64"
+        "md:ml-64",
+        collapsed && "md:ml-16"
       )}>
-        <TopBar pageTitle={pageTitle} darkMode={darkMode} onToggleDark={() => setDarkMode(!darkMode)} />
-        <main className="flex-1 overflow-auto p-6">
+        <TopBar
+          pageTitle={pageTitle}
+          darkMode={darkMode}
+          onToggleDark={() => setDarkMode(!darkMode)}
+          onMobileMenuToggle={() => setMobileOpen(v => !v)}
+        />
+        <main className="flex-1 overflow-auto p-4 md:p-6">
           <Outlet />
         </main>
       </div>

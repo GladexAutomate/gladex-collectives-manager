@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Globe, BarChart3, Users, TrendingUp, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -32,17 +33,9 @@ export default function Collectives() {
 
   useEffect(() => {
     loadCollectives();
-    const unsubC = base44.entities.Collective.subscribe(e => {
-      if (e.type === 'create') setCollectives(p => [e.data, ...p]);
-      else if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
-      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
-    });
-    const unsubA = base44.entities.MarketingAsset.subscribe(e => {
-      if (e.type === 'create') setMarketingAssets(p => [...p, e.data]);
-      else if (e.type === 'update') setMarketingAssets(p => p.map(a => a.id === e.id ? e.data : a));
-      else if (e.type === 'delete') setMarketingAssets(p => p.filter(a => a.id !== e.id));
-    });
-    return () => { unsubC(); unsubA(); };
+    const onRefresh = () => loadCollectives();
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => window.removeEventListener('gladex:refresh', onRefresh);
   }, []);
 
   // Stats

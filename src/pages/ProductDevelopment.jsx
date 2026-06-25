@@ -1,5 +1,7 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { broadcastRefresh } from '@/lib/dataSync';
 import { Plus, TrendingUp, Search, Edit, FileText, Users, Plane, Calendar, DollarSign, Package, ArrowRight, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,13 +26,14 @@ export default function ProductDevelopment() {
   const [collectives, setCollectives] = useState([]);
   const [marketingAssets, setMarketingAssets] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [pdCollectiveIds, setPdCollectiveIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const urlParams = new URLSearchParams(window.location.search);
   const [activeTab, setActiveTab] = useState(urlParams.get('tab') === 'ezquote' ? 'ezquote' : 'packages');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([
       base44.entities.Collective.list('-created_date'),
       base44.entities.MarketingAsset.list(),
@@ -41,26 +44,25 @@ export default function ProductDevelopment() {
       setBookings(bkgs);
       setLoading(false);
     }).catch(() => setLoading(false));
+  };
 
-    const unsubC = base44.entities.Collective.subscribe((e) => {
-      if (e.type === 'create') setCollectives(p => [e.data, ...p]);
-      else if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
-      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
-    });
-    const unsubA = base44.entities.MarketingAsset.subscribe((e) => {
-      if (e.type === 'create') setMarketingAssets(p => [...p, e.data]);
-      else if (e.type === 'update') setMarketingAssets(p => p.map(a => a.id === e.id ? e.data : a));
-      else if (e.type === 'delete') setMarketingAssets(p => p.filter(a => a.id !== e.id));
-    });
-    const unsubB = base44.entities.Booking.subscribe((e) => {
-      if (e.type === 'create') setBookings(p => [...p, e.data]);
-      else if (e.type === 'update') setBookings(p => p.map(b => b.id === e.id ? e.data : b));
-      else if (e.type === 'delete') setBookings(p => p.filter(b => b.id !== e.id));
-    });
-    return () => { unsubC(); unsubA(); unsubB(); };
+  useEffect(() => {
+    loadData();
+    base44.entities.ChecklistTask.list()
+      .then(tasks => {
+        const pdIds = new Set(
+          tasks.filter(t => t.department === 'product_development').map(t => t.collective_id).filter(Boolean)
+        );
+        setPdCollectiveIds(pdIds);
+      })
+      .catch(() => {});
+    const onRefresh = () => loadData();
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => window.removeEventListener('gladex:refresh', onRefresh);
   }, []);
 
   const filtered = collectives.filter(c => {
+    if (!pdCollectiveIds.has(c.id)) return false;
     const matchSearch = !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.destination?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchSearch && matchStatus;
@@ -71,7 +73,7 @@ export default function ProductDevelopment() {
 
   const stats = [
     { label: 'Total Packages', value: collectives.length, color: 'text-foreground', icon: Package },
-    { label: 'Open Booking', value: collectives.filter(c => c.status === 'open_booking').length, color: 'text-teal-600', icon: TrendingUp },
+    { label: 'Active', value: collectives.filter(c => c.status === 'active').length, color: 'text-emerald-600', icon: TrendingUp },
     { label: 'Total Booked Pax', value: totalPax, color: 'text-sky-600', icon: Users },
     { label: 'Est. Total Revenue', value: `₱${(totalRevenue/1000000).toFixed(1)}M`, color: 'text-amber-600', icon: DollarSign },
   ];
@@ -122,13 +124,13 @@ export default function ProductDevelopment() {
       {activeTab === 'packages' && (
         <div className="space-y-4">
           {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search packages or destination..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="All Status" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="All Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 {Object.entries(STATUS_CONFIG).map(([k, v]) => (

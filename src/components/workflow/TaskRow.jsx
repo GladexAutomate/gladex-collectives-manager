@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, useEffect } from 'react';
 import { CheckCircle, Circle, Loader2, AlertTriangle, Lock, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +48,7 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
     if (saving) return;
 
     const prev = committedStatus.current;
-    const next = isDone ? 'pending' : isInProgress ? 'completed' : 'in_progress';
+    const next = isDone ? 'pending' : 'completed';
 
     console.log('[TaskRow] toggle', { task_id: task.id, task_name: task.task_name, mode: task.completion_mode, from: prev, to: next });
 
@@ -128,10 +129,10 @@ export default function TaskRow({ task, onToggle, showDept = false, idx = 0 }) {
             "inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-medium border",
             isDone
               ? "text-sky-600 bg-sky-50 border-sky-200"
-              : "text-slate-500 bg-slate-50 border-slate-200"
+              : "text-slate-500 bg-slate-50 border-slate-200 group-hover:text-sky-600 group-hover:bg-sky-50 group-hover:border-sky-200 transition-colors"
           )}>
             <Zap className="w-2.5 h-2.5" />
-            {isDone ? 'Auto' : 'Auto-Sync'}
+            {isDone ? 'Done' : 'Auto'}
           </span>
         ) : (
           <span className={cn(

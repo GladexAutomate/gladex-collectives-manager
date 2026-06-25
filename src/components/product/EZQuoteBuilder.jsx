@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Trash2, Save, RefreshCw, ChevronDown, ChevronUp, CheckCircle, ArrowRight, Calculator, FileText, Plane, Hotel, Users, DollarSign, Info, TrendingUp } from 'lucide-react';

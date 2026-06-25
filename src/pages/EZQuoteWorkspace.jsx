@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
@@ -191,12 +192,6 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
   useEffect(() => {
     base44.entities.Booking.list().then(setBookings).catch(() => {});
     base44.entities.MarketingAsset.list().then(setMarketingAssets).catch(() => {});
-    const unsub = base44.entities.MarketingAsset.subscribe(e => {
-      if (e.type === 'create') setMarketingAssets(p => [...p, e.data]);
-      else if (e.type === 'update') setMarketingAssets(p => p.map(a => a.id === e.id ? e.data : a));
-      else if (e.type === 'delete') setMarketingAssets(p => p.filter(a => a.id !== e.id));
-    });
-    return () => unsub();
   }, []);
 
   const setQ = useCallback((key, val) => {

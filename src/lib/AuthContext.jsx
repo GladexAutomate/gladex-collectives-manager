@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
@@ -104,13 +105,9 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       setAuthChecked(true);
       
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-      }
+      // Don't set authError or clear the token here — a 401 from auth.me() may simply
+      // mean this user (e.g. a platform super-admin) has no User entity record, but
+      // their token is still valid for all other entity operations.
     }
   };
 

@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+// @ts-nocheck
+import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
+import { broadcastRefresh } from '@/lib/dataSync';
 import {
   CheckCircle, Circle, Loader2, AlertTriangle, X,
-  ChevronDown, ChevronRight, Bot, Sparkles, RefreshCw,
-  Zap, Clock, CheckSquare, ListChecks, Building2
+  ChevronDown, ChevronRight, RefreshCw,
+  Zap, Clock, ListChecks, Building2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,13 +78,17 @@ const TASK_STATUS = {
 };
 
 const LIFECYCLE_LABELS = {
-  draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed',
+  draft: 'Draft', active: 'Active', open_booking: 'Open Booking', confirmed_departure: 'Confirmed',
   ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled',
 };
 const LIFECYCLE_COLORS = {
-  draft: 'bg-slate-100 text-slate-600', open_booking: 'bg-teal-100 text-teal-700',
-  confirmed_departure: 'bg-sky-100 text-sky-700', ongoing: 'bg-amber-100 text-amber-700',
-  completed: 'bg-emerald-100 text-emerald-700', cancelled: 'bg-rose-100 text-rose-700',
+  draft:               'bg-slate-100 text-slate-600 border-slate-300',
+  active:              'bg-emerald-100 text-emerald-700 border-emerald-300',
+  open_booking:        'bg-teal-100 text-teal-700 border-teal-300',
+  confirmed_departure: 'bg-sky-100 text-sky-700 border-sky-300',
+  ongoing:             'bg-amber-100 text-amber-700 border-amber-300',
+  completed:           'bg-emerald-100 text-emerald-700 border-emerald-300',
+  cancelled:           'bg-rose-100 text-rose-700 border-rose-300',
 };
 
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
@@ -96,35 +102,30 @@ export default function Workflow() {
   const [deptFilter, setDeptFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedPhases, setExpandedPhases] = useState({ 1: true });
-  const [initializing, setInitializing] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
+  const [activating, setActivating] = useState(false);
+  const [activationError, setActivationError] = useState(null);
+  const [activationSuccess, setActivationSuccess] = useState(null);
 
-  // Debounce ref — prevents rapid-fire updateWorkflowProgress calls
-  const progressDebounceRef = useRef(null);
-  const triggerProgressUpdate = useCallback((collectiveId) => {
-    if (progressDebounceRef.current) clearTimeout(progressDebounceRef.current);
-    progressDebounceRef.current = setTimeout(() => {
-      base44.functions.invoke('updateWorkflowProgress', { collective_id: collectiveId })
-        .then(res => console.log('[Workflow] updateWorkflowProgress response:', res.data))
-        .catch(err => console.error('[Workflow] updateWorkflowProgress failed:', err));
-    }, 1500);
-  }, []);
+  const manualStatusOverride = useRef(null);
 
-  // Load collectives list and subscribe to real-time status updates
-  // (updateWorkflowProgress changes status in the background — UI must reflect it)
+  const [collectivesWithTasks, setCollectivesWithTasks] = useState(new Set());
+
+  // Load collectives list on mount
   useEffect(() => {
     base44.entities.Collective.list('-updated_date', 100).then(setCollectives).catch(() => {});
-    const unsub = base44.entities.Collective.subscribe(e => {
-      if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
-      else if (e.type === 'create') setCollectives(p => [e.data, ...p]);
-      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
-    });
+    base44.entities.ChecklistTask.list()
+      .then(tasks => setCollectivesWithTasks(new Set(tasks.map(t => t.collective_id).filter(Boolean))))
+      .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     const cid = params.get('collective');
     if (cid) setSelectedCollective(cid);
-    return () => { unsub(); };
+    // Refresh collectives list when other pages make changes
+    const onRefresh = () => {
+      base44.entities.Collective.list('-updated_date', 100).then(setCollectives).catch(() => {});
+    };
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => window.removeEventListener('gladex:refresh', onRefresh);
   }, []);
 
   // Load tasks on-demand when collective changes — NO real-time subscription
@@ -142,7 +143,6 @@ export default function Workflow() {
         if (cancelled) return;
         setTasks(data);
         setTasksLoading(false);
-        if (data.length === 0) autoInitWorkflow(selectedCollective);
       })
       .catch(() => {
         if (!cancelled) {
@@ -154,41 +154,17 @@ export default function Workflow() {
     return () => { cancelled = true; };
   }, [selectedCollective]);
 
-  const autoInitWorkflow = async (id) => {
-    setInitializing(true);
-    try {
-      await base44.functions.invoke('autoGenerateWorkflow', { collective_id: id });
-      const fresh = await base44.entities.ChecklistTask.filter({ collective_id: id });
-      setTasks(fresh);
-    } finally {
-      setInitializing(false);
-    }
-  };
-
-  const syncData = async () => {
-    if (!selectedCollective) return;
-    setSyncing(true); setSyncResult(null);
-    try {
-      const res = await base44.functions.invoke('syncExistingData', { collective_id: selectedCollective });
-      const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
-      setTasks(fresh);
-      setSyncResult(res.data);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const regenWorkflow = async () => {
+  const reloadTasks = async () => {
     if (!selectedCollective) return;
     setRegenerating(true);
     try {
-      await base44.functions.invoke('autoGenerateWorkflow', { collective_id: selectedCollective, force_regenerate: true });
       const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
       setTasks(fresh);
     } finally {
       setRegenerating(false);
     }
   };
+
 
   const handleTaskToggle = async (task, newStatus) => {
     // Persist only — TaskRow handles its own optimistic UI
@@ -199,10 +175,69 @@ export default function Workflow() {
         ? ((task.notes ? task.notes + ' | ' : '') + 'Manually confirmed')
         : task.notes,
     });
-    // Update local tasks array to keep progress counters in sync
-    setTasks(p => p.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-    // Debounced background update — does not block UI
-    triggerProgressUpdate(selectedCollective);
+    // setTasks triggers the activation useEffect automatically
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+  };
+
+  // Bulk-complete all tasks in a department — sequential with delay to avoid 429 rate limit
+  const handleCompleteAll = async (dept) => {
+    const toComplete = tasks.filter(t => t.department === dept && t.status !== 'completed');
+    if (toComplete.length === 0) return;
+    const now = new Date().toISOString();
+    // Optimistic UI update immediately so user sees progress
+    setTasks(prev =>
+      prev.map(t =>
+        t.department === dept && t.status !== 'completed'
+          ? { ...t, status: 'completed', completed_at: now }
+          : t
+      )
+    );
+    // Send updates sequentially with 150ms gap to stay under rate limit
+    for (const t of toComplete) {
+      try {
+        await base44.entities.ChecklistTask.update(t.id, { status: 'completed', completed_at: now });
+      } catch (e) {
+        // If still rate-limited, wait 1s and retry once
+        if (e?.status === 429 || e?.message?.includes('429') || e?.message?.includes('Rate limit')) {
+          await new Promise(r => setTimeout(r, 1000));
+          try { await base44.entities.ChecklistTask.update(t.id, { status: 'completed', completed_at: now }); } catch (_) {}
+        }
+      }
+      await new Promise(r => setTimeout(r, 150));
+    }
+    broadcastRefresh();
+  };
+
+  // Reset all tasks in a department back to pending — sequential to avoid 429
+  const handleResetAll = async (dept) => {
+    const toReset = tasks.filter(t => t.department === dept && t.status === 'completed');
+    if (toReset.length === 0) return;
+    // Optimistic UI first
+    setTasks(prev =>
+      prev.map(t =>
+        t.department === dept && t.status === 'completed'
+          ? { ...t, status: 'pending', completed_at: null }
+          : t
+      )
+    );
+    for (const t of toReset) {
+      try {
+        await base44.entities.ChecklistTask.update(t.id, { status: 'pending', completed_at: null });
+      } catch (e) {
+        if (e?.status === 429 || e?.message?.includes('429') || e?.message?.includes('Rate limit')) {
+          await new Promise(r => setTimeout(r, 1000));
+          try { await base44.entities.ChecklistTask.update(t.id, { status: 'pending', completed_at: null }); } catch (_) {}
+        }
+      }
+      await new Promise(r => setTimeout(r, 150));
+    }
+    setTasks(prev =>
+      prev.map(t =>
+        t.department === dept && t.status === 'completed'
+          ? { ...t, status: 'pending', completed_at: null }
+          : t
+      )
+    );
   };
 
   const collective = collectives.find(c => c.id === selectedCollective);
@@ -247,10 +282,10 @@ export default function Workflow() {
 
         {/* Collective selector + action buttons */}
         <div className="flex flex-wrap gap-2 items-center">
-          <Select value={selectedCollective || ''} onValueChange={v => { setSelectedCollective(v); setSyncResult(null); }}>
-            <SelectTrigger className="w-60 h-9 text-sm"><SelectValue placeholder="Select a package..." /></SelectTrigger>
+          <Select value={selectedCollective || ''} onValueChange={v => { setSelectedCollective(v); setActivationError(null); }}>
+            <SelectTrigger className="w-full sm:w-64 h-9 text-sm"><SelectValue placeholder="Select a package..." /></SelectTrigger>
             <SelectContent>
-              {collectives.map(c => (
+              {collectives.filter(c => collectivesWithTasks.has(c.id)).map(c => (
                 <SelectItem key={c.id} value={c.id}>
                   <div className="flex items-center gap-2">
                     <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", (LIFECYCLE_COLORS[c.status] || LIFECYCLE_COLORS.draft).split(' ')[0])} />
@@ -263,20 +298,89 @@ export default function Workflow() {
 
           {selectedCollective && (
             <>
-              <Button size="sm" variant="outline" onClick={syncData} disabled={syncing}
-                className="h-9 gap-1.5 text-xs text-sky-600 border-sky-200 hover:bg-sky-50">
-                {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                Auto-Sync
-              </Button>
-              <Button size="sm" variant="outline" onClick={regenWorkflow} disabled={regenerating}
-                className="h-9 gap-1.5 text-xs text-rose-600 border-rose-200 hover:bg-rose-50">
+              {/* Current status badge */}
+              {collective && (
+                <span className={cn("inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border", LIFECYCLE_COLORS[collective.status] || 'bg-slate-100 text-slate-600 border-slate-200')}>
+                  {LIFECYCLE_LABELS[collective.status] || collective.status || 'Unknown'}
+                </span>
+              )}
+
+              {/* Activation buttons — shown based on current department progress */}
+              {(() => {
+                if (!collective) return null;
+                const pdT = tasks.filter(t => t.department === 'product_development');
+                const mkT = tasks.filter(t => t.department === 'marketing');
+                const pdPct = pdT.length > 0 ? Math.round(pdT.filter(t => t.status === 'completed').length / pdT.length * 100) : 0;
+                const mkPct = mkT.length > 0 ? Math.round(mkT.filter(t => t.status === 'completed').length / mkT.length * 100) : 0;
+                const BEYOND = ['open_booking', 'confirmed_departure', 'ongoing', 'completed', 'cancelled'];
+
+                const doActivate = async (newStatus) => {
+                  setActivating(true);
+                  setActivationError(null);
+                  const labels = {
+                    ongoing: `🚀 "${collective?.name}" is now endorsed to Sales — Ongoing!`,
+                    active: `✅ "${collective?.name}" is now Active!`,
+                    open_booking: `🎉 "${collective?.name}" is now Open for Booking!`,
+                  };
+                  try {
+                    manualStatusOverride.current = { id: selectedCollective, status: newStatus, time: Date.now() };
+                    await base44.entities.Collective.update(selectedCollective, { status: newStatus });
+                    setCollectives(prev => prev.map(c => c.id === selectedCollective ? { ...c, status: newStatus } : c));
+                    setActivationSuccess(labels[newStatus] || `✅ Status updated to "${newStatus}"`);
+                    setTimeout(() => setActivationSuccess(null), 5000);
+                    broadcastRefresh();
+                  } catch (err) {
+                    manualStatusOverride.current = null;
+                    setActivationError(`Failed to set status to "${newStatus}". Backend may have rejected it.`);
+                  } finally {
+                    setActivating(false);
+                  }
+                };
+
+                if (pdPct === 100 && mkPct === 100 && collective.status === 'draft') {
+                  return (
+                    <Button size="sm" disabled={activating}
+                      className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-0 animate-pulse"
+                      onClick={() => doActivate('ongoing')}>
+                      {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                      {activating ? 'Endorsing to Sales...' : '🚀 Endorse to Sales'}
+                    </Button>
+                  );
+                }
+                return null;
+              })()}
+
+              <Button size="sm" variant="outline" onClick={reloadTasks} disabled={regenerating}
+                className="h-9 gap-1.5 text-xs text-slate-600 border-slate-200 hover:bg-slate-50">
                 {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                Reset
+                Refresh
               </Button>
             </>
           )}
         </div>
       </div>
+
+      {/* ── Activation success banner ── */}
+      {activationSuccess && (
+        <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-300 rounded-xl p-4 animate-pulse-once">
+          <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <p className="text-sm text-emerald-700 font-semibold flex-1">{activationSuccess}</p>
+          <button onClick={() => setActivationSuccess(null)} className="text-emerald-400 hover:text-emerald-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Activation error banner ── */}
+      {activationError && (
+        <div className="flex items-center gap-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 rounded-xl p-4">
+          <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+          <p className="text-sm text-rose-700 flex-1">{activationError}</p>
+          <button onClick={() => setActivationError(null)} className="text-rose-400 hover:text-rose-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ── No collective selected ── */}
       {!selectedCollective && (
@@ -292,54 +396,14 @@ export default function Workflow() {
         </div>
       )}
 
-      {/* ── Initializing ── */}
-      {initializing && (
-        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 rounded-xl p-4">
-          <Loader2 className="w-5 h-5 animate-spin text-amber-600 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-amber-700">Generating workflow...</p>
-            <p className="text-xs text-amber-600">Creating 90 checklist items across 7 phases & 15 stages</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Syncing ── */}
-      {syncing && (
-        <div className="flex items-center gap-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-xl p-4">
-          <Sparkles className="w-5 h-5 animate-pulse text-sky-600 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-sky-700">Smart Sync in progress...</p>
-            <p className="text-xs text-sky-600">Scanning bookings, payments, assets, documents, surveys</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Sync result ── */}
-      {syncResult && !syncing && (
-        <div className="flex items-start gap-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-xl p-4">
-          <Bot className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-emerald-700">
-              Auto-Sync Complete — {syncResult.workflow_progress?.completion_pct || 0}% overall progress
-            </p>
-            <p className="text-xs text-emerald-600 mt-0.5">
-              {syncResult.synced_entities?.marketing_assets || 0} assets · {syncResult.synced_entities?.bookings || 0} bookings · {syncResult.synced_entities?.payments || 0} payments · {syncResult.synced_entities?.documents || 0} docs · {syncResult.synced_entities?.surveys || 0} surveys
-            </p>
-          </div>
-          <button onClick={() => setSyncResult(null)} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
       {/* ── Tasks loading / error states ── */}
-      {selectedCollective && !initializing && tasksLoading && (
+      {selectedCollective && tasksLoading && (
         <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-6">
           <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
           <p className="text-sm text-muted-foreground">Loading checklist...</p>
         </div>
       )}
-      {selectedCollective && !initializing && tasksError && !tasksLoading && (
+      {selectedCollective && tasksError && !tasksLoading && (
         <div className="flex flex-col items-center gap-3 bg-card border border-rose-200 rounded-xl p-8 text-center">
           <AlertTriangle className="w-8 h-8 text-rose-500" />
           <p className="text-sm font-medium text-foreground">{tasksError}</p>
@@ -351,9 +415,17 @@ export default function Workflow() {
           }}>Retry</Button>
         </div>
       )}
+      {/* No tasks found for this package */}
+      {selectedCollective && !tasksLoading && !tasksError && tasks.length === 0 && (
+        <div className="bg-card rounded-xl border border-border p-10 text-center">
+          <ListChecks className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+          <h3 className="font-semibold text-foreground mb-1">No checklist tasks found</h3>
+          <p className="text-sm text-muted-foreground">This package has no workflow tasks yet. Tasks need to be created first before the workflow can be used.</p>
+        </div>
+      )}
 
       {/* ── Main workflow content ── */}
-      {selectedCollective && !initializing && !tasksLoading && !tasksError && tasks.length > 0 && (
+      {selectedCollective && !tasksLoading && !tasksError && tasks.length > 0 && (
         <>
           {/* ── Collective status bar ── */}
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
@@ -373,7 +445,7 @@ export default function Workflow() {
                 </div>
               </div>
               {/* KPI strip */}
-              <div className="flex items-center gap-5 flex-shrink-0">
+              <div className="flex items-center gap-4 flex-wrap flex-shrink-0">
                 <div className="text-center">
                   <p className="text-xl font-bold font-jakarta text-primary">{totalProgress}%</p>
                   <p className="text-[10px] text-muted-foreground">Overall</p>
@@ -403,7 +475,7 @@ export default function Workflow() {
             <Progress value={totalProgress} className="h-2 rounded-none" />
 
             {/* Phase pills */}
-            <div className="px-5 py-3 flex gap-1.5 flex-wrap border-t border-border bg-muted/30">
+            <div className="px-5 py-2 flex gap-1.5 flex-wrap border-t border-border bg-muted/30">
               {PHASES.map(phase => {
                 const c = phaseColors[phase.number];
                 const pct = getPhaseProgress(phase.number);
@@ -438,16 +510,16 @@ export default function Workflow() {
             </div>
 
             {view === 'phases' && (
-              <div className="flex gap-2 ml-auto flex-wrap">
+              <div className="flex gap-2 ml-auto flex-wrap w-full sm:w-auto">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     {Object.entries(TASK_STATUS).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={deptFilter} onValueChange={setDeptFilter}>
-                  <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-44 h-8 text-xs"><SelectValue placeholder="Department" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Departments</SelectItem>
                     {Object.entries(DEPT_CONFIG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
@@ -472,6 +544,23 @@ export default function Workflow() {
                   .catch(() => { setTasksError('Unable to load checklist. Please try again.'); setTasksLoading(false); });
               }}
               onToggle={handleTaskToggle}
+              onCompleteAll={handleCompleteAll}
+              onResetAll={handleResetAll}
+              collectiveStatus={collective?.status}
+              onActivate={async (newStatus) => {
+                setActivationError(null);
+                setActivating(true);
+                try {
+                  manualStatusOverride.current = { id: selectedCollective, status: newStatus, time: Date.now() };
+                  await base44.entities.Collective.update(selectedCollective, { status: newStatus });
+                  setCollectives(prev => prev.map(c => c.id === selectedCollective ? { ...c, status: newStatus } : c));
+                } catch (err) {
+                  manualStatusOverride.current = null;
+                  setActivationError(`Failed to set status. Please try again.`);
+                } finally {
+                  setActivating(false);
+                }
+              }}
             />
           )}
 

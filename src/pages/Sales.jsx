@@ -1,6 +1,8 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, Users, Calendar, DollarSign, Filter, Eye, Edit } from 'lucide-react';
+import { Plus, Search, Users, RefreshCw, Edit, Package, MapPin, Plane, Calendar, Hotel, UtensilsCrossed, X, ChevronRight, Clock, Star, FileText, AlertCircle, Info, Download } from 'lucide-react';
+import { broadcastRefresh } from '@/lib/dataSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +35,8 @@ const SALES_READY_STATUSES = ['active', 'open_booking', 'confirmed_departure', '
 export default function Sales() {
   const [bookings, setBookings] = useState([]);
   const [collectives, setCollectives] = useState([]);
+  const [marketingAssets, setMarketingAssets] = useState([]);
+  const [collectivesWithTasks, setCollectivesWithTasks] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -41,27 +45,49 @@ export default function Sales() {
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [viewingProduct, setViewingProduct] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
-  const loadData = () => {
-    Promise.all([
-      base44.entities.Booking.list('-created_date'),
-      base44.entities.Collective.list(),
-    ]).then(([b, c]) => {
+  const loadData = async () => {
+    try {
+      const [b, c] = await Promise.all([
+        base44.entities.Booking.list('-created_date'),
+        base44.entities.Collective.list(),
+      ]);
       setBookings(b);
       setCollectives(c);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    } catch (e) {
+      console.error('Sales loadData error:', e);
+    }
+    // Load marketing assets separately so it never blocks the main data
+    try {
+      const ma = await base44.entities.MarketingAsset.list('-created_date');
+      setMarketingAssets(ma || []);
+    } catch (e) {
+      console.error('MarketingAsset load error:', e);
+      setMarketingAssets([]);
+    }
+    // Load tasks to know which packages have a real workflow
+    try {
+      const tasks = await base44.entities.ChecklistTask.list();
+      const ids = new Set(tasks.map(t => t.collective_id).filter(Boolean));
+      setCollectivesWithTasks(ids);
+    } catch (e) {
+      setCollectivesWithTasks(new Set());
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
-    // Real-time subscription so newly activated packages appear immediately
-    const unsub = base44.entities.Collective.subscribe(e => {
-      if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
-      else if (e.type === 'create') setCollectives(p => [...p, e.data]);
-      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
-    });
-    return () => { unsub(); };
+    const onFocus = () => loadData();
+    const onRefresh = () => loadData();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('gladex:refresh', onRefresh);
+    };
   }, []);
 
   const openAdd = () => {
@@ -86,7 +112,7 @@ export default function Sales() {
       return;
     }
     if (!SALES_READY_STATUSES.includes(selectedCollective.status)) {
-      setFormError('This package is not yet Active. Sales can only receive packages marked as Active.');
+      setFormError('This package is not yet ready for Sales. Product Development must complete their workflow first.');
       return;
     }
     setSaving(true);
@@ -98,6 +124,7 @@ export default function Sales() {
     setSaving(false);
     setShowModal(false);
     loadData();
+    broadcastRefresh();
   };
 
   const filtered = bookings.filter(b => {
@@ -123,10 +150,339 @@ export default function Sales() {
           <h2 className="text-xl font-bold font-jakarta text-foreground">Sales & Reservations</h2>
           <p className="text-sm text-muted-foreground">Manage all bookings and client reservations</p>
         </div>
-        <Button onClick={openAdd} className="gradient-gold text-white border-0 gap-2">
-          <Plus className="w-4 h-4" /> New Booking
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5 text-xs">
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </Button>
+          <Button onClick={openAdd} className="gradient-gold text-white border-0 gap-2">
+            <Plus className="w-4 h-4" /> New Booking
+          </Button>
+        </div>
       </div>
+
+      {/* Available Packages for Booking */}
+      {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Products Available for Sales</p>
+            <span className="text-xs text-muted-foreground">{collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).length} package{collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).map(c => {
+              const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id && a.file_url);
+              const heroImage = (
+                c.cover_image ||
+                c.image_url ||
+                pkgAssets.find(a => a.status === 'published')?.file_url ||
+                pkgAssets.find(a => a.status === 'approved')?.file_url ||
+                pkgAssets.find(a => a.status === 'pending_approval')?.file_url ||
+                pkgAssets[0]?.file_url ||
+                null
+              );
+              const assetCount = marketingAssets.filter(a => a.collective_id === c.id).length;
+              return (
+              <div
+                key={c.id}
+                onClick={() => setViewingProduct(c)}
+                className="bg-card border border-border rounded-xl overflow-hidden hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group"
+              >
+                {/* Cover image or icon */}
+                <div className="w-full min-h-[180px] max-h-[280px] bg-muted/30 flex items-center justify-center overflow-hidden relative">
+                  {heroImage ? (
+                    <img src={heroImage} alt={c.name} className="w-full h-auto object-contain" onError={e => e.target.style.display='none'} />
+                  ) : (
+                    <Package className="w-10 h-10 text-emerald-300" />
+                  )}
+                  <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-emerald-500 text-white shadow">
+                    🟢 For Sale
+                  </span>
+                  {assetCount > 0 && (
+                    <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-black/50 text-white backdrop-blur-sm">
+                      {assetCount} marketing asset{assetCount !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <div className="p-3">
+
+                <p className="text-sm font-bold text-foreground group-hover:text-emerald-700 transition-colors line-clamp-1">{c.name}</p>
+
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                  {c.destination && (
+                    <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />{c.destination}
+                    </span>
+                  )}
+                  {c.nights && (
+                    <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                      <Clock className="w-3 h-3 flex-shrink-0" />{c.nights}N
+                    </span>
+                  )}
+                  {c.departure_date && (
+                    <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                      <Calendar className="w-3 h-3 flex-shrink-0" />{c.departure_date}
+                    </span>
+                  )}
+                </div>
+
+                {/* Price highlight */}
+                <div className="mt-2 pt-2 border-t border-border flex items-center justify-between">
+                  <div>
+                    {(c.rate_twin || c.selling_price || c.base_price_foreign) ? (
+                      <p className="text-sm font-bold text-amber-600">
+                        {c.currency === 'PHP' ? '₱' : c.currency === 'USD' ? '$' : (c.currency || '₱')}
+                        {Number(c.rate_twin || c.selling_price || c.base_price_foreign).toLocaleString()}
+                        <span className="text-[10px] font-normal text-muted-foreground ml-1">/twin</span>
+                      </p>
+                    ) : c.price_per_pax ? (
+                      <p className="text-sm font-bold text-amber-600">₱{Number(c.price_per_pax).toLocaleString()}<span className="text-[10px] font-normal text-muted-foreground ml-1">/pax</span></p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">See pricing</p>
+                    )}
+                    {c.total_slots && <p className="text-[10px] text-muted-foreground">{c.total_slots} slots</p>}
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">
+                    View Details <ChevronRight className="w-3 h-3" />
+                  </span>
+                </div>
+                </div>{/* end p-3 */}
+              </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Product Detail Modal */}
+      <Dialog open={!!viewingProduct} onOpenChange={open => !open && setViewingProduct(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+          {viewingProduct && (() => {
+            const c = viewingProduct;
+            const currSymbol = c.currency === 'PHP' ? '₱' : c.currency === 'USD' ? '$' : c.currency === 'JPY' ? '¥' : c.currency === 'KRW' ? '₩' : '₱';
+            const fmt = v => v != null && v !== '' ? `${currSymbol}${Number(v).toLocaleString()}` : null;
+            const rates = [
+              { label: 'Twin Sharing', value: fmt(c.rate_twin) },
+              { label: 'Triple Sharing', value: fmt(c.rate_triple) },
+              { label: 'Quad Sharing', value: fmt(c.rate_quad) },
+              { label: 'Single Room', value: fmt(c.rate_single) },
+              { label: 'Child (No Bed)', value: fmt(c.rate_child_no_bed) },
+              { label: 'Infant', value: fmt(c.rate_infant) },
+              { label: 'Single Supplement', value: fmt(c.rate_single_supplement) },
+            ].filter(r => r.value);
+
+            return (
+              <>
+                {/* Header */}
+                <div className="relative bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white rounded-t-xl">
+                  <button onClick={() => setViewingProduct(null)} className="absolute top-4 right-4 text-white/70 hover:text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                      <Package className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-emerald-200 uppercase tracking-wide mb-0.5">{c.travel_type === 'domestic' ? 'Domestic' : 'International'} · {c.operator_name || 'GLADEX Tours'}</p>
+                      <h2 className="text-xl font-bold font-jakarta leading-tight">{c.name}</h2>
+                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-emerald-100">
+                        {c.destination && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{c.destination}</span>}
+                        {c.nights && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{c.nights} nights</span>}
+                        {c.departure_date && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{c.departure_date}{c.return_date ? ` → ${c.return_date}` : ''}</span>}
+                        {c.total_slots && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{c.total_slots} slots</span>}
+                        {c.guaranteed_departure && <span className="bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">✈ Guaranteed Departure</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Book Now CTA */}
+                  <Button
+                    className="mt-4 bg-white text-emerald-700 hover:bg-emerald-50 font-semibold gap-2 border-0"
+                    onClick={() => {
+                      setViewingProduct(null);
+                      setEditingBooking(null);
+                      setFormData({ status: 'inquiry', source: 'direct', visa_status: 'not_required', pax_count: 1, collective_id: c.id });
+                      setFormError('');
+                      setShowModal(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4" /> Book This Package
+                  </Button>
+                </div>
+
+                {/* Body */}
+                <div className="p-6 space-y-6">
+                  <Tabs defaultValue="pricing">
+                    <TabsList className="w-full">
+                      <TabsTrigger value="pricing" className="flex-1 text-xs">Pricing</TabsTrigger>
+                      <TabsTrigger value="itinerary" className="flex-1 text-xs">Itinerary</TabsTrigger>
+                      <TabsTrigger value="inclusions" className="flex-1 text-xs">Inclusions</TabsTrigger>
+                      <TabsTrigger value="details" className="flex-1 text-xs">Details</TabsTrigger>
+                      <TabsTrigger value="marketing" className="flex-1 text-xs">Marketing</TabsTrigger>
+                    </TabsList>
+
+                    {/* PRICING TAB */}
+                    <TabsContent value="pricing" className="mt-4 space-y-4">
+                      {rates.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {rates.map(r => (
+                            <div key={r.label} className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">{r.label}</span>
+                              <span className="text-sm font-bold text-amber-700">{r.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No rate breakdown available.</p>
+                      )}
+                      {c.commission_amount && (
+                        <div className="bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-lg p-3 flex justify-between">
+                          <span className="text-xs text-muted-foreground">Commission</span>
+                          <span className="text-sm font-bold text-sky-700">{fmt(c.commission_amount)}</span>
+                        </div>
+                      )}
+                      {c.downpayment_required && (
+                        <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 rounded-lg p-3 flex justify-between">
+                          <span className="text-xs text-muted-foreground">Required Downpayment</span>
+                          <span className="text-sm font-bold text-purple-700">{fmt(c.downpayment_required)}</span>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* ITINERARY TAB */}
+                    <TabsContent value="itinerary" className="mt-4">
+                      {c.itinerary ? (
+                        <div className="text-sm text-foreground whitespace-pre-line leading-relaxed bg-muted/30 rounded-lg p-4">
+                          {c.itinerary}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-8">No itinerary uploaded yet.</p>
+                      )}
+                    </TabsContent>
+
+                    {/* INCLUSIONS TAB */}
+                    <TabsContent value="inclusions" className="mt-4 space-y-4">
+                      {c.inclusions && (
+                        <div>
+                          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">✅ Inclusions</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-4 border border-emerald-200">
+                            {c.inclusions}
+                          </div>
+                        </div>
+                      )}
+                      {c.exclusions && (
+                        <div>
+                          <p className="text-xs font-semibold text-rose-600 uppercase tracking-wide mb-2">❌ Exclusions</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-rose-50 dark:bg-rose-950/20 rounded-lg p-4 border border-rose-200">
+                            {c.exclusions}
+                          </div>
+                        </div>
+                      )}
+                      {c.optional_tours && (
+                        <div>
+                          <p className="text-xs font-semibold text-sky-700 uppercase tracking-wide mb-2">⭐ Optional Tours / Add-ons</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-sky-50 dark:bg-sky-950/20 rounded-lg p-4 border border-sky-200">
+                            {c.optional_tours}
+                          </div>
+                        </div>
+                      )}
+                      {!c.inclusions && !c.exclusions && (
+                        <p className="text-sm text-muted-foreground text-center py-8">No inclusions/exclusions listed.</p>
+                      )}
+                    </TabsContent>
+
+                    {/* DETAILS TAB */}
+                    <TabsContent value="details" className="mt-4 space-y-4">
+                      {c.flight_details && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1"><Plane className="w-3.5 h-3.5" /> Flight Details</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-muted/30 rounded-lg p-3">{c.flight_details}</div>
+                        </div>
+                      )}
+                      {c.hotel_details && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1"><Hotel className="w-3.5 h-3.5" /> Hotel Details</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-muted/30 rounded-lg p-3">{c.hotel_details}</div>
+                        </div>
+                      )}
+                      {c.cancellation_policy && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" /> Cancellation Policy</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-muted/30 rounded-lg p-3">{c.cancellation_policy}</div>
+                        </div>
+                      )}
+                      {c.terms_conditions && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Terms & Conditions</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-muted/30 rounded-lg p-3">{c.terms_conditions}</div>
+                        </div>
+                      )}
+                      {c.remarks && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1"><Info className="w-3.5 h-3.5" /> Remarks</p>
+                          <div className="text-sm text-foreground whitespace-pre-line bg-muted/30 rounded-lg p-3">{c.remarks}</div>
+                        </div>
+                      )}
+                      {!c.flight_details && !c.hotel_details && !c.cancellation_policy && !c.terms_conditions && (
+                        <p className="text-sm text-muted-foreground text-center py-8">No additional details available.</p>
+                      )}
+                    </TabsContent>
+
+                    {/* MARKETING TAB */}
+                    <TabsContent value="marketing" className="mt-4">
+                      {(() => {
+                        const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id);
+                        if (pkgAssets.length === 0) return (
+                          <p className="text-sm text-muted-foreground text-center py-8">No marketing assets uploaded yet.</p>
+                        );
+                        return (
+                          <div className="space-y-4">
+                            {pkgAssets.filter(a => a.file_url).length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Visuals & Posters</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                  {pkgAssets.filter(a => a.file_url).map(a => (
+                                    <div
+                                      key={a.id}
+                                      className="group relative rounded-lg overflow-hidden border border-border bg-muted/30 cursor-zoom-in flex items-center justify-center min-h-[140px]"
+                                      onClick={() => setLightboxUrl(a.file_url)}
+                                    >
+                                      <img src={a.file_url} alt={a.title} className="w-full h-auto object-contain" onError={e => e.target.style.display='none'} />
+                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity p-2">
+                                        <span className="text-white text-[10px] font-semibold text-center leading-tight">{a.title}</span>
+                                        <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-medium",
+                                          a.status === 'published' ? 'bg-emerald-400 text-white' :
+                                          a.status === 'approved' ? 'bg-sky-400 text-white' : 'bg-slate-400 text-white'
+                                        )}>{a.status?.replace('_',' ')}</span>
+                                        <span className="text-white text-[9px] mt-1 opacity-80">Click to expand</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {pkgAssets.filter(a => a.caption).length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Captions & Copy</p>
+                                <div className="space-y-2">
+                                  {pkgAssets.filter(a => a.caption).map(a => (
+                                    <div key={a.id} className="bg-muted/40 rounded-lg p-3 border border-border">
+                                      <p className="text-[10px] font-semibold text-muted-foreground mb-1">{a.title} <span className="capitalize">· {a.asset_type}</span></p>
+                                      <p className="text-sm text-foreground whitespace-pre-line">{a.caption}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </TabsContent>
+
+                  </Tabs>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -139,13 +495,13 @@ export default function Sales() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search by client name or reference..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -177,12 +533,12 @@ export default function Sales() {
               <thead>
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Client</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Collective</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Pax</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 hidden sm:table-cell">Collective</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 hidden sm:table-cell">Pax</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Amount</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Status</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Visa</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Payment</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 hidden md:table-cell">Visa</th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 hidden md:table-cell">Payment</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Actions</th>
                 </tr>
               </thead>
@@ -195,10 +551,10 @@ export default function Sales() {
                         <p className="text-xs text-muted-foreground">{b.client_email || b.booking_reference}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden sm:table-cell">
                       <p className="text-sm text-foreground truncate max-w-[150px]">{getCollectiveName(b.collective_id)}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden sm:table-cell">
                       <span className="text-sm text-foreground">{b.pax_count || 1}</span>
                     </td>
                     <td className="px-4 py-3">
@@ -210,12 +566,12 @@ export default function Sales() {
                         {statusConfig[b.status]?.label}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       <Badge className={cn("text-[10px] capitalize", visaStatusConfig[b.visa_status])}>
                         {b.visa_status?.replace('_', ' ')}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex items-center gap-2 text-xs">
                         <span className={cn("w-2 h-2 rounded-full", b.downpayment_paid ? 'bg-emerald-500' : 'bg-slate-300')} title={b.downpayment_paid ? 'DP Paid' : 'DP Pending'} />
                         <span className={cn("w-2 h-2 rounded-full", b.full_payment_paid ? 'bg-emerald-500' : 'bg-slate-300')} title={b.full_payment_paid ? 'Full Paid' : 'Balance Pending'} />
@@ -242,16 +598,16 @@ export default function Sales() {
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div className="md:col-span-2 space-y-1.5">
-              <Label>Collective * <span className="text-xs font-normal text-muted-foreground">(Only Active packages are available for booking)</span></Label>
+              <Label>Collective * <span className="text-xs font-normal text-muted-foreground">(Active or Open Booking packages only — PD workflow must be completed)</span></Label>
               <Select value={formData.collective_id} onValueChange={v => setFormData({...formData, collective_id: v})}>
                 <SelectTrigger><SelectValue placeholder="Select collective" /></SelectTrigger>
                 <SelectContent>
-                  {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) || (editingBooking && c.id === editingBooking.collective_id)).length === 0 ? (
+                  {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id) || (editingBooking && c.id === editingBooking.collective_id)).length === 0 ? (
                     <SelectItem value="_none" disabled>No active packages available</SelectItem>
                   ) : (
-                    collectives.filter(c => SALES_READY_STATUSES.includes(c.status) || (editingBooking && c.id === editingBooking.collective_id)).map(c => (
+                    collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id) || (editingBooking && c.id === editingBooking.collective_id)).map(c => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.name} {!SALES_READY_STATUSES.includes(c.status) && <span className="text-xs text-muted-foreground ml-1">({c.status})</span>}
+                        {c.name} {!SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id) && <span className="text-xs text-muted-foreground ml-1">({c.status})</span>}
                       </SelectItem>
                     ))
                   )}
@@ -361,6 +717,37 @@ export default function Sales() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-white/70 transition-colors z-10"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <a
+            href={lightboxUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute top-4 right-16 text-white hover:text-white/70 transition-colors z-10"
+            onClick={e => e.stopPropagation()}
+            title="Download / Open original"
+          >
+            <Download className="w-6 h-6" />
+          </a>
+          <img
+            src={lightboxUrl}
+            alt="Full view"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

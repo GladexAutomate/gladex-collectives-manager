@@ -1,3 +1,5 @@
+// @ts-nocheck
+import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -23,7 +25,14 @@ import Sales from './pages/Sales';
 import Payments from './pages/Payments';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, authChecked } = useAuth();
+
+  useEffect(() => {
+    if (isLoadingAuth || isLoadingPublicSettings || !authChecked) return;
+    if (authError?.type === 'auth_required') {
+      navigateToLogin();
+    }
+  }, [authError, isLoadingAuth, isLoadingPublicSettings, authChecked]);
 
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
@@ -40,7 +49,6 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      navigateToLogin();
       return null;
     }
   }

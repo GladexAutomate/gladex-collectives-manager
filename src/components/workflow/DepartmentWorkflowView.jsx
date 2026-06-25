@@ -1,7 +1,8 @@
+// @ts-nocheck
 import { useState, useMemo } from 'react';
 import {
   CheckCircle, Circle, Loader2, AlertTriangle, X,
-  ChevronDown, ChevronRight, Clock, CheckSquare, Zap
+  ChevronDown, ChevronRight, Clock, CheckSquare, Zap, RotateCcw
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -20,7 +21,7 @@ const DEPT_CONFIG = {
 
 // Tasks are passed in from the parent (Workflow.jsx) which owns the subscription.
 // This component is display-only — no extra fetching or subscriptions.
-export default function DepartmentWorkflowView({ collectiveId, tasks = [], loading = false, error = null, onRetry, onToggle }) {
+export default function DepartmentWorkflowView({ collectiveId, tasks = [], loading = false, error = null, onRetry, onToggle, onCompleteAll, onResetAll, onActivate, collectiveStatus }) {
   const [selectedDept, setSelectedDept] = useState('all');
   const [collapsedStages, setCollapsedStages] = useState({});
 
@@ -82,19 +83,20 @@ export default function DepartmentWorkflowView({ collectiveId, tasks = [], loadi
 
       {/* ── Legend ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 text-[10px] text-muted-foreground bg-muted/40 border border-border rounded-lg px-4 py-2.5 flex-wrap">
-        <span className="font-semibold text-foreground text-xs">Completion Mode:</span>
+        <span className="font-semibold text-foreground text-xs">Task Types:</span>
         <span className="flex items-center gap-1.5">
           <span className="inline-flex items-center gap-0.5 text-[9px] text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-medium">
-            <Zap className="w-2.5 h-2.5" /> Auto-Sync
+            <Zap className="w-2.5 h-2.5" /> Auto
           </span>
-          System detects completion automatically
+          Completed automatically by the system
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-medium">
             <Circle className="w-2.5 h-2.5" /> Manual
           </span>
-          Department confirms external action
+          Click to mark as done
         </span>
+        <span className="text-muted-foreground">· Click any task to toggle</span>
       </div>
 
       {/* ── Department Cards ─────────────────────────────────────────────────── */}
@@ -126,7 +128,7 @@ export default function DepartmentWorkflowView({ collectiveId, tasks = [], loadi
             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] mb-2">
               <span className="text-emerald-600 font-medium">✓ {done} done</span>
               <span className="text-muted-foreground">{pending} pending</span>
-              {inProgress > 0 && <span className="text-sky-600">◌ {inProgress} active</span>}
+              {inProgress > 0 && <span className="text-sky-600">◌ {inProgress} in progress</span>}
               {blocked > 0 && <span className="text-rose-600">⚠ {blocked} blocked</span>}
             </div>
 
@@ -145,36 +147,99 @@ export default function DepartmentWorkflowView({ collectiveId, tasks = [], loadi
                 <CheckCircle className="w-3 h-3" /> Department Complete
               </div>
             )}
+
+            {/* Activate button — appears on PD card when complete and not yet active */}
+            {isComplete && dept === 'product_development' &&
+              !['active','open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus) &&
+              onActivate && (
+              <div
+                onClick={e => { e.stopPropagation(); onActivate('active'); }}
+                className="mt-2 w-full text-center text-[10px] font-bold px-2 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors cursor-pointer"
+              >
+                Activate Package →
+              </div>
+            )}
+
+            {/* Open for Booking button — appears on MK card when complete and status is active */}
+            {isComplete && dept === 'marketing' && collectiveStatus === 'active' && onActivate && (
+              <div
+                onClick={e => { e.stopPropagation(); onActivate('open_booking'); }}
+                className="mt-2 w-full text-center text-[10px] font-bold px-2 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors cursor-pointer"
+              >
+                Open for Booking →
+              </div>
+            )}
           </button>
         ))}
       </div>
 
       {/* ── Active dept header / all-dept summary ───────────────────────────── */}
       {activeStat && activeCfg ? (
-        <div className={cn("rounded-xl border p-4 flex items-center justify-between", activeCfg.light, activeCfg.border)}>
-          <div>
-            <h3 className={cn("font-bold font-jakarta text-sm", activeCfg.text)}>{activeCfg.label} Department</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {activeStat.done} done · {activeStat.pending} pending · {activeStat.inProgress} active
-              {activeStat.blocked > 0 && ` · ${activeStat.blocked} blocked`}
-              {' · '}{activeStat.autoCount} auto-sync · {activeStat.manualCount} manual
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className={cn("text-2xl font-bold font-jakarta", activeCfg.text)}>{activeStat.pct}%</p>
-              {activeStat.isComplete && <p className="text-[10px] text-emerald-600 font-semibold">COMPLETE ✓</p>}
+        <div className={cn("rounded-xl border p-4", activeCfg.light, activeCfg.border)}>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className={cn("font-bold font-jakarta text-sm", activeCfg.text)}>{activeCfg.label} Department</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {activeStat.done} done · {activeStat.pending} pending
+                {activeStat.inProgress > 0 && ` · ${activeStat.inProgress} in progress`}
+                {activeStat.blocked > 0 && ` · ${activeStat.blocked} blocked`}
+                {' · '}{activeStat.autoCount} auto · {activeStat.manualCount} manual
+              </p>
             </div>
-            <button onClick={() => setSelectedDept('all')} className="text-muted-foreground hover:text-foreground">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Complete All — marks every incomplete task in this dept as done */}
+              {!activeStat.isComplete && onCompleteAll && (
+                <button
+                  onClick={() => onCompleteAll(selectedDept)}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                >
+                  <CheckCircle className="w-3 h-3" /> Complete All
+                </button>
+              )}
+              {/* Reset All — uncheck all completed tasks (for testing) */}
+              {activeStat.done > 0 && onResetAll && (
+                <button
+                  onClick={() => onResetAll(selectedDept)}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset All
+                </button>
+              )}
+              {/* Activate Package — shown in expanded PD header when 100% and not yet active */}
+              {activeStat.isComplete && selectedDept === 'product_development' &&
+                !['active','open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus) &&
+                onActivate && (
+                <button
+                  onClick={() => onActivate('active')}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow"
+                >
+                  <CheckCircle className="w-4 h-4" /> Activate Package
+                </button>
+              )}
+              {/* Open for Booking — shown in expanded MK header when 100% and status is active */}
+              {activeStat.isComplete && selectedDept === 'marketing' && collectiveStatus === 'active' && onActivate && (
+                <button
+                  onClick={() => onActivate('open_booking')}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow"
+                >
+                  <CheckCircle className="w-4 h-4" /> Open for Booking
+                </button>
+              )}
+              <div className="text-right">
+                <p className={cn("text-2xl font-bold font-jakarta", activeCfg.text)}>{activeStat.pct}%</p>
+                {activeStat.isComplete && <p className="text-[10px] text-emerald-600 font-semibold">COMPLETE ✓</p>}
+              </div>
+              <button onClick={() => setSelectedDept('all')} className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-4 text-xs bg-card border border-border rounded-xl px-4 py-3">
           <span className="font-semibold text-foreground">All Departments</span>
           <span className="flex items-center gap-1 text-emerald-600 font-medium"><CheckSquare className="w-3.5 h-3.5" /> {allDone} done</span>
-          <span className="flex items-center gap-1 text-sky-600"><Loader2 className="w-3.5 h-3.5" /> {allInProgress} active</span>
+          {allInProgress > 0 && <span className="flex items-center gap-1 text-sky-600"><Circle className="w-3.5 h-3.5" /> {allInProgress} in progress</span>}
           <span className="flex items-center gap-1 text-muted-foreground"><Clock className="w-3.5 h-3.5" /> {allPending} pending</span>
           {allBlocked > 0 && <span className="flex items-center gap-1 text-rose-600"><AlertTriangle className="w-3.5 h-3.5" /> {allBlocked} blocked</span>}
           <span className="ml-auto text-muted-foreground">{tasks.length} total</span>

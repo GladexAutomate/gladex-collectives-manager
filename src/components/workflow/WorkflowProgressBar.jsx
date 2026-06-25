@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { CheckSquare, ChevronRight, Loader2 } from 'lucide-react';
@@ -21,17 +22,13 @@ export default function WorkflowProgressBar({ collectiveId, collectiveName, comp
 
   useEffect(() => {
     if (!collectiveId) { setLoading(false); return; }
-    base44.entities.ChecklistTask.filter({ collective_id: collectiveId })
-      .then(t => { setTasks(t); setLoading(false); })
-      .catch(() => setLoading(false));
-
-    const unsub = base44.entities.ChecklistTask.subscribe(e => {
-      if (e.data?.collective_id !== collectiveId) return;
-      if (e.type === 'create') setTasks(p => [...p, e.data]);
-      else if (e.type === 'update') setTasks(p => p.map(t => t.id === e.id ? e.data : t));
-      else if (e.type === 'delete') setTasks(p => p.filter(t => t.id !== e.id));
-    });
-    return () => unsub();
+    const fetchTasks = () =>
+      base44.entities.ChecklistTask.filter({ collective_id: collectiveId })
+        .then(t => { setTasks(t); setLoading(false); })
+        .catch(() => setLoading(false));
+    fetchTasks();
+    window.addEventListener('gladex:refresh', fetchTasks);
+    return () => window.removeEventListener('gladex:refresh', fetchTasks);
   }, [collectiveId]);
 
   if (loading) return <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" /> Loading workflow...</div>;

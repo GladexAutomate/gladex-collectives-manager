@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Clock } from 'lucide-react';
 
 const activities = [

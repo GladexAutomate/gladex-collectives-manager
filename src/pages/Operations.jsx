@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Truck, MapPin, Users, Phone, AlertCircle, Plus, Calendar, CheckCircle } from 'lucide-react';

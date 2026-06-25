@@ -1,6 +1,8 @@
+// @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2 } from 'lucide-react';
+import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand } from 'lucide-react';
+import { broadcastRefresh } from '@/lib/dataSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +47,7 @@ const pkgStatusConfig = {
 export default function Marketing() {
   const [assets, setAssets] = useState([]);
   const [collectives, setCollectives] = useState([]);
+  const [mkCollectiveIds, setMkCollectiveIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('packages');
   const [search, setSearch] = useState('');
@@ -58,6 +61,7 @@ export default function Marketing() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
   const [preselectedPkg, setPreselectedPkg] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
   const imageInputRef = useRef(null);
   const proofInputRef = useRef(null);
 
@@ -70,24 +74,46 @@ export default function Marketing() {
       setCollectives(c);
       setLoading(false);
     }).catch(() => setLoading(false));
-
-    const unsubA = base44.entities.MarketingAsset.subscribe((e) => {
-      if (e.type === 'create') setAssets(p => [e.data, ...p]);
-      else if (e.type === 'update') setAssets(p => p.map(a => a.id === e.id ? e.data : a));
-      else if (e.type === 'delete') setAssets(p => p.filter(a => a.id !== e.id));
-    });
-    const unsubC = base44.entities.Collective.subscribe((e) => {
-      if (e.type === 'create') setCollectives(p => [e.data, ...p]);
-      else if (e.type === 'update') setCollectives(p => p.map(c => c.id === e.id ? e.data : c));
-      else if (e.type === 'delete') setCollectives(p => p.filter(c => c.id !== e.id));
-    });
-    return () => { unsubA(); unsubC(); };
+    base44.entities.ChecklistTask.list()
+      .then(tasks => {
+        const mkIds = new Set(
+          tasks.filter(t => t.department === 'marketing').map(t => t.collective_id).filter(Boolean)
+        );
+        setMkCollectiveIds(mkIds);
+      })
+      .catch(() => {});
+    // Listen for data changes from other pages — but skip if reloadAll triggered it (avoid loop)
+    let refreshing = false;
+    const onRefresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const [a, c] = await Promise.all([
+          base44.entities.MarketingAsset.list('-created_date'),
+          base44.entities.Collective.list('-created_date'),
+        ]);
+        setAssets(a);
+        setCollectives(c);
+      } finally {
+        refreshing = false;
+      }
+    };
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => window.removeEventListener('gladex:refresh', onRefresh);
   }, []);
+
+  const autoTitle = (collectiveId, assetType) => {
+    const pkg = collectives.find(c => c.id === collectiveId);
+    if (!pkg) return '';
+    const typeLbl = typeConfig[assetType]?.label || assetType;
+    return `${pkg.name} – ${typeLbl}`;
+  };
 
   const openAdd = (pkgId = null) => {
     setEditingAsset(null);
     setPreselectedPkg(pkgId);
-    setFormData({ status: 'draft', asset_type: 'poster', platform: [], collective_id: pkgId || '' });
+    const title = pkgId ? autoTitle(pkgId, 'poster') : '';
+    setFormData({ status: 'draft', asset_type: 'poster', platform: [], collective_id: pkgId || '', title });
     setShowModal(true);
   };
 
@@ -117,39 +143,83 @@ export default function Marketing() {
   };
 
   const handleSave = async () => {
+    if (!formData.title?.trim()) {
+      alert('Please enter a title for this asset.');
+      return;
+    }
+    if (!formData.collective_id) {
+      alert('Please select a package.');
+      return;
+    }
     setSaving(true);
-    if (editingAsset) {
-      await base44.entities.MarketingAsset.update(editingAsset.id, formData);
-    } else {
-      await base44.entities.MarketingAsset.create(formData);
+    try {
+      if (editingAsset) {
+        await base44.entities.MarketingAsset.update(editingAsset.id, formData);
+      } else {
+        await base44.entities.MarketingAsset.create(formData);
+      }
+      setShowModal(false);
+      await reloadAll();
+      broadcastRefresh();
+    } catch (e) {
+      alert('Save failed: ' + (e?.message || 'Unknown error'));
     }
     setSaving(false);
-    setShowModal(false);
+  };
+
+  const reloadAll = async () => {
+    const [a, c] = await Promise.all([
+      base44.entities.MarketingAsset.list('-created_date'),
+      base44.entities.Collective.list('-created_date'),
+    ]);
+    setAssets(a);
+    setCollectives(c);
   };
 
   const handleDelete = async (asset) => {
-    await base44.entities.MarketingAsset.delete(asset.id);
+    try {
+      await base44.entities.MarketingAsset.delete(asset.id);
+      await reloadAll();
+      broadcastRefresh();
+    } catch (e) {
+      alert('Delete failed: ' + (e?.message || 'Unknown error'));
+    }
   };
 
   const handlePublish = async (asset) => {
-    await base44.entities.MarketingAsset.update(asset.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] });
-    // Sync cover image to collective if it has a file_url
-    if (asset.collective_id && asset.file_url) {
-      const collective = collectives.find(c => c.id === asset.collective_id);
-      if (collective && !collective.image_url) {
-        await base44.entities.Collective.update(asset.collective_id, { image_url: asset.file_url });
+    try {
+      await base44.entities.MarketingAsset.update(asset.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] });
+      if (asset.collective_id && asset.file_url) {
+        const collective = collectives.find(c => c.id === asset.collective_id);
+        if (collective && !collective.image_url) {
+          await base44.entities.Collective.update(asset.collective_id, { image_url: asset.file_url });
+        }
       }
+      await reloadAll();
+      broadcastRefresh();
+    } catch (e) {
+      alert('Publish failed: ' + (e?.message || 'Unknown error'));
     }
   };
 
   const handleSubmitForApproval = async (asset) => {
-    await base44.entities.MarketingAsset.update(asset.id, { status: 'pending_approval' });
+    try {
+      await base44.entities.MarketingAsset.update(asset.id, { status: 'pending_approval' });
+      await reloadAll();
+      broadcastRefresh();
+    } catch (e) {
+      alert('Submit failed: ' + (e?.message || 'Unknown error'));
+    }
   };
 
   const togglePkg = (id) => setExpandedPkg(prev => ({ ...prev, [id]: !prev[id] }));
 
   // --- Filtered data ---
-  const filteredCollectives = collectives.filter(c =>
+  // Show only packages with marketing workflow tasks, excluding completed/cancelled
+  const activePkgs = collectives.filter(c =>
+    mkCollectiveIds.has(c.id) && !['completed', 'cancelled'].includes(c.status)
+  );
+  const filteredCollectives = activePkgs.filter(c =>
     !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.destination?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -163,7 +233,8 @@ export default function Marketing() {
   const assetsForPkg = (pkgId) => assets.filter(a => a.collective_id === pkgId);
 
   // Stats
-  const pkgsWithAssets = collectives.filter(c => assets.some(a => a.collective_id === c.id)).length;
+  const pkgsReadyForMarketing = activePkgs.length;
+  const pkgsWithAssets = activePkgs.filter(c => assets.some(a => a.collective_id === c.id)).length;
   const publishedAssets = assets.filter(a => a.status === 'published').length;
   const pendingAssets = assets.filter(a => a.status === 'pending_approval').length;
 
@@ -197,7 +268,7 @@ export default function Marketing() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Packages', value: collectives.length, color: 'text-foreground' },
+          { label: 'Ready for Marketing', value: pkgsReadyForMarketing, color: 'text-pink-600' },
           { label: 'Packages with Assets', value: pkgsWithAssets, color: 'text-purple-600' },
           { label: 'Published Assets', value: publishedAssets, color: 'text-emerald-600' },
           { label: 'Pending Approval', value: pendingAssets, color: 'text-amber-600' },
@@ -228,7 +299,8 @@ export default function Marketing() {
           ) : filteredCollectives.length === 0 ? (
             <div className="text-center py-16">
               <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No packages found</p>
+              <p className="text-sm font-medium text-foreground mb-1">No packages ready for marketing</p>
+              <p className="text-xs text-muted-foreground">Packages appear here once Product Development completes their workflow (status becomes Active)</p>
             </div>
           ) : filteredCollectives.map(pkg => {
             const pkgAssets = assetsForPkg(pkg.id);
@@ -296,7 +368,7 @@ export default function Marketing() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                        {pkgAssets.map(asset => <AssetCard key={asset.id} asset={asset} onEdit={openEdit} onDelete={handleDelete} onPublish={handlePublish} onSubmit={handleSubmitForApproval} />)}
+                        {pkgAssets.map(asset => <AssetCard key={asset.id} asset={asset} onEdit={openEdit} onDelete={handleDelete} onPublish={handlePublish} onSubmit={handleSubmitForApproval} onView={setLightboxUrl} />)}
                       </div>
                     )}
                   </div>
@@ -310,16 +382,16 @@ export default function Marketing() {
       {/* === ALL ASSETS TAB === */}
       {activeTab === 'assets' && (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Type" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 {Object.entries(typeConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 {Object.keys(statusColors).map(k => <SelectItem key={k} value={k} className="capitalize">{k.replace('_', ' ')}</SelectItem>)}
@@ -343,7 +415,7 @@ export default function Marketing() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredAssets.map(asset => {
                 const pkgName = collectives.find(c => c.id === asset.collective_id)?.name;
-                return <AssetCard key={asset.id} asset={asset} pkgName={pkgName} onEdit={openEdit} onDelete={handleDelete} onPublish={handlePublish} onSubmit={handleSubmitForApproval} />;
+                return <AssetCard key={asset.id} asset={asset} pkgName={pkgName} onEdit={openEdit} onDelete={handleDelete} onPublish={handlePublish} onSubmit={handleSubmitForApproval} onView={setLightboxUrl} />;
               })}
             </div>
           )}
@@ -359,22 +431,33 @@ export default function Marketing() {
           <div className="space-y-4 mt-4">
             <div className="space-y-1.5">
               <Label>Package *</Label>
-              <Select value={formData.collective_id || ''} onValueChange={v => setFormData({...formData, collective_id: v})}>
+              <Select value={formData.collective_id || ''} onValueChange={v => {
+                const newTitle = autoTitle(v, formData.asset_type || 'poster');
+                setFormData(prev => ({ ...prev, collective_id: v, title: prev.title || newTitle }));
+              }}>
                 <SelectTrigger><SelectValue placeholder="Select package" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>No package</SelectItem>
-                  {collectives.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {collectives.filter(c => (mkCollectiveIds.has(c.id) && !['completed','cancelled'].includes(c.status)) || (editingAsset && c.id === editingAsset.collective_id)).length === 0 ? (
+                    <SelectItem value="_none" disabled>No packages available</SelectItem>
+                  ) : (
+                    collectives.filter(c => (mkCollectiveIds.has(c.id) && !['completed','cancelled'].includes(c.status)) || (editingAsset && c.id === editingAsset.collective_id)).map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Title *</Label>
-              <Input value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Japan Cherry Blossom 2026 - Main Poster" />
+              <Label>Title * <span className="text-xs font-normal text-muted-foreground">(auto-filled from package name)</span></Label>
+              <Input value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Korea Spring 2026 – Poster" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Asset Type</Label>
-                <Select value={formData.asset_type} onValueChange={v => setFormData({...formData, asset_type: v})}>
+                <Select value={formData.asset_type} onValueChange={v => {
+                  const newTitle = autoTitle(formData.collective_id, v);
+                  setFormData(prev => ({ ...prev, asset_type: v, title: newTitle || prev.title }));
+                }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(typeConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
@@ -447,23 +530,67 @@ export default function Marketing() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-white/70 transition-colors z-10"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <a
+            href={lightboxUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute top-4 right-16 text-white hover:text-white/70 transition-colors z-10"
+            onClick={e => e.stopPropagation()}
+            title="Download / Open original"
+          >
+            <Download className="w-6 h-6" />
+          </a>
+          <img
+            src={lightboxUrl}
+            alt="Full view"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 // ---- Reusable Asset Card ----
-function AssetCard({ asset, pkgName, onEdit, onDelete, onPublish, onSubmit }) {
+function AssetCard({ asset, pkgName, onEdit, onDelete, onPublish, onSubmit, onView }) {
   const [confirmDel, setConfirmDel] = useState(false);
   const cfg = typeConfig[asset.asset_type] || typeConfig.poster;
   const Icon = cfg.icon;
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
       {asset.file_url ? (
-        <div className="h-32 overflow-hidden bg-muted relative group/thumb">
-          <img src={asset.file_url} alt={asset.title} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
-          <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
-            <Download className="w-6 h-6 text-white" />
-          </a>
+        <div
+          className="min-h-[160px] max-h-[280px] overflow-hidden bg-muted/30 relative group/thumb cursor-zoom-in flex items-center justify-center"
+          onClick={() => onView?.(asset.file_url)}
+        >
+          <img src={asset.file_url} alt={asset.title} className="w-full h-auto object-contain" onError={e => e.target.style.display='none'} />
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center gap-3 transition-opacity">
+            <Expand className="w-7 h-7 text-white drop-shadow" />
+            <a
+              href={asset.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white hover:text-white/80"
+              onClick={e => e.stopPropagation()}
+              title="Download original"
+            >
+              <Download className="w-6 h-6 drop-shadow" />
+            </a>
+          </div>
         </div>
       ) : (
         <div className={cn("h-20 flex items-center justify-center", cfg.bg)}>

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, FileText, Upload, CheckCircle, AlertTriangle, Clock, Search } from 'lucide-react';

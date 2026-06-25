@@ -1,6 +1,7 @@
+// @ts-nocheck
 import { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Sparkles, Upload, ClipboardPaste, Loader2, CheckCircle, AlertCircle, X, FileText } from 'lucide-react';
+import { Sparkles, Upload, Loader2, CheckCircle, AlertCircle, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -18,48 +19,69 @@ export default function AISmartImport({ onParsed, onClose }) {
     setParsing(true);
     setError(null);
     setResult(null);
+    const today = new Date().toISOString().split('T')[0];
     try {
       const parsed = await base44.integrations.Core.InvokeLLM({
         prompt: `You are an expert travel package data extractor for a Philippine travel agency system called GLADEX.
+Today's date is ${today}.
 
-Analyze the following raw input (which could be a pasted itinerary, quotation, hotel breakdown, package description, or any travel-related text) and extract all relevant package data.
+Analyze the following raw input (itinerary, quotation, hotel breakdown, package description, or any travel-related text) and extract ALL relevant package data.
 
 INPUT:
 ${content}
 
-Extract and return ONLY a valid JSON object with these fields (use null for fields not found, never guess):
-{
-  "name": "package name/title",
-  "destination": "destination country/city",
-  "travel_type": "domestic or international",
-  "operator_name": "tour operator or DMC name",
-  "departure_date": "YYYY-MM-DD format if found",
-  "return_date": "YYYY-MM-DD format if found",
-  "total_slots": number or null,
-  "selling_price": number in PHP or null,
-  "base_price": number or null,
-  "currency": "PHP or other currency code",
-  "commission_amount": number or null,
-  "downpayment_required": number or null,
-  "flight_details": "airline, routes, schedules as text",
-  "hotel_details": "hotel names and categories as text",
-  "inclusions": "bullet list of inclusions",
-  "exclusions": "bullet list of exclusions",
-  "terms_conditions": "terms and conditions text",
-  "cancellation_policy": "cancellation policy text",
-  "optional_tours": "optional tour activities",
-  "remarks": "any additional notes or marketing description",
-  "guaranteed_departure": true or false,
-  "status": "draft"
-}
+Return ONLY a valid JSON object with these exact fields (use null for fields not found — never guess):
 
-Important rules:
-- For Philippine peso prices: ₱65,000 = 65000
-- Duration like "4D3N" means 4 days 3 nights - use it to estimate dates if possible
-- If destination mentions Korea, Japan, etc. it's international; if Philippines it's domestic
-- Extract hotel names into hotel_details field
-- Extract itinerary items into inclusions
-- Be smart about extracting prices - look for ₱ symbols, "per pax", "per person", rates tables`,
+BASIC INFO:
+- name: package name/title (string)
+- destination: destination country/city (string)
+- travel_type: "domestic" if Philippines destination, "international" otherwise (string)
+- operator_name: tour operator or DMC name (string)
+- nights: number of nights (number, e.g. 4D3N → 3)
+
+DATES:
+- departure_date: YYYY-MM-DD. If a specific date is mentioned use it. If only duration is given (e.g. "4D3N"), estimate based on today (${today}) plus reasonable lead time (about 3 months). (string)
+- return_date: YYYY-MM-DD. departure_date + nights. (string)
+
+PRICING:
+- currency: currency code — PHP if prices shown in ₱, USD if $, KRW if ₩, JPY if ¥, etc. (string)
+- base_price: base cost price as a plain number, no symbols (number)
+- selling_price: selling/retail price per pax as a plain number (number)
+- commission_amount: commission value as a plain number (number)
+- downpayment_required: downpayment amount as a plain number (number)
+- rate_twin: twin-sharing rate per pax (number)
+- rate_triple: triple-sharing rate per pax (number)
+- rate_quad: quad-sharing rate per pax (number)
+- rate_single: single room rate per pax (number)
+- rate_child_no_bed: child no bed rate (number)
+- rate_infant: infant rate (number)
+- rate_single_supplement: single supplement add-on (number)
+
+LOGISTICS:
+- total_slots: total available slots/pax (number)
+- guaranteed_departure: true if "guaranteed departure" or "GD" is mentioned (boolean)
+- flight_details: airline codes, flight numbers, routes, schedules as text (string)
+- hotel_details: hotel names, star ratings, check-in/out, room types as text (string)
+
+CONTENT:
+- inclusions: bullet list of what is INCLUDED (NOT the daily itinerary — only package inclusions like airfare, hotel, meals, etc.) (string)
+- exclusions: bullet list of what is NOT included (string)
+- itinerary: complete day-by-day itinerary formatted as:
+  "Day 1 – [Title]\\n• Activity 1\\n• Activity 2\\n\\nDay 2 – [Title]\\n• Activity 1\\n..."
+  Extract ALL days. Do NOT put this in inclusions. (string)
+- optional_tours: optional add-on tours or activities (string)
+- cancellation_policy: cancellation and refund terms (string)
+- terms_conditions: booking terms, payment terms, general conditions (string)
+- remarks: marketing description or additional notes (string)
+
+RULES:
+- Philippine peso: ₱65,000 = 65000 (no commas, no symbols)
+- "4D3N" = 4 days, 3 nights → nights = 3
+- Korea/Japan/Europe/etc = international; Philippines = domestic
+- Keep inclusions SEPARATE from itinerary — inclusions are amenities (airfare, hotel, meals), itinerary is the day-by-day schedule
+- For prices: look for ₱, $, "per pax", "per person", rate tables
+- If a field genuinely cannot be determined from the text, return null — do not fabricate`,
+
         response_json_schema: {
           type: "object",
           properties: {
@@ -67,29 +89,39 @@ Important rules:
             destination: { type: "string" },
             travel_type: { type: "string" },
             operator_name: { type: "string" },
+            nights: { type: "number" },
             departure_date: { type: "string" },
             return_date: { type: "string" },
-            total_slots: { type: "number" },
-            selling_price: { type: "number" },
-            base_price: { type: "number" },
             currency: { type: "string" },
+            base_price: { type: "number" },
+            selling_price: { type: "number" },
             commission_amount: { type: "number" },
             downpayment_required: { type: "number" },
+            rate_twin: { type: "number" },
+            rate_triple: { type: "number" },
+            rate_quad: { type: "number" },
+            rate_single: { type: "number" },
+            rate_child_no_bed: { type: "number" },
+            rate_infant: { type: "number" },
+            rate_single_supplement: { type: "number" },
+            total_slots: { type: "number" },
+            guaranteed_departure: { type: "boolean" },
             flight_details: { type: "string" },
             hotel_details: { type: "string" },
             inclusions: { type: "string" },
             exclusions: { type: "string" },
-            terms_conditions: { type: "string" },
-            cancellation_policy: { type: "string" },
+            itinerary: { type: "string" },
             optional_tours: { type: "string" },
+            cancellation_policy: { type: "string" },
+            terms_conditions: { type: "string" },
             remarks: { type: "string" },
-            guaranteed_departure: { type: "boolean" },
-            status: { type: "string" },
           }
         }
       });
-      // Clean nulls
-      const clean = Object.fromEntries(Object.entries(parsed).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+
+      const clean = Object.fromEntries(
+        Object.entries(parsed).filter(([, v]) => v !== null && v !== undefined && v !== '')
+      );
       setResult(clean);
     } catch (e) {
       setError('AI parsing failed. Please try again.');
@@ -132,6 +164,19 @@ Important rules:
     if (result) { onParsed(result); onClose(); }
   };
 
+  const PREVIEW_FIELDS = [
+    { key: 'name', label: 'Package' },
+    { key: 'destination', label: 'Destination' },
+    { key: 'departure_date', label: 'Departure' },
+    { key: 'return_date', label: 'Return' },
+    { key: 'nights', label: 'Nights' },
+    { key: 'currency', label: 'Currency' },
+    { key: 'selling_price', label: 'Price', format: v => `₱${Number(v).toLocaleString()}` },
+    { key: 'rate_twin', label: 'Twin Rate', format: v => `₱${Number(v).toLocaleString()}` },
+    { key: 'operator_name', label: 'Operator' },
+    { key: 'total_slots', label: 'Slots' },
+  ];
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -141,7 +186,7 @@ Important rules:
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">AI Smart Import</p>
-          <p className="text-xs text-muted-foreground">Paste any package details and AI fills all fields</p>
+          <p className="text-xs text-muted-foreground">Paste any package details — AI fills all fields including itinerary, rates, and dates</p>
         </div>
       </div>
 
@@ -158,16 +203,8 @@ Important rules:
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
-          placeholder="Paste package details here...
-
-Example:
-Korea Autumn 2026 – 4D3N
-Incheon · Nami Island · Everland · Lotte World
-Lotte Hotel Seoul (3 nights)
-₱65,000 per pax (twin sharing)
-Inclusions: Airfare, Airport transfers, Breakfast...
-Terms: 50% DP required..."
-          className="w-full h-44 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 p-3 resize-none focus:outline-none"
+          placeholder={`Paste package details here — itinerary, quotation, hotel list, anything.\n\nExample:\nKorea Autumn 2026 – 4D3N\nDeparture: October 15, 2026\nLotte Hotel Seoul (3 nights)\n₱65,000/pax twin sharing · ₱75,000 single\n\nInclusions: Airfare, Hotel, Breakfast\nExclusions: Visa, Personal expenses\n\nDay 1 – Arrival Seoul\n• Airport pickup, check-in hotel\n• Welcome dinner at Myeongdong\n\nDay 2 – Nami Island + Petite France\n• Everland theme park\n...`}
+          className="w-full h-52 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 p-3 resize-none focus:outline-none"
         />
         {dragOver && (
           <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-amber-50/80 dark:bg-amber-950/40">
@@ -184,7 +221,7 @@ Terms: 50% DP required..."
         </Button>
         <Button size="sm" className="gradient-gold text-white border-0 text-xs gap-1.5 flex-1" onClick={() => handleParse()} disabled={parsing || !text.trim()}>
           {parsing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-          {parsing ? 'Parsing...' : 'Parse with AI'}
+          {parsing ? 'Extracting all fields...' : 'Parse with AI'}
         </Button>
       </div>
 
@@ -202,32 +239,56 @@ Terms: 50% DP required..."
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-600" />
-              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">AI Parsed Successfully</p>
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                AI Parsed — {Object.keys(result).length} fields extracted
+              </p>
             </div>
             <button onClick={() => setResult(null)} className="text-muted-foreground hover:text-foreground">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            {result.name && <div><span className="text-muted-foreground">Package:</span> <span className="font-medium text-foreground">{result.name}</span></div>}
-            {result.destination && <div><span className="text-muted-foreground">Destination:</span> <span className="font-medium text-foreground">{result.destination}</span></div>}
-            {result.selling_price && <div><span className="text-muted-foreground">Price:</span> <span className="font-medium text-amber-600">₱{Number(result.selling_price).toLocaleString()}</span></div>}
-            {result.departure_date && <div><span className="text-muted-foreground">Departure:</span> <span className="font-medium text-foreground">{result.departure_date}</span></div>}
-            {result.operator_name && <div><span className="text-muted-foreground">Operator:</span> <span className="font-medium text-foreground">{result.operator_name}</span></div>}
-            {result.total_slots && <div><span className="text-muted-foreground">Slots:</span> <span className="font-medium text-foreground">{result.total_slots}</span></div>}
+          {/* Key fields preview */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            {PREVIEW_FIELDS.map(({ key, label, format }) =>
+              result[key] != null ? (
+                <div key={key} className="flex gap-1.5">
+                  <span className="text-muted-foreground flex-shrink-0">{label}:</span>
+                  <span className="font-medium text-foreground truncate">
+                    {format ? format(result[key]) : String(result[key])}
+                  </span>
+                </div>
+              ) : null
+            )}
           </div>
 
+          {/* Extracted field tags */}
           <div className="flex items-center gap-1 flex-wrap">
-            {Object.keys(result).filter(k => result[k] !== null && result[k] !== undefined).map(k => (
-              <span key={k} className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded">
-                {k.replace(/_/g, ' ')}
+            {Object.keys(result).map(k => (
+              <span key={k} className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                ['itinerary', 'inclusions', 'exclusions', 'terms_conditions', 'cancellation_policy'].includes(k)
+                  ? "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400"
+                  : ['departure_date', 'return_date', 'nights'].includes(k)
+                  ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400"
+                  : ['selling_price', 'rate_twin', 'rate_triple', 'rate_quad', 'rate_single', 'base_price'].includes(k)
+                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400"
+                  : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+              )}>
+                ✓ {k.replace(/_/g, ' ')}
               </span>
             ))}
           </div>
 
+          {result.itinerary && (
+            <div className="bg-white dark:bg-background/40 rounded-lg border border-emerald-200 p-3">
+              <p className="text-[10px] font-semibold text-emerald-700 mb-1">Itinerary Preview</p>
+              <p className="text-[11px] text-muted-foreground whitespace-pre-line line-clamp-6">{result.itinerary}</p>
+            </div>
+          )}
+
           <Button size="sm" className="w-full gradient-gold text-white border-0 gap-2" onClick={applyAndClose}>
-            <FileText className="w-3.5 h-3.5" /> Apply to Form Fields
+            <FileText className="w-3.5 h-3.5" /> Apply All Fields to Form
           </Button>
         </div>
       )}

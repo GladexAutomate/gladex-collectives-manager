@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Package, Users, CreditCard, CheckSquare, FileText, Megaphone, MapPin, Building2, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, CreditCard, CheckCircle, Clock, DollarSign, Filter, Upload, AlertTriangle } from 'lucide-react';

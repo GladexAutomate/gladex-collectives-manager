@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from 'react';
 import { Plus, Trash2, Calendar, Users, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';

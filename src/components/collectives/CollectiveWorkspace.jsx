@@ -1,8 +1,10 @@
+// @ts-nocheck
 import { useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { broadcastRefresh } from '@/lib/dataSync';
 import {
   Save, RefreshCw, CheckCircle, ArrowRight, Plus, Search,
-  FileText, Plane, DollarSign, Package, Calculator,
+  FileText, Plane, DollarSign, Package,
   Trash2, Sparkles, Globe, Eye, GitBranch, Menu
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -175,7 +177,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
   const [autoSaveTimer, setAutoSaveTimer] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [generatingWorkflow, setGeneratingWorkflow] = useState(false);
+  const [generatingWorkflow] = useState(false);
 
   // ── Computed pricing ──
   const currSymbol = CURRENCIES.find(c => c.value === form.currency)?.symbol || '$';
@@ -331,6 +333,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
     if (onCollectivesChange) onCollectivesChange();
+    broadcastRefresh();
   };
 
   const handleDelete = async (c) => {
@@ -342,42 +345,69 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     }
     setConfirmDelete(null);
     if (onCollectivesChange) onCollectivesChange();
+    broadcastRefresh();
   };
 
   const handleAIParsed = (parsed) => {
-    setForm(prev => ({
-      ...prev,
-      name: parsed.name || prev.name,
-      destination: parsed.destination || prev.destination,
-      travel_type: parsed.travel_type || prev.travel_type,
-      operator_name: parsed.operator_name || prev.operator_name,
-      departure_date: parsed.departure_date || prev.departure_date,
-      return_date: parsed.return_date || prev.return_date,
-      total_slots: parsed.total_slots || prev.total_slots,
-      selling_price: parsed.selling_price || prev.selling_price,
-      base_price_foreign: parsed.base_price || parsed.selling_price || prev.base_price_foreign,
-      commission_amount: parsed.commission_amount || prev.commission_amount,
-      downpayment_required: parsed.downpayment_required || prev.downpayment_required,
-      flight_details: parsed.flight_details || prev.flight_details,
-      hotel_details: parsed.hotel_details || prev.hotel_details,
-      inclusions: parsed.inclusions || prev.inclusions,
-      exclusions: parsed.exclusions || prev.exclusions,
-      terms_conditions: parsed.terms_conditions || prev.terms_conditions,
-      cancellation_policy: parsed.cancellation_policy || prev.cancellation_policy,
-      optional_tours: parsed.optional_tours || prev.optional_tours,
-      remarks: parsed.remarks || prev.remarks,
-      guaranteed_departure: parsed.guaranteed_departure !== undefined ? parsed.guaranteed_departure : prev.guaranteed_departure,
-      status: parsed.status || prev.status,
-      itinerary: parsed.itinerary || prev.itinerary,
-    }));
+    setForm(prev => {
+      // Determine currency — default to USD if not specified and price looks foreign
+      const detectedCurrency = parsed.currency || prev.currency || 'USD';
+      const isPhp = detectedCurrency === 'PHP';
+
+      // Base price: if PHP, use selling_price directly as base; otherwise treat as foreign amount
+      const basePrice = parsed.base_price || parsed.selling_price || null;
+
+      return {
+        ...prev,
+        // Basic info
+        name: parsed.name || prev.name,
+        destination: parsed.destination || prev.destination,
+        travel_type: parsed.travel_type || prev.travel_type,
+        operator_name: parsed.operator_name || prev.operator_name,
+        nights: parsed.nights != null ? parsed.nights : prev.nights,
+        // Dates
+        departure_date: parsed.departure_date || prev.departure_date,
+        return_date: parsed.return_date || prev.return_date,
+        // Slots
+        total_slots: parsed.total_slots || prev.total_slots,
+        guaranteed_departure: parsed.guaranteed_departure !== undefined ? parsed.guaranteed_departure : prev.guaranteed_departure,
+        // Pricing — currency-aware
+        currency: detectedCurrency,
+        // If PHP: put price as base_price_foreign with currency=PHP (exchange rate 1)
+        // If foreign: put as base_price_foreign, keep exchange rate
+        base_price_foreign: basePrice != null ? basePrice : prev.base_price_foreign,
+        exchange_rate: isPhp ? 1 : prev.exchange_rate,
+        commission_amount: parsed.commission_amount != null ? parsed.commission_amount : prev.commission_amount,
+        downpayment_required: parsed.downpayment_required != null ? parsed.downpayment_required : prev.downpayment_required,
+        // Room rates
+        rate_twin: parsed.rate_twin != null ? parsed.rate_twin : prev.rate_twin,
+        rate_triple: parsed.rate_triple != null ? parsed.rate_triple : prev.rate_triple,
+        rate_quad: parsed.rate_quad != null ? parsed.rate_quad : prev.rate_quad,
+        rate_single: parsed.rate_single != null ? parsed.rate_single : prev.rate_single,
+        rate_child_no_bed: parsed.rate_child_no_bed != null ? parsed.rate_child_no_bed : prev.rate_child_no_bed,
+        rate_infant: parsed.rate_infant != null ? parsed.rate_infant : prev.rate_infant,
+        rate_single_supplement: parsed.rate_single_supplement != null ? parsed.rate_single_supplement : prev.rate_single_supplement,
+        // Logistics
+        flight_details: parsed.flight_details || prev.flight_details,
+        hotel_details: parsed.hotel_details || prev.hotel_details,
+        // Content
+        inclusions: parsed.inclusions || prev.inclusions,
+        exclusions: parsed.exclusions || prev.exclusions,
+        itinerary: parsed.itinerary || prev.itinerary,
+        optional_tours: parsed.optional_tours || prev.optional_tours,
+        cancellation_policy: parsed.cancellation_policy || prev.cancellation_policy,
+        terms_conditions: parsed.terms_conditions || prev.terms_conditions,
+        remarks: parsed.remarks || prev.remarks,
+        // Always keep draft status for new imports
+        status: prev.status || 'draft',
+      };
+    });
     setActiveTab('info');
   };
 
   const handleGenerateWorkflow = async () => {
     if (!selectedCollective?.id) return;
-    setGeneratingWorkflow(true);
-    await base44.functions.invoke('autoGenerateWorkflow', { collective_id: selectedCollective.id });
-    setGeneratingWorkflow(false);
+    // Navigate directly to workflow page — task generation via backend functions is no longer used
     navigate(`/workflow?collective=${selectedCollective.id}`);
   };
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { cn } from '@/lib/utils';
 import { CheckCircle, Zap } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';

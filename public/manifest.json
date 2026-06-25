@@ -1,0 +1,10 @@
+{
+  "name": "GLADEX Group Collectives",
+  "short_name": "GLADEX",
+  "description": "GLADEX Group Collectives Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#7c3aed",
+  "background_color": "#ffffff",
+  "icons": []
+}
