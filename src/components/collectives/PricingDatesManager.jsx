@@ -11,14 +11,14 @@ import { cn } from '@/lib/utils';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const CURRENCIES = [
-  { value: 'PHP', symbol: '₱', label: 'PHP' },
-  { value: 'USD', symbol: '$', label: 'USD' },
-  { value: 'EUR', symbol: '€', label: 'EUR' },
-  { value: 'JPY', symbol: '¥', label: 'JPY' },
-  { value: 'KRW', symbol: '₩', label: 'KRW' },
-  { value: 'SGD', symbol: 'S$', label: 'SGD' },
-  { value: 'HKD', symbol: 'HK$', label: 'HKD' },
-  { value: 'AUD', symbol: 'A$', label: 'AUD' },
+  { value: 'PHP', symbol: '₱', label: 'PHP', defaultRate: 1 },
+  { value: 'USD', symbol: '$', label: 'USD', defaultRate: 58 },
+  { value: 'EUR', symbol: '€', label: 'EUR', defaultRate: 63 },
+  { value: 'JPY', symbol: '¥', label: 'JPY', defaultRate: 0.39 },
+  { value: 'KRW', symbol: '₩', label: 'KRW', defaultRate: 0.044 },
+  { value: 'SGD', symbol: 'S$', label: 'SGD', defaultRate: 43 },
+  { value: 'HKD', symbol: 'HK$', label: 'HKD', defaultRate: 7.5 },
+  { value: 'AUD', symbol: 'A$', label: 'AUD', defaultRate: 38 },
 ];
 
 const DATE_STATUS = {
@@ -290,6 +290,20 @@ export default function PricingDatesManager({
   const gMargin = grossMargin !== undefined ? grossMargin : (grossMargin2 !== undefined ? grossMargin2 : (sp > 0 ? ((mPHP / sp) * 100).toFixed(1) : 0));
   const dp = isCollective ? (Number(form?.downpayment_required) || 0) : (Number(quote?.downpayment_required) || 0);
   const commission = isCollective ? (Number(form?.commission_amount) || 0) : (Number(quote?.commission_per_pax) || 0);
+
+  // Commission base fields
+  const commCurr = isCollective ? (form?.commission_currency || 'PHP') : 'PHP';
+  const commCurrSym = CURRENCIES.find(c => c.value === commCurr)?.symbol || '₱';
+  const commBase = isCollective ? (Number(form?.commission_base_foreign) || 0) : 0;
+  const commRate = isCollective ? (Number(form?.commission_exchange_rate) || 1) : 1;
+  const commPHP = commCurr === 'PHP' ? commBase : commBase * commRate;
+
+  // Downpayment base fields
+  const dpCurr = isCollective ? (form?.downpayment_currency || 'PHP') : 'PHP';
+  const dpCurrSym = CURRENCIES.find(c => c.value === dpCurr)?.symbol || '₱';
+  const dpBase = isCollective ? (Number(form?.downpayment_base_foreign) || 0) : 0;
+  const dpRate = isCollective ? (Number(form?.downpayment_exchange_rate) || 1) : 1;
+  const dpPHP = dpCurr === 'PHP' ? dpBase : dpBase * dpRate;
   const useMarkupPct = isCollective ? form?._use_markup_pct : quote?.use_markup_pct;
   const markupPct = isCollective ? form?.markup_pct : quote?.markup_pct;
   const markupFixed = isCollective ? form?.markup_amount : quote?.markup_php;
@@ -614,16 +628,94 @@ Extract ALL rows. Do not skip any row that has a date.`,
               </div>
             </F>
           </div>
-          {/* Row 3: Commission / Downpayment / Balance */}
+          {/* Row 3: Commission */}
+          <div className="rounded-lg border border-sky-200 bg-sky-50/40 p-3 space-y-2">
+            <span className="text-xs font-bold text-sky-700">Commission / Pax</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <F label="Base Currency">
+                <Select value={commCurr} onValueChange={v => {
+                  const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
+                  pkgSet('commission_currency', v);
+                  pkgSet('commission_exchange_rate', rate);
+                  pkgSet('commission_amount', commCurr === 'PHP' ? commBase : commBase * rate);
+                }}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value} – {c.symbol}</SelectItem>)}</SelectContent>
+                </Select>
+              </F>
+              <F label={`Base Cost (${commCurrSym})`}>
+                <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{commCurrSym}</span>
+                  <Input type="number" className="pl-7 h-9 text-sm" value={commBase || ''} onChange={e => {
+                    const v = Number(e.target.value);
+                    pkgSet('commission_base_foreign', v);
+                    pkgSet('commission_amount', commCurr === 'PHP' ? v : v * commRate);
+                  }} />
+                </div>
+              </F>
+              {commCurr !== 'PHP' && (
+                <F label="Exchange Rate (→ ₱)">
+                  <Input type="number" className="h-9 text-sm" value={commRate || ''} onChange={e => {
+                    const v = Number(e.target.value);
+                    pkgSet('commission_exchange_rate', v);
+                    pkgSet('commission_amount', commBase * v);
+                  }} />
+                </F>
+              )}
+              <F label="Commission (₱)">
+                <div className="h-9 flex items-center px-3 bg-sky-100 border border-sky-300 rounded-md">
+                  <span className="text-sm font-bold text-sky-700">₱{(commBase > 0 ? commPHP : commission).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                </div>
+              </F>
+            </div>
+          </div>
+
+          {/* Row 4: Downpayment */}
+          <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-3 space-y-2">
+            <span className="text-xs font-bold text-purple-700">Required Downpayment</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <F label="Base Currency">
+                <Select value={dpCurr} onValueChange={v => {
+                  const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
+                  pkgSet('downpayment_currency', v);
+                  pkgSet('downpayment_exchange_rate', rate);
+                  pkgSet('downpayment_required', dpCurr === 'PHP' ? dpBase : dpBase * rate);
+                }}>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value} – {c.symbol}</SelectItem>)}</SelectContent>
+                </Select>
+              </F>
+              <F label={`Base Cost (${dpCurrSym})`}>
+                <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{dpCurrSym}</span>
+                  <Input type="number" className="pl-7 h-9 text-sm" value={dpBase || ''} onChange={e => {
+                    const v = Number(e.target.value);
+                    pkgSet('downpayment_base_foreign', v);
+                    pkgSet('downpayment_required', dpCurr === 'PHP' ? v : v * dpRate);
+                  }} />
+                </div>
+              </F>
+              {dpCurr !== 'PHP' && (
+                <F label="Exchange Rate (→ ₱)">
+                  <Input type="number" className="h-9 text-sm" value={dpRate || ''} onChange={e => {
+                    const v = Number(e.target.value);
+                    pkgSet('downpayment_exchange_rate', v);
+                    pkgSet('downpayment_required', dpBase * v);
+                  }} />
+                </F>
+              )}
+              <F label="Downpayment (₱)">
+                <div className="h-9 flex items-center px-3 bg-purple-100 border border-purple-300 rounded-md">
+                  <span className="text-sm font-bold text-purple-700">₱{(dpBase > 0 ? dpPHP : dp).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                </div>
+              </F>
+            </div>
+          </div>
+
+          {/* Balance */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <F label="Commission / Pax (₱)">
-              <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span><Input type="number" className="pl-7 h-9 text-sm" value={commission} onChange={e => pkgSet('commission_amount', Number(e.target.value))} /></div>
-            </F>
-            <F label="Downpayment (₱)">
-              <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span><Input type="number" className="pl-7 h-9 text-sm" value={dp} onChange={e => pkgSet('downpayment_required', Number(e.target.value))} /></div>
-            </F>
             <F label="Balance after DP">
-              <div className="h-9 flex items-center px-3 bg-muted rounded-md"><span className="text-sm font-semibold">₱{(sp - dp).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+              <div className="h-9 flex items-center px-3 bg-muted rounded-md">
+                <span className="text-sm font-semibold">₱{(sp - (dpBase > 0 ? dpPHP : dp)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              </div>
             </F>
           </div>
         </div>
