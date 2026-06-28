@@ -277,29 +277,31 @@ export default function Sales() {
             return (
               <>
                 {/* Header */}
-                <div className="relative bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white rounded-t-xl">
-                  <button onClick={() => setViewingProduct(null)} className="absolute top-4 right-4 text-white/70 hover:text-white">
+                <div className="relative p-6 text-white rounded-t-xl overflow-hidden" style={{background: 'linear-gradient(135deg, #c2410c 0%, #ea580c 30%, #f97316 65%, #fbbf24 100%)'}}>
+                  <div className="absolute inset-0 animate-pulse" style={{background: 'linear-gradient(90deg, transparent 20%, rgba(255,255,255,0.08) 50%, transparent 80%)'}} />
+                  <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full" style={{background: 'radial-gradient(circle, rgba(253,230,138,0.35) 0%, transparent 70%)'}} />
+                  <button onClick={() => setViewingProduct(null)} className="absolute top-4 right-4 text-white/70 hover:text-white z-10">
                     <X className="w-5 h-5" />
                   </button>
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 relative z-10">
                     <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
                       <Package className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-emerald-200 uppercase tracking-wide mb-0.5">{c.travel_type === 'domestic' ? 'Domestic' : 'International'} · {c.operator_name || 'GLADEX Tours'}</p>
+                      <p className="text-xs font-medium text-orange-100 uppercase tracking-wide mb-0.5">{c.travel_type === 'domestic' ? 'Domestic' : 'International'} · {c.operator_name || 'GLADEX Tours'}</p>
                       <h2 className="text-xl font-bold font-jakarta leading-tight">{c.name}</h2>
-                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-emerald-100">
+                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-orange-100">
                         {c.destination && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{c.destination}</span>}
                         {c.nights && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{c.nights} nights</span>}
                         {c.departure_date && <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{c.departure_date}{c.return_date ? ` → ${c.return_date}` : ''}</span>}
                         {c.total_slots && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{c.total_slots} slots</span>}
-                        {c.guaranteed_departure && <span className="bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">✈ Guaranteed Departure</span>}
+                        {c.guaranteed_departure && <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">✈ Guaranteed Departure</span>}
                       </div>
                     </div>
                   </div>
                   {/* Book Now CTA */}
                   <Button
-                    className="mt-4 bg-white text-emerald-700 hover:bg-emerald-50 font-semibold gap-2 border-0"
+                    className="mt-4 relative z-10 bg-white font-semibold gap-2 border-0 hover:bg-orange-50" style={{color: '#ea580c'}}
                     onClick={() => {
                       setViewingProduct(null);
                       setEditingBooking(null);
