@@ -51,44 +51,46 @@ function parseItineraryDays(raw) {
 // ── Format a collective/package into clean copy-paste text ──────────────────
 export function formatPackageForCopy(pkg) {
   const parts = [];
-  const na = 'N/A';
 
-  const push = (label, value) => {
-    if (value == null || value === '') {
-      parts.push(`${label}:`);
-      parts.push(na);
-    } else {
-      parts.push(`${label}:`);
-      parts.push(String(value));
-    }
+  // Inline push: LABEL: value on one line
+  const line = (emoji, label, value) => {
+    if (value == null || value === '' || value === 0 || value === '0') return;
+    parts.push(`${emoji} ${label}: ${String(value)}`);
+  };
+
+  const divider = (emoji, title) => {
     parts.push('');
+    parts.push(`${emoji} ━━━━━━━━━━━━━━ ${title} ━━━━━━━━━━━━━━`);
   };
 
   // ── HEADER ──
   const name = pkg.name || pkg.package_name || pkg.destination || 'Unnamed Package';
-  parts.push(`PACKAGE NAME: ${name.toUpperCase()}`);
+  parts.push('╔══════════════════════════════════════╗');
+  parts.push(`  ✈️  ${name.toUpperCase()}`);
+  parts.push('╚══════════════════════════════════════╝');
   parts.push('');
 
   // ── BASIC INFO ──
-  push('DESTINATION', pkg.destination);
-  // PACKAGE CODE is filled in manually after pasting
-  parts.push('PACKAGE CODE:');
+  divider('📋', 'PACKAGE DETAILS');
   parts.push('');
-  push('PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
+  line('📍', 'DESTINATION', pkg.destination);
+  parts.push('🔖 PACKAGE CODE: ');
+  line('🌏', 'PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
+  const statusLabels = { draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure', ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled' };
+  line('📌', 'STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
+  if (pkg.total_slots != null) line('🪑', 'TOTAL SLOTS', pkg.total_slots);
+  if (pkg.available_slots != null) line('✅', 'AVAILABLE SLOTS', pkg.available_slots);
+  if (pkg.guaranteed_departure) parts.push('🛡️ GUARANTEED DEPARTURE: Yes');
+  if (pkg.slots_for_confirmation) parts.push('⏳ SLOT TYPE: For Confirmation (on-request)');
 
-  // ── STATUS ──
-  const statusLabels = {
-    draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure',
-    ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled'
-  };
-  push('STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
-  push('TOTAL SLOTS', pkg.total_slots != null ? pkg.total_slots : null);
-  push('AVAILABLE SLOTS', pkg.available_slots != null ? pkg.available_slots : null);
-
-  // ── OPERATOR & CARRIER ──
-  push('OPERATOR', pkg.operator_name);
-  push('FLIGHT / AIRLINE', pkg.flight_details);
-  push('HOTEL DETAILS', pkg.hotel_details);
+  // ── OPERATOR & LOGISTICS ──
+  if (pkg.operator_name || pkg.flight_details || pkg.hotel_details) {
+    divider('🏢', 'OPERATOR & LOGISTICS');
+    parts.push('');
+    line('🏢', 'OPERATOR', pkg.operator_name);
+    line('✈️', 'FLIGHT / AIRLINE', pkg.flight_details);
+    line('🏨', 'HOTEL', pkg.hotel_details);
+  }
 
   // ── TRAVEL DATES ──
   const tDates = pkg.travel_dates?.length
@@ -98,103 +100,108 @@ export function formatPackageForCopy(pkg) {
         return label ? `${label}: ${range}` : range;
       }).filter(Boolean)
     : [];
-  if (tDates.length > 0) {
-    parts.push('TRAVEL DATES:');
-    tDates.forEach(d => parts.push(d));
+  const singleRange = formatDateRange(pkg.departure_date, pkg.return_date);
+  if (tDates.length > 0 || singleRange) {
+    divider('📅', 'TRAVEL DATES');
     parts.push('');
-  } else {
-    // fallback to single dates
-    const range = formatDateRange(pkg.departure_date, pkg.return_date);
-    if (range) { parts.push('TRAVEL DATES:'); parts.push(range); parts.push(''); }
+    if (tDates.length > 0) {
+      tDates.forEach((d, i) => parts.push(`  ${i + 1}. 📅 ${d}`));
+    } else {
+      parts.push(`  📅 ${singleRange}`);
+    }
   }
 
   // ── DEADLINES ──
-  if (pkg.internal_deadline) push('INTERNAL DEADLINE', new Date(pkg.internal_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
-  if (pkg.supplier_deadline) push('SUPPLIER DEADLINE', new Date(pkg.supplier_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+  if (pkg.internal_deadline || pkg.supplier_deadline) {
+    parts.push('');
+    if (pkg.internal_deadline) line('⏰', 'INTERNAL DEADLINE', new Date(pkg.internal_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    if (pkg.supplier_deadline) line('⏳', 'SUPPLIER DEADLINE', new Date(pkg.supplier_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+  }
 
   // ── PRICING ──
   const currency = pkg.base_price_currency || pkg.currency || 'PHP';
   const currMap = { PHP: '₱', USD: '$', EUR: '€', JPY: '¥', KRW: '₩', SGD: 'S$', HKD: 'HK$', AUD: 'A$' };
   const sym = currMap[currency] || currency;
-
   const baseForeign = Number(pkg.base_price_foreign || 0);
   const exRate = Number(pkg.exchange_rate || 1);
   const basePHP = Number(pkg.base_price_php || 0);
   const markup = Number(pkg.markup_amount || 0);
-  const sellPrice = Number(pkg.selling_price || pkg.base_price || 0);
 
-  if (baseForeign > 0 && currency !== 'PHP') push(`BASE PRICE (${currency})`, `${sym}${baseForeign.toLocaleString('en-US')}`);
-  if (basePHP > 0 && currency !== 'PHP') push('BASE PRICE (PHP)', `₱${basePHP.toLocaleString('en-US')}`);
-  if (exRate && currency !== 'PHP') push('EXCHANGE RATE', `1 ${currency} = ₱${exRate}`);
-  if (markup > 0) push('MARKUP', `₱${markup.toLocaleString('en-US')}`);
-
-  if (Number(pkg.commission_amount) > 0) push('COMMISSION', `₱${Number(pkg.commission_amount).toLocaleString('en-US')}`);
-  push('DOWNPAYMENT', pkg.downpayment_required != null ? `₱${Number(pkg.downpayment_required).toLocaleString('en-US')}` : null);
+  divider('💰', 'PRICING');
+  parts.push('');
+  if (baseForeign > 0 && currency !== 'PHP') line('💱', `BASE PRICE (${currency})`, `${sym}${baseForeign.toLocaleString('en-US')}`);
+  if (basePHP > 0 && currency !== 'PHP') line('🔄', 'BASE PRICE (PHP)', `₱${basePHP.toLocaleString('en-US')}`);
+  if (exRate && currency !== 'PHP') line('📊', 'EXCHANGE RATE', `1 ${currency} = ₱${exRate}`);
+  if (markup > 0) line('📈', 'MARKUP', `₱${markup.toLocaleString('en-US')}`);
+  if (Number(pkg.commission_amount) > 0) line('💼', 'COMMISSION', `₱${Number(pkg.commission_amount).toLocaleString('en-US')}`);
+  if (Number(pkg.downpayment_required) > 0) line('💳', 'DOWNPAYMENT', `₱${Number(pkg.downpayment_required).toLocaleString('en-US')}`);
 
   // ── OCCUPANCY RATES ──
   const rateFields = [
-    ['TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
-    ['TRIPLE (per pax)', pkg.rate_triple, pkg.rate_triple_age_min, pkg.rate_triple_age_max],
-    ['QUAD (per pax)', pkg.rate_quad, pkg.rate_quad_age_min, pkg.rate_quad_age_max],
-    ['SINGLE (per pax)', pkg.rate_single, pkg.rate_single_age_min, pkg.rate_single_age_max],
-    ['SOLO', pkg.rate_solo, pkg.rate_solo_age_min, pkg.rate_solo_age_max],
-    ['SINGLE SUPPLEMENT', pkg.rate_single_supplement],
-    ['CHILD NO BED', pkg.rate_child_no_bed, pkg.rate_child_no_bed_age_min, pkg.rate_child_no_bed_age_max],
-    ['CHILD WITH BED', pkg.rate_child, pkg.rate_child_age_min, pkg.rate_child_age_max],
-    ['INFANT', pkg.rate_infant, pkg.rate_infant_age_min, pkg.rate_infant_age_max],
+    ['🛏️', 'TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
+    ['🛏️', 'TRIPLE (per pax)', pkg.rate_triple, pkg.rate_triple_age_min, pkg.rate_triple_age_max],
+    ['🛏️', 'QUAD (per pax)', pkg.rate_quad, pkg.rate_quad_age_min, pkg.rate_quad_age_max],
+    ['🛏️', 'SINGLE (per pax)', pkg.rate_single, pkg.rate_single_age_min, pkg.rate_single_age_max],
+    ['🛏️', 'SOLO', pkg.rate_solo, pkg.rate_solo_age_min, pkg.rate_solo_age_max],
+    ['➕', 'SINGLE SUPPLEMENT', pkg.rate_single_supplement],
+    ['👶', 'CHILD NO BED', pkg.rate_child_no_bed, pkg.rate_child_no_bed_age_min, pkg.rate_child_no_bed_age_max],
+    ['🧒', 'CHILD WITH BED', pkg.rate_child, pkg.rate_child_age_min, pkg.rate_child_age_max],
+    ['👼', 'INFANT', pkg.rate_infant, pkg.rate_infant_age_min, pkg.rate_infant_age_max],
   ];
 
-  let hasAnyRate = false;
-  rateFields.forEach(([label, rate, min, max]) => {
+  const rateLines = [];
+  rateFields.forEach(([emoji, label, rate, min, max]) => {
     const num = Number(rate);
     if (num > 0) {
-      hasAnyRate = true;
-      let line = `₱${num.toLocaleString('en-US')}`;
+      let val = `₱${num.toLocaleString('en-US')}`;
       if (min != null || max != null) {
         const ageRange = [min != null ? `${min}y` : '', max != null ? `${max}y` : ''].filter(Boolean).join('–');
-        if (ageRange) line += ` (Ages ${ageRange})`;
+        if (ageRange) val += ` (Ages ${ageRange})`;
       }
-      push(label, line);
+      rateLines.push(`${emoji} ${label}: ${val}`);
     }
   });
 
-  // (no fallback when no rates — skip silently)
+  if (rateLines.length > 0) {
+    divider('🛏️', 'ROOM RATES');
+    parts.push('');
+    rateLines.forEach(r => parts.push(r));
+  }
 
   // ── CONTENT ──
-  const bulletField = (label, raw) => {
-    if (!raw?.trim()) { parts.push(`${label}:`); parts.push(na); parts.push(''); return; }
-    parts.push(`${label}:`);
-    raw.split('\n').forEach(line => {
-      const t = line.trim();
+  const bulletSection = (emoji, title, raw) => {
+    if (!raw?.trim()) return;
+    divider(emoji, title);
+    parts.push('');
+    raw.split('\n').forEach(l => {
+      const t = l.trim();
       if (t) parts.push(t.startsWith('•') || t.startsWith('-') || t.startsWith('✔') || t.startsWith('✘') ? t : `• ${t}`);
     });
-    parts.push('');
   };
 
-  bulletField('PACKAGE INCLUSIONS', pkg.inclusions);
-  bulletField('PACKAGE EXCLUSIONS', pkg.exclusions);
-  bulletField('OPTIONAL TOURS', pkg.optional_tours);
+  bulletSection('✅', 'PACKAGE INCLUSIONS', pkg.inclusions);
+  bulletSection('❌', 'PACKAGE EXCLUSIONS', pkg.exclusions);
+  bulletSection('🎯', 'OPTIONAL TOURS', pkg.optional_tours);
 
   // ── ITINERARY ──
   const days = parseItineraryDays(pkg.itinerary);
   if (days) {
+    divider('🗺️', 'ITINERARY');
+    parts.push('');
     days.forEach(d => {
       parts.push(d.label);
       if (d.body) parts.push(d.body);
       parts.push('');
     });
-  } else {
-    push('ITINERARY', null);
   }
 
   // ── OTHER CONTENT ──
-  push('TERMS & CONDITIONS', pkg.terms_conditions);
-  push('CANCELLATION POLICY', pkg.cancellation_policy);
-  push('REMARKS', pkg.remarks);
+  if (pkg.terms_conditions?.trim()) { divider('📜', 'TERMS & CONDITIONS'); parts.push(''); parts.push(pkg.terms_conditions.trim()); }
+  if (pkg.cancellation_policy?.trim()) { divider('⚠️', 'CANCELLATION POLICY'); parts.push(''); parts.push(pkg.cancellation_policy.trim()); }
+  if (pkg.remarks?.trim()) { divider('📝', 'REMARKS'); parts.push(''); parts.push(pkg.remarks.trim()); }
 
-  // ── SLOT FLAGS ──
-  if (pkg.slots_for_confirmation) push('SLOT TYPE', 'For Confirmation (on-request)');
-  if (pkg.guaranteed_departure) push('GUARANTEED DEPARTURE', 'Yes');
+  parts.push('');
+  parts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   return parts.join('\n').trim();
 }
