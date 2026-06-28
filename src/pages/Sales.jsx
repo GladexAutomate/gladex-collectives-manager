@@ -347,7 +347,7 @@ export default function Sales() {
                               const depDate = d.departure_date ? new Date(d.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
                               const retDate = d.return_date ? new Date(d.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
                               const price = d.selling_price || (d.use_custom_pricing ? d.rate_twin : null) || c.selling_price || c.rate_twin;
-                              const scMap = { open: {bg:'#f0fdf4',color:'#16a34a',border:'#bbf7d0'}, almost_full: {bg:'#fffbeb',color:'#d97706',border:'#fde68a'}, sold_out: {bg:'#fff1f2',color:'#e11d48',border:'#fecdd3'}, closed: {bg:'#f8fafc',color:'#64748b',border:'#e2e8f0'} };
+                              const scMap = { open: {bg:'#fff7ed',color:'#ea580c',border:'#fdba74'}, almost_full: {bg:'#fff7ed',color:'#c2410c',border:'#fb923c'}, sold_out: {bg:'#fff1f2',color:'#e11d48',border:'#fecdd3'}, closed: {bg:'#f8fafc',color:'#64748b',border:'#e2e8f0'} };
                               const sc = scMap[d.status] || scMap.open;
                               const almostFull = slotPct >= 80 && d.status === 'open';
                               return (
