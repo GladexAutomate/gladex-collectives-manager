@@ -48,7 +48,12 @@ TRAVEL DATES (CRITICAL — extract EVERY departure date listed):
   - total_slots: number of available seats/slots for THIS specific date (look for slot counts next to each date row)
   - booked_slots: number already booked (default 0 unless stated)
   - status: "open" normally; "sold_out" if mentioned; "almost_full" if nearly full; "closed" if past or cancelled
+  - selling_price: the ADULT per-pax price for THIS specific date (number). CRITICAL: Many packages group dates by price tier — e.g. "AUG 14-17 / SEP 03-06: PHP 27,999" and "AUG 21-24: PHP 29,999". Each date must get ITS OWN selling_price based on which group it belongs to. Do NOT assign the same price to all dates if different groups have different prices.
+  - rate_single_supplement: single supplement surcharge for THIS specific date (number, use the value from the group this date belongs to)
+  - rate_child_no_bed: child no bed rate for THIS specific date (number, use the value from the group this date belongs to)
+  - rate_infant: infant rate for THIS specific date (number, use the value from the group this date belongs to)
   IMPORTANT: If a table shows multiple departure dates (e.g. May, June, July, August), extract ALL rows — do not skip any.
+  If the package lists date groups with different prices (e.g. "OCT dates: PHP 28,999 / NOV-DEC dates: PHP 31,999"), match each date to its group and assign the correct selling_price.
   If only one date is mentioned in the whole document, return an array with that one date.
   If NO dates are found at all, return an empty array [].
 
@@ -115,6 +120,10 @@ RULES:
                   total_slots: { type: "number" },
                   booked_slots: { type: "number" },
                   status: { type: "string" },
+                  selling_price: { type: "number" },
+                  rate_single_supplement: { type: "number" },
+                  rate_child_no_bed: { type: "number" },
+                  rate_infant: { type: "number" },
                 }
               }
             },
@@ -305,6 +314,7 @@ RULES:
                   <div key={i} className="flex items-center justify-between px-3 py-1.5">
                     <span className="text-xs font-medium text-sky-800 dark:text-sky-300">{d.label || d.departure_date}</span>
                     <div className="flex items-center gap-2 text-[10px] text-sky-600">
+                      {d.selling_price ? <span className="font-bold text-amber-600">₱{Number(d.selling_price).toLocaleString()}</span> : null}
                       <span className="flex items-center gap-0.5"><Users className="w-2.5 h-2.5" /> {d.total_slots || 0} slots</span>
                       <span className={cn("px-1.5 py-0.5 rounded-full font-medium",
                         d.status === 'sold_out' ? 'bg-rose-100 text-rose-700' :

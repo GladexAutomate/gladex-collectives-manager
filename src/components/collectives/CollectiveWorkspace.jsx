@@ -375,7 +375,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
         rate_infant: parsed.rate_infant || '',
       };
 
-      // Map imported travel_dates — snapshot package rates so each date is independent
+      // Map imported travel_dates — per-date prices take priority over package-level snapshot
       const importedDates = (parsed.travel_dates || [])
         .filter(d => d.departure_date)
         .map(d => ({
@@ -390,6 +390,11 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
           notes: '',
           use_custom_pricing: false,
           ...pkgRates,
+          // Per-date prices override package snapshot when AI extracted date-group pricing
+          selling_price: d.selling_price || pkgRates.selling_price || 0,
+          rate_single_supplement: d.rate_single_supplement || pkgRates.rate_single_supplement || '',
+          rate_child_no_bed: d.rate_child_no_bed || pkgRates.rate_child_no_bed || '',
+          rate_infant: d.rate_infant || pkgRates.rate_infant || '',
         }));
 
       const sortedDates = [...importedDates].sort((a, b) => (a.departure_date || '').localeCompare(b.departure_date || ''));
