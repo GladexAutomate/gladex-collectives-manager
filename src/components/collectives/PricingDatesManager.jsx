@@ -1,6 +1,7 @@
 // @ts-nocheck
-import { useState } from 'react';
-import { Plus, Trash2, Calendar, Users, AlertTriangle, ChevronDown, ChevronUp, DollarSign, Percent, ArrowRight } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Trash2, Calendar, Users, AlertTriangle, ChevronDown, ChevronUp, DollarSign, Sparkles, Upload, Loader2, CheckCircle, X, Image } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -260,6 +261,14 @@ export default function PricingDatesManager({
 
   const [newDate, setNewDate] = useState(BLANK_DATE());
   const [addError, setAddError] = useState('');
+  const [showTableImport, setShowTableImport] = useState(false);
+  const [tableInput, setTableInput] = useState('');
+  const [tableParsing, setTableParsing] = useState(false);
+  const [tableParsed, setTableParsed] = useState(null);
+  const [tableError, setTableError] = useState('');
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [dragOver, setDragOver] = useState(false);
+  const tableFileRef = useRef();
 
   // ── Setters ──
   const pkgSet = (key, val) => {
@@ -282,6 +291,126 @@ export default function PricingDatesManager({
       };
       if (map[key]) setQ(map[key], val);
     }
+  };
+
+  const handleTableParse = async (inputText) => {
+    const content = inputText || tableInput;
+    if (!content.trim()) return;
+    setTableParsing(true);
+    setTableError('');
+    setTableParsed(null);
+    const today = new Date().toISOString().split('T')[0];
+    const year = new Date().getFullYear();
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are extracting travel departure schedules from a table or spreadsheet.
+Today is ${today}. The current year is ${year} — use this for resolving month-only date ranges.
+
+INPUT TABLE:
+${content}
+
+Extract EVERY row as a separate departure date entry. Each row typically has:
+- A date range (e.g. "AUG 02-06", "SEP 04-08", "OCT 30-NOV 03")
+- Available slots/seats (usually the last column or labeled "SLOTS", "AVAIL", "PAX")
+- Selling price per person (e.g. 23,999 or ₱23,999)
+
+For date ranges like "AUG 02-06": departure = ${year}-08-02, return = ${year}-08-06.
+For cross-month ranges like "OCT 30-NOV 03": departure = ${year}-10-30, return = ${year}-11-03.
+If month is already past for ${year}, use ${year + 1}.
+
+Return JSON with a "dates" array. Each item:
+- departure_date: YYYY-MM-DD
+- return_date: YYYY-MM-DD
+- label: human label like "Aug 02–06" or the text from the date column
+- total_slots: integer (the available/remaining slot count from the table)
+- booked_slots: 0 (default unless stated)
+- selling_price: number (per person price, no commas/symbols)
+- status: "open" unless table says "sold out", "closed", etc.
+
+Extract ALL rows. Do not skip any row that has a date.`,
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            dates: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  departure_date: { type: 'string' },
+                  return_date: { type: 'string' },
+                  label: { type: 'string' },
+                  total_slots: { type: 'number' },
+                  booked_slots: { type: 'number' },
+                  selling_price: { type: 'number' },
+                  status: { type: 'string' },
+                }
+              }
+            }
+          }
+        }
+      });
+      const dates = (result?.dates || []).filter(d => d.departure_date);
+      if (dates.length === 0) { setTableError('No departure dates found. Make sure the table has date and slot columns.'); }
+      else {
+        setTableParsed(dates);
+        setSelectedRows(new Set(dates.map((_, i) => i)));
+      }
+    } catch (e) {
+      setTableError('AI extraction failed. Please try again.');
+    }
+    setTableParsing(false);
+  };
+
+  const handleTableFileUpload = async (file) => {
+    if (!file) return;
+    setTableParsing(true);
+    setTableError('');
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: { type: 'object', properties: { raw_text: { type: 'string' } } }
+      });
+      const rawText = extracted?.output?.raw_text || JSON.stringify(extracted?.output || '');
+      setTableInput(rawText);
+      await handleTableParse(rawText);
+    } catch (e) {
+      setTableError('File extraction failed. Try pasting the table text instead.');
+      setTableParsing(false);
+    }
+  };
+
+  const handleConfirmImport = () => {
+    if (!tableParsed) return;
+    const g = (key) => isCollective ? (form?.[key] || '') : (quote?.[key] || '');
+    const toAdd = tableParsed
+      .filter((_, i) => selectedRows.has(i))
+      .map(d => ({
+        label: d.label || '',
+        departure_date: d.departure_date,
+        return_date: d.return_date || '',
+        cutoff_date: '',
+        total_slots: Number(d.total_slots) || 0,
+        booked_slots: Number(d.booked_slots) || 0,
+        available_slots: Math.max(0, (Number(d.total_slots) || 0) - (Number(d.booked_slots) || 0)),
+        status: d.status || 'open',
+        notes: '',
+        use_custom_pricing: false,
+        selling_price: d.selling_price || sp || 0,
+        base_price_foreign: baseForeign,
+        exchange_rate: exRate,
+        markup_amount: mPHP,
+        rate_twin: g('rate_twin'), rate_twin_age_min: g('rate_twin_age_min'), rate_twin_age_max: g('rate_twin_age_max'),
+        rate_triple: g('rate_triple'), rate_triple_age_min: g('rate_triple_age_min'), rate_triple_age_max: g('rate_triple_age_max'),
+        rate_quad: g('rate_quad'), rate_quad_age_min: g('rate_quad_age_min'), rate_quad_age_max: g('rate_quad_age_max'),
+        rate_single: g('rate_single'), rate_single_age_min: g('rate_single_age_min'), rate_single_age_max: g('rate_single_age_max'),
+        rate_child_no_bed: g('rate_child_no_bed'), rate_child: g('rate_child'), rate_infant: g('rate_infant'),
+      }));
+    setDates(prev => [...prev, ...toAdd]);
+    setTableParsed(null);
+    setTableInput('');
+    setShowTableImport(false);
+    setSelectedRows(new Set());
   };
 
   const handleAddDate = () => {
@@ -432,13 +561,118 @@ export default function PricingDatesManager({
 
       {/* ── SECTION: Travel Dates ── */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <div className="bg-slate-900 px-4 py-3 flex items-center gap-2">
+        <div className="bg-slate-900 px-4 py-3 flex items-center gap-2 flex-wrap">
           <Calendar className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-bold text-white">Travel Dates & Per-Date Pricing</span>
           {travelDates.length > 0 && (
-            <span className="text-[10px] text-slate-400 ml-auto">{travelDates.length} departure{travelDates.length !== 1 ? 's' : ''} scheduled</span>
+            <span className="text-[10px] text-slate-400">{travelDates.length} departure{travelDates.length !== 1 ? 's' : ''}</span>
           )}
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowTableImport(v => !v); setTableParsed(null); setTableInput(''); setTableError(''); }}
+              className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all border",
+                showTableImport ? "bg-sky-500 text-white border-sky-500" : "bg-sky-600/20 text-sky-300 border-sky-600/40 hover:bg-sky-600/40")}
+            >
+              <Sparkles className="w-3 h-3" /> AI Import Table
+            </button>
+          </div>
         </div>
+
+        {/* ── AI Table Import Panel ── */}
+        {showTableImport && (
+          <div className="border-b border-border bg-sky-950/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-sky-300">Import Dates from Table / Image</p>
+                <p className="text-[11px] text-sky-400/70 mt-0.5">Paste spreadsheet cells or upload a screenshot — AI extracts all rows</p>
+              </div>
+              <button onClick={() => setShowTableImport(false)} className="text-slate-400 hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+
+            {!tableParsed ? (
+              <>
+                {/* Drop zone / textarea */}
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleTableFileUpload(f); }}
+                  className={cn("relative rounded-lg border-2 border-dashed transition-colors", dragOver ? "border-sky-400 bg-sky-900/30" : "border-slate-600 hover:border-sky-500")}
+                >
+                  <textarea
+                    value={tableInput}
+                    onChange={e => setTableInput(e.target.value)}
+                    placeholder={"Paste rows from your spreadsheet here — just copy cells and paste.\n\nOr drop an image/file of the table below.\n\nExample:\nAUG 02-06\t6D4N DA NANG\tOUT MANILA\tUOV34B1\t23,999\t18,000\tBAMBOO AIRWAYS\t11\nAUG 09-13\t6D4N DA NANG\tOUT MANILA\tUOV34B1\t23,999\t18,000\tBAMBOO AIRWAYS\t12"}
+                    className="w-full h-36 bg-transparent text-xs text-slate-200 placeholder:text-slate-500 p-3 resize-none focus:outline-none"
+                  />
+                  {dragOver && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-sky-900/60">
+                      <p className="text-sm font-semibold text-sky-300">Drop image or file here</p>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input ref={tableFileRef} type="file" accept="image/*,.pdf,.xlsx,.csv,.txt" className="hidden"
+                    onChange={e => handleTableFileUpload(e.target.files[0])} />
+                  <Button type="button" size="sm" variant="outline" className="text-xs gap-1.5 border-slate-600 text-slate-300 hover:text-white"
+                    onClick={() => tableFileRef.current?.click()} disabled={tableParsing}>
+                    <Upload className="w-3 h-3" /> Upload Image / File
+                  </Button>
+                  <Button type="button" size="sm" className="text-xs gap-1.5 bg-sky-600 hover:bg-sky-500 text-white border-0 flex-1"
+                    onClick={() => handleTableParse()} disabled={tableParsing || !tableInput.trim()}>
+                    {tableParsing ? <><Loader2 className="w-3 h-3 animate-spin" /> Extracting...</> : <><Sparkles className="w-3 h-3" /> Extract Dates with AI</>}
+                  </Button>
+                </div>
+                {tableError && <p className="text-xs text-rose-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {tableError}</p>}
+              </>
+            ) : (
+              /* ── Parsed Results Preview ── */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <p className="text-sm font-semibold text-emerald-300">{tableParsed.length} dates extracted</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" className="text-[10px] text-sky-400 hover:text-sky-300 underline"
+                      onClick={() => setSelectedRows(new Set(tableParsed.map((_, i) => i)))}>Select All</button>
+                    <button type="button" className="text-[10px] text-sky-400 hover:text-sky-300 underline"
+                      onClick={() => setSelectedRows(new Set())}>None</button>
+                    <button type="button" className="text-[10px] text-slate-400 hover:text-white underline"
+                      onClick={() => setTableParsed(null)}>← Re-paste</button>
+                  </div>
+                </div>
+                <div className="max-h-52 overflow-y-auto space-y-1 pr-1">
+                  {tableParsed.map((d, i) => (
+                    <label key={i} className={cn("flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors",
+                      selectedRows.has(i) ? "bg-emerald-900/30 border border-emerald-700/50" : "bg-slate-800/60 border border-slate-700/30")}
+                    >
+                      <input type="checkbox" checked={selectedRows.has(i)}
+                        onChange={e => setSelectedRows(prev => { const s = new Set(prev); e.target.checked ? s.add(i) : s.delete(i); return s; })}
+                        className="accent-emerald-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-semibold text-slate-200">{d.label || d.departure_date}</span>
+                        {d.return_date && <span className="text-[10px] text-slate-400 ml-1">→ {d.return_date}</span>}
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0 text-[10px]">
+                        <span className="text-amber-400 font-bold">{d.selling_price ? `₱${Number(d.selling_price).toLocaleString()}` : '—'}</span>
+                        <span className="text-slate-300"><Users className="w-2.5 h-2.5 inline mr-0.5" />{d.total_slots || 0} slots</span>
+                        <span className={cn("px-1.5 py-0.5 rounded-full font-medium",
+                          d.status === 'sold_out' ? 'bg-rose-900/40 text-rose-400' : 'bg-emerald-900/40 text-emerald-400'
+                        )}>{d.status || 'open'}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <Button type="button" size="sm" className="w-full gradient-gold text-white border-0 gap-2 h-9"
+                  onClick={handleConfirmImport} disabled={selectedRows.size === 0}>
+                  <Plus className="w-3.5 h-3.5" /> Add {selectedRows.size} Selected Date{selectedRows.size !== 1 ? 's' : ''} to Schedule
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="p-4 space-y-3">
           {/* Existing Date Cards */}
           {travelDates.length > 0 && (
