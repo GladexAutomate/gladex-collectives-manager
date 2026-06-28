@@ -86,7 +86,7 @@ function RateRow({ config, value, minAge, maxAge, onChange, onChangeAge }) {
 }
 
 // ── Date Card ─────────────────────────────────────────────────────────────────
-function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, onRateChange, dateCurrency }) {
+function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, onRateChange, packageCurrency }) {
   const [expanded, setExpanded] = useState(false);
   const fillPct = d.total_slots > 0 ? Math.round(((d.booked_slots || 0) / d.total_slots) * 100) : 0;
   const sc = DATE_STATUS[d.status] || DATE_STATUS.open;
@@ -94,6 +94,10 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
   const rates = usingCustom ? d : packageRates;
   // Prefer the date's own stored price (snapshotted at creation); fall back to live package rates for legacy dates
   const sellingPrice = d.selling_price || packageRates.selling_price || 0;
+  // Per-date currency (each date can have its own base currency)
+  const dateCurr = d.date_currency || packageCurrency || 'PHP';
+  const dateCurrSymbol = CURRENCIES.find(c => c.value === dateCurr)?.symbol || '₱';
+  const dateBasePHP = dateCurr === 'PHP' ? (Number(d.base_price_foreign) || 0) : (Number(d.base_price_foreign) || 0) * (Number(d.exchange_rate) || 1);
 
   return (
     <div className={cn("border rounded-lg overflow-hidden bg-card transition-all", usingCustom ? "border-amber-300 dark:border-amber-700" : "border-border")}>
@@ -201,14 +205,39 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
               </div>
               {/* Per-date base pricing */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <F label={`Base Cost (${dateCurrency})`}>
-                  <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{dateCurrency}</span><Input type="number" className="pl-7 h-8 text-sm" value={d.base_price_foreign || ''} onChange={e => onRateChange(idx, 'base_price_foreign', Number(e.target.value))} /></div>
+                <F label="Base Currency">
+                  <Select value={dateCurr} onValueChange={v => onRateChange(idx, 'date_currency', v)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value} – {c.label}</SelectItem>)}</SelectContent>
+                  </Select>
                 </F>
-                {dateCurrency !== 'PHP' && (
-                  <F label="Exchange Rate"><Input type="number" className="h-8 text-sm" value={d.exchange_rate || ''} onChange={e => onRateChange(idx, 'exchange_rate', Number(e.target.value))} /></F>
+                <F label={`Base Cost (${dateCurrSymbol})`}>
+                  <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{dateCurrSymbol}</span>
+                    <Input type="number" className="pl-7 h-8 text-sm" value={d.base_price_foreign || ''} onChange={e => onRateChange(idx, 'base_price_foreign', Number(e.target.value))} />
+                  </div>
+                </F>
+                {dateCurr !== 'PHP' && (
+                  <F label="Exchange Rate (→ PHP)">
+                    <Input type="number" className="h-8 text-sm" value={d.exchange_rate || ''} onChange={e => onRateChange(idx, 'exchange_rate', Number(e.target.value))} />
+                  </F>
                 )}
-                <F label="Markup (₱)"><div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span><Input type="number" className="pl-7 h-8 text-sm" value={d.markup_amount || ''} onChange={e => onRateChange(idx, 'markup_amount', Number(e.target.value))} /></div></F>
-                <F label="Selling Price"><div className="h-8 flex items-center px-3 bg-amber-50 rounded-md"><span className="text-sm font-black text-amber-700">₱{Number(d.selling_price || 0).toLocaleString()}</span></div></F>
+                {dateCurr !== 'PHP' && (
+                  <F label="Base Cost PHP">
+                    <div className="h-8 flex items-center px-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-md">
+                      <span className="text-sm font-bold text-sky-700">₱{dateBasePHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    </div>
+                  </F>
+                )}
+                <F label="Markup (₱)">
+                  <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span>
+                    <Input type="number" className="pl-7 h-8 text-sm" value={d.markup_amount || ''} onChange={e => onRateChange(idx, 'markup_amount', Number(e.target.value))} />
+                  </div>
+                </F>
+                <F label="Selling Price">
+                  <div className="h-8 flex items-center px-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 rounded-md">
+                    <span className="text-sm font-black text-amber-700">₱{Number(d.selling_price || 0).toLocaleString()}</span>
+                  </div>
+                </F>
               </div>
               {/* Room Rates */}
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
@@ -513,7 +542,20 @@ Extract ALL rows. Do not skip any row that has a date.`,
       };
     }));
   };
-  const handleDateRateChange = (idx, key, val) => setDates(prev => prev.map((d, i) => i === idx ? { ...d, [key]: val } : d));
+  const handleDateRateChange = (idx, key, val) => setDates(prev => prev.map((d, i) => {
+    if (i !== idx) return d;
+    const updated = { ...d, [key]: val };
+    // Auto-recompute selling price when base pricing fields change
+    if (['base_price_foreign', 'exchange_rate', 'markup_amount', 'date_currency'].includes(key)) {
+      const bf = Number(key === 'base_price_foreign' ? val : d.base_price_foreign) || 0;
+      const er = Number(key === 'exchange_rate' ? val : d.exchange_rate) || 1;
+      const mk = Number(key === 'markup_amount' ? val : d.markup_amount) || 0;
+      const curr = key === 'date_currency' ? val : (d.date_currency || currency);
+      const bphp = curr === 'PHP' ? bf : bf * er;
+      if (bphp + mk > 0) updated.selling_price = bphp + mk;
+    }
+    return updated;
+  }));
 
   return (
     <div className="space-y-5">
@@ -706,7 +748,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
           {travelDates.length > 0 && (
             <div className="space-y-2">
               {travelDates.map((d, idx) => (
-                <DateCard key={idx} d={d} idx={idx} packageRates={packageRates} dateCurrency={currSymbol}
+                <DateCard key={idx} d={d} idx={idx} packageRates={packageRates} packageCurrency={currency}
                   onUpdate={handleUpdate} onRemove={handleRemove} onToggleCustom={handleToggleCustom} onRateChange={handleDateRateChange}
                 />
               ))}
