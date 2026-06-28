@@ -357,36 +357,61 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
 
   const handleAIParsed = (parsed) => {
     setForm(prev => {
-      // Determine currency — default to USD if not specified and price looks foreign
       const detectedCurrency = parsed.currency || prev.currency || 'USD';
       const isPhp = detectedCurrency === 'PHP';
-
-      // Base price: if PHP, use selling_price directly as base; otherwise treat as foreign amount
       const basePrice = parsed.base_price || parsed.selling_price || null;
+
+      // Package-level rates to snapshot into each imported travel date
+      const pkgRates = {
+        selling_price: parsed.selling_price || 0,
+        rate_twin: parsed.rate_twin || '',
+        rate_triple: parsed.rate_triple || '',
+        rate_quad: parsed.rate_quad || '',
+        rate_single: parsed.rate_single || '',
+        rate_solo: parsed.rate_solo || '',
+        rate_single_supplement: parsed.rate_single_supplement || '',
+        rate_child_no_bed: parsed.rate_child_no_bed || '',
+        rate_child: parsed.rate_child || '',
+        rate_infant: parsed.rate_infant || '',
+      };
+
+      // Map imported travel_dates — snapshot package rates so each date is independent
+      const importedDates = (parsed.travel_dates || [])
+        .filter(d => d.departure_date)
+        .map(d => ({
+          label: d.label || '',
+          departure_date: d.departure_date,
+          return_date: d.return_date || '',
+          cutoff_date: '',
+          total_slots: Number(d.total_slots) || 0,
+          booked_slots: Number(d.booked_slots) || 0,
+          available_slots: Math.max(0, (Number(d.total_slots) || 0) - (Number(d.booked_slots) || 0)),
+          status: d.status || 'open',
+          notes: '',
+          use_custom_pricing: false,
+          ...pkgRates,
+        }));
+
+      const sortedDates = [...importedDates].sort((a, b) => (a.departure_date || '').localeCompare(b.departure_date || ''));
+      const autoDepart = sortedDates[0]?.departure_date;
+      const autoReturn = [...importedDates].sort((a, b) => (b.return_date || '').localeCompare(a.return_date || ''))[0]?.return_date;
 
       return {
         ...prev,
-        // Basic info
         name: parsed.name || prev.name,
         destination: parsed.destination || prev.destination,
         travel_type: parsed.travel_type || prev.travel_type,
         operator_name: parsed.operator_name || prev.operator_name,
         nights: parsed.nights != null ? parsed.nights : prev.nights,
-        // Dates
-        departure_date: parsed.departure_date || prev.departure_date,
-        return_date: parsed.return_date || prev.return_date,
-        // Slots
+        departure_date: parsed.departure_date || autoDepart || prev.departure_date,
+        return_date: parsed.return_date || autoReturn || prev.return_date,
         total_slots: parsed.total_slots || prev.total_slots,
         guaranteed_departure: parsed.guaranteed_departure !== undefined ? parsed.guaranteed_departure : prev.guaranteed_departure,
-        // Pricing — currency-aware
         currency: detectedCurrency,
-        // If PHP: put price as base_price_foreign with currency=PHP (exchange rate 1)
-        // If foreign: put as base_price_foreign, keep exchange rate
         base_price_foreign: basePrice != null ? basePrice : prev.base_price_foreign,
         exchange_rate: isPhp ? 1 : prev.exchange_rate,
         commission_amount: parsed.commission_amount != null ? parsed.commission_amount : prev.commission_amount,
         downpayment_required: parsed.downpayment_required != null ? parsed.downpayment_required : prev.downpayment_required,
-        // Room rates
         rate_twin: parsed.rate_twin != null ? parsed.rate_twin : prev.rate_twin,
         rate_triple: parsed.rate_triple != null ? parsed.rate_triple : prev.rate_triple,
         rate_quad: parsed.rate_quad != null ? parsed.rate_quad : prev.rate_quad,
@@ -394,10 +419,8 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
         rate_child_no_bed: parsed.rate_child_no_bed != null ? parsed.rate_child_no_bed : prev.rate_child_no_bed,
         rate_infant: parsed.rate_infant != null ? parsed.rate_infant : prev.rate_infant,
         rate_single_supplement: parsed.rate_single_supplement != null ? parsed.rate_single_supplement : prev.rate_single_supplement,
-        // Logistics
         flight_details: parsed.flight_details || prev.flight_details,
         hotel_details: parsed.hotel_details || prev.hotel_details,
-        // Content
         inclusions: parsed.inclusions || prev.inclusions,
         exclusions: parsed.exclusions || prev.exclusions,
         itinerary: parsed.itinerary || prev.itinerary,
@@ -405,7 +428,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
         cancellation_policy: parsed.cancellation_policy || prev.cancellation_policy,
         terms_conditions: parsed.terms_conditions || prev.terms_conditions,
         remarks: parsed.remarks || prev.remarks,
-        // Always keep draft status for new imports
+        travel_dates: importedDates.length > 0 ? importedDates : (prev.travel_dates || []),
         status: prev.status || 'draft',
       };
     });
