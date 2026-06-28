@@ -325,41 +325,66 @@ export default function Sales() {
 
                     {/* PRICING TAB */}
                     <TabsContent value="pricing" className="mt-4 space-y-4">
-                      {/* Travel Dates & Slots */}
+                      {/* Travel Dates & Slots — Radiant Orange */}
                       {c.travel_dates?.length > 0 && (
-                        <div className="mb-5 rounded-xl border border-border overflow-hidden">
-                          <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
-                            <span className="text-xs font-bold text-white">📅 Departure Schedules</span>
-                            <span className="text-[10px] text-slate-400 ml-auto">{c.travel_dates.length} departure{c.travel_dates.length !== 1 ? 's' : ''}</span>
+                        <div className="mb-5 rounded-2xl overflow-hidden shadow-lg" style={{border: '1.5px solid #fb923c'}}>
+                          {/* Radiant orange header with shimmer animation */}
+                          <div className="relative px-4 py-3 flex items-center gap-2 overflow-hidden" style={{background: 'linear-gradient(135deg, #c2410c 0%, #ea580c 30%, #f97316 60%, #fb923c 80%, #fbbf24 100%)'}}>
+                            <div className="absolute inset-0 animate-pulse" style={{background: 'linear-gradient(90deg, transparent 20%, rgba(255,255,255,0.15) 50%, transparent 80%)'}} />
+                            <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full animate-pulse" style={{background: 'radial-gradient(circle, rgba(253,230,138,0.5) 0%, transparent 70%)'}} />
+                            <div className="absolute -bottom-4 left-8 w-16 h-16 rounded-full animate-pulse" style={{background: 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, transparent 70%)', animationDelay: '1s'}} />
+                            <Calendar className="w-4 h-4 text-white relative z-10 drop-shadow" />
+                            <span className="text-sm font-black text-white relative z-10 tracking-wide" style={{textShadow: '0 1px 4px rgba(0,0,0,0.2)'}}>Departure Schedules</span>
+                            <span className="ml-auto relative z-10 text-[10px] font-bold text-white px-2.5 py-1 rounded-full" style={{background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)'}}>
+                              {c.travel_dates.length} departure{c.travel_dates.length !== 1 ? 's' : ''}
+                            </span>
                           </div>
-                          <div className="divide-y divide-border">
+
+                          {/* White rows */}
+                          <div className="bg-white divide-y" style={{borderColor: '#fff7ed'}}>
                             {c.travel_dates.map((d, i) => {
                               const slotPct = d.total_slots > 0 ? Math.min(100, ((d.booked_slots || 0) / d.total_slots) * 100) : 0;
                               const depDate = d.departure_date ? new Date(d.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
                               const retDate = d.return_date ? new Date(d.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
-                              const price = d.use_custom_pricing ? (d.selling_price || d.rate_twin) : (c.selling_price || c.rate_twin);
-                              const sc = { open: 'bg-emerald-100 text-emerald-700', almost_full: 'bg-amber-100 text-amber-700', sold_out: 'bg-rose-100 text-rose-700', closed: 'bg-slate-100 text-slate-600' }[d.status] || 'bg-emerald-100 text-emerald-700';
+                              const price = d.selling_price || (d.use_custom_pricing ? d.rate_twin : null) || c.selling_price || c.rate_twin;
+                              const scMap = { open: {bg:'#f0fdf4',color:'#16a34a',border:'#bbf7d0'}, almost_full: {bg:'#fffbeb',color:'#d97706',border:'#fde68a'}, sold_out: {bg:'#fff1f2',color:'#e11d48',border:'#fecdd3'}, closed: {bg:'#f8fafc',color:'#64748b',border:'#e2e8f0'} };
+                              const sc = scMap[d.status] || scMap.open;
+                              const almostFull = slotPct >= 80 && d.status === 'open';
                               return (
-                                <div key={i} className="px-4 py-3">
-                                  <div className="flex items-start justify-between gap-3">
+                                <div key={i} className="px-4 py-3 transition-colors" style={{backgroundColor: 'white'}}
+                                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fff7ed'}
+                                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}>
+                                  <div className="flex items-center gap-3">
+                                    {/* Numbered date icon */}
+                                    <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-xs font-black text-white shadow-sm" style={{background: 'linear-gradient(135deg, #f97316, #fbbf24)'}}>
+                                      {i + 1}
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm font-semibold text-foreground">{d.label || depDate}</span>
-                                        <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-medium", sc)}>{d.status?.replace('_', ' ') || 'open'}</span>
-                                        {d.use_custom_pricing && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">Custom Price</span>}
+                                        <span className="text-sm font-bold text-gray-900">{d.label || depDate}</span>
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold border" style={{background: sc.bg, color: sc.color, borderColor: sc.border}}>
+                                          {d.status === 'almost_full' ? 'Almost Full' : d.status === 'sold_out' ? 'Sold Out' : d.status === 'closed' ? 'Closed' : 'Open'}
+                                        </span>
+                                        {almostFull && <span className="text-[9px] font-bold animate-pulse" style={{color:'#ea580c'}}>🔥 Filling Fast</span>}
                                       </div>
-                                      <p className="text-xs text-muted-foreground mt-0.5">
-                                        🛫 {depDate}{retDate ? ` → 🛬 ${retDate}` : ''}
+                                      <p className="text-[11px] text-gray-400 mt-0.5">
+                                        🛫 {depDate}{retDate && <> → 🛬 {retDate}</>}
                                       </p>
                                     </div>
                                     <div className="text-right flex-shrink-0">
-                                      <p className="text-sm font-bold text-amber-600">{price ? `₱${Number(price).toLocaleString()}` : '—'}<span className="text-[10px] font-normal text-muted-foreground">/twin</span></p>
-                                      <p className="text-[10px] text-muted-foreground">{d.booked_slots || 0}/{d.total_slots || 0} slots</p>
+                                      <p className="text-base font-black" style={{color: '#ea580c'}}>
+                                        {price ? `₱${Number(price).toLocaleString()}` : '—'}
+                                        <span className="text-[10px] font-normal text-gray-400">/twin</span>
+                                      </p>
+                                      <p className="text-[10px] font-medium text-gray-400">{d.booked_slots || 0}/{d.total_slots || 0} slots</p>
                                     </div>
                                   </div>
                                   {d.total_slots > 0 && (
-                                    <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-                                      <div className={cn("h-full rounded-full", slotPct >= 90 ? "bg-rose-500" : slotPct >= 70 ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${Math.min(100, slotPct)}%` }} />
+                                    <div className="mt-2 h-1.5 rounded-full overflow-hidden ml-12" style={{background: '#fff7ed'}}>
+                                      <div className="h-full rounded-full transition-all" style={{
+                                        width: `${slotPct}%`,
+                                        background: slotPct >= 90 ? '#ef4444' : 'linear-gradient(90deg, #f97316, #fbbf24)',
+                                      }} />
                                     </div>
                                   )}
                                 </div>
