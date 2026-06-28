@@ -148,27 +148,49 @@ export default function DepartmentWorkflowView({ collectiveId, tasks = [], loadi
               </div>
             )}
 
-            {/* Activate button — appears on PD card when complete and not yet active */}
-            {isComplete && dept === 'product_development' &&
-              !['active','open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus) &&
-              onActivate && (
-              <div
-                onClick={e => { e.stopPropagation(); onActivate('active'); }}
-                className="mt-2 w-full text-center text-[10px] font-bold px-2 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors cursor-pointer"
-              >
-                Activate Package →
-              </div>
-            )}
+            {/* PD done but Marketing not yet → show handoff hint */}
+            {(() => {
+              if (!isComplete || dept !== 'product_development') return null;
+              const mkStat = deptStats.find(d => d.dept === 'marketing');
+              const alreadySalesReady = ['active','open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus);
+              if (alreadySalesReady) return null;
+              if (mkStat?.isComplete) return null;
+              return (
+                <div className="mt-2 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Awaiting Marketing
+                </div>
+              );
+            })()}
 
-            {/* Open for Booking button — appears on MK card when complete and status is active */}
-            {isComplete && dept === 'marketing' && collectiveStatus === 'active' && onActivate && (
-              <div
-                onClick={e => { e.stopPropagation(); onActivate('open_booking'); }}
-                className="mt-2 w-full text-center text-[10px] font-bold px-2 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors cursor-pointer"
-              >
-                Open for Booking →
-              </div>
-            )}
+            {/* Marketing done but PD not yet → show warning */}
+            {(() => {
+              if (!isComplete || dept !== 'marketing') return null;
+              const pdStat = deptStats.find(d => d.dept === 'product_development');
+              const alreadySalesReady = ['active','open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus);
+              if (alreadySalesReady) return null;
+              if (pdStat?.isComplete) return null;
+              return (
+                <div className="mt-2 text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1.5 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> PD tasks pending
+                </div>
+              );
+            })()}
+
+            {/* BOTH PD + Marketing done → Endorse to Sales (only on Marketing card) */}
+            {(() => {
+              if (!isComplete || dept !== 'marketing' || !onActivate) return null;
+              const pdStat = deptStats.find(d => d.dept === 'product_development');
+              const alreadySalesReady = ['open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus);
+              if (!pdStat?.isComplete || alreadySalesReady) return null;
+              return (
+                <div
+                  onClick={e => { e.stopPropagation(); onActivate('open_booking'); }}
+                  className="mt-2 w-full text-center text-[10px] font-bold px-2 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors cursor-pointer animate-pulse"
+                >
+                  🚀 Endorse to Sales →
+                </div>
+              );
+            })()}
           </button>
         ))}
       </div>
@@ -205,24 +227,24 @@ export default function DepartmentWorkflowView({ collectiveId, tasks = [], loadi
                   <RotateCcw className="w-3 h-3" /> Reset All
                 </button>
               )}
-              {/* Activate Package — shown in expanded PD header when 100% and not yet active */}
+              {/* PD done but Marketing not: show awaiting hint */}
               {activeStat.isComplete && selectedDept === 'product_development' &&
-                !['active','open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus) &&
+                !['open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus) &&
+                !deptStats.find(d => d.dept === 'marketing')?.isComplete && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
+                  <Clock className="w-3.5 h-3.5" /> Awaiting Marketing Completion
+                </span>
+              )}
+              {/* BOTH PD + Marketing done → Endorse to Sales (shown in Marketing expanded header) */}
+              {activeStat.isComplete && selectedDept === 'marketing' &&
+                deptStats.find(d => d.dept === 'product_development')?.isComplete &&
+                !['open_booking','confirmed_departure','ongoing','completed','cancelled'].includes(collectiveStatus) &&
                 onActivate && (
                 <button
-                  onClick={() => onActivate('active')}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow"
-                >
-                  <CheckCircle className="w-4 h-4" /> Activate Package
-                </button>
-              )}
-              {/* Open for Booking — shown in expanded MK header when 100% and status is active */}
-              {activeStat.isComplete && selectedDept === 'marketing' && collectiveStatus === 'active' && onActivate && (
-                <button
                   onClick={() => onActivate('open_booking')}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow animate-pulse"
                 >
-                  <CheckCircle className="w-4 h-4" /> Open for Booking
+                  <CheckCircle className="w-4 h-4" /> 🚀 Endorse to Sales
                 </button>
               )}
               <div className="text-right">

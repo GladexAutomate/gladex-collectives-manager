@@ -318,9 +318,9 @@ export default function Workflow() {
                   setActivating(true);
                   setActivationError(null);
                   const labels = {
-                    ongoing: `🚀 "${collective?.name}" is now endorsed to Sales — Ongoing!`,
+                    open_booking: `🚀 "${collective?.name}" is now endorsed to Sales — Open for Booking!`,
                     active: `✅ "${collective?.name}" is now Active!`,
-                    open_booking: `🎉 "${collective?.name}" is now Open for Booking!`,
+                    ongoing: `🟢 "${collective?.name}" is now Ongoing!`,
                   };
                   try {
                     manualStatusOverride.current = { id: selectedCollective, status: newStatus, time: Date.now() };
@@ -337,11 +337,11 @@ export default function Workflow() {
                   }
                 };
 
-                if (pdPct === 100 && mkPct === 100 && collective.status === 'draft') {
+                if (pdPct === 100 && mkPct === 100 && !BEYOND.includes(collective.status)) {
                   return (
                     <Button size="sm" disabled={activating}
-                      className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-0 animate-pulse"
-                      onClick={() => doActivate('ongoing')}>
+                      className="h-9 gap-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white border-0 animate-pulse"
+                      onClick={() => doActivate('open_booking')}>
                       {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                       {activating ? 'Endorsing to Sales...' : '🚀 Endorse to Sales'}
                     </Button>

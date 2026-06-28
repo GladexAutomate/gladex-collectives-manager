@@ -161,14 +161,14 @@ export default function Sales() {
       </div>
 
       {/* Available Packages for Booking */}
-      {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).length > 0 && (
+      {collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Products Available for Sales</p>
-            <span className="text-xs text-muted-foreground">{collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).length} package{collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).length !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-muted-foreground">{collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).length} package{collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).length !== 1 ? 's' : ''}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {collectives.filter(c => SALES_READY_STATUSES.includes(c.status) && collectivesWithTasks.has(c.id)).map(c => {
+            {collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).map(c => {
               const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id && a.file_url);
               const heroImage = (
                 c.cover_image ||
