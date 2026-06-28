@@ -258,10 +258,8 @@ export default function PricingDatesManager({
     selling_price: sp,
   } : {};
 
-  const [showAddForm, setShowAddForm] = useState(false);
   const [newDate, setNewDate] = useState(BLANK_DATE());
   const [addError, setAddError] = useState('');
-  const [showDefaultRates, setShowDefaultRates] = useState(false);
 
   // ── Setters ──
   const pkgSet = (key, val) => {
@@ -314,7 +312,6 @@ export default function PricingDatesManager({
       rate_infant: g('rate_infant'), rate_infant_age_min: g('rate_infant_age_min'), rate_infant_age_max: g('rate_infant_age_max'),
     }]);
     setNewDate(BLANK_DATE());
-    setShowAddForm(false);
   };
 
   const handleUpdate = (idx, key, val) => setDates(prev => prev.map((d, i) => i === idx ? { ...d, [key]: val } : d));
@@ -435,103 +432,80 @@ export default function PricingDatesManager({
 
       {/* ── SECTION: Travel Dates ── */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <div className="bg-slate-900 px-4 py-3 flex items-center gap-2 flex-wrap">
+        <div className="bg-slate-900 px-4 py-3 flex items-center gap-2">
           <Calendar className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-bold text-white">Travel Dates & Per-Date Pricing</span>
-          <span className="text-[10px] text-slate-400 ml-auto">Each date can override package default rates</span>
-          <Button size="sm" className="ml-2 h-7 text-xs gradient-gold text-white border-0 gap-1" onClick={() => { setShowAddForm(true); setAddError(''); }}>
-            <Plus className="w-3 h-3" /> Add Date
-          </Button>
+          {travelDates.length > 0 && (
+            <span className="text-[10px] text-slate-400 ml-auto">{travelDates.length} departure{travelDates.length !== 1 ? 's' : ''} scheduled</span>
+          )}
         </div>
         <div className="p-4 space-y-3">
-          {/* Add Form */}
-          {showAddForm && (
-            <div className="border-2 border-amber-300 dark:border-amber-700 rounded-xl p-4 bg-amber-50/60 dark:bg-amber-950/10 space-y-3">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">New Departure Schedule</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Departure Date *</Label><Input type="date" className="h-9 text-sm" value={newDate.departure_date} onChange={e => setNewDate(p => ({ ...p, departure_date: e.target.value }))} /></div>
-                <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Return Date</Label><Input type="date" className="h-9 text-sm" value={newDate.return_date} onChange={e => setNewDate(p => ({ ...p, return_date: e.target.value }))} /></div>
-                <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Label (optional)</Label><Input className="h-9 text-sm" placeholder="e.g. Oct 05–10" value={newDate.label} onChange={e => setNewDate(p => ({ ...p, label: e.target.value }))} /></div>
-                <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Total Slots</Label><Input type="number" className="h-9 text-sm" value={newDate.total_slots} onChange={e => setNewDate(p => ({ ...p, total_slots: Number(e.target.value) }))} /></div>
-                <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Status</Label>
-                  <Select value={newDate.status} onValueChange={v => setNewDate(p => ({ ...p, status: v }))}><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(DATE_STATUS).map(([k,v]) => <SelectItem key={k} value={k} className="text-xs">{v.label}</SelectItem>)}</SelectContent></Select>
-                </div>
-              </div>
-              {addError && <p className="text-xs text-rose-600 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {addError}</p>}
-              <div className="flex gap-2">
-                <Button type="button" size="sm" className="h-8 text-xs gradient-gold text-white border-0 gap-1.5" onClick={handleAddDate}><Plus className="w-3.5 h-3.5" /> Add Departure</Button>
-                <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setShowAddForm(false); setAddError(''); }}>Cancel</Button>
-              </div>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {travelDates.length === 0 && !showAddForm && (
-            <div className="text-center py-10 border-2 border-dashed border-border rounded-xl bg-muted/20">
-              <Calendar className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm font-medium text-muted-foreground">No travel dates yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1 max-w-xs mx-auto">Add departure schedules — each can have its own custom pricing.</p>
-              <Button type="button" size="sm" className="mt-3 h-8 text-xs gradient-gold text-white border-0 gap-1.5" onClick={() => setShowAddForm(true)}><Plus className="w-3.5 h-3.5" /> Add First Travel Date</Button>
-            </div>
-          )}
-
-          {/* Date Cards */}
+          {/* Existing Date Cards */}
           {travelDates.length > 0 && (
-            <>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{travelDates.length} Departure{travelDates.length !== 1 ? 's' : ''} Scheduled</p>
-              <div className="space-y-2">
-                {travelDates.map((d, idx) => (
-                  <DateCard key={idx} d={d} idx={idx} packageRates={packageRates} dateCurrency={currSymbol}
-                    onUpdate={handleUpdate} onRemove={handleRemove} onToggleCustom={handleToggleCustom} onRateChange={handleDateRateChange}
-                  />
-                ))}
-              </div>
-            </>
+            <div className="space-y-2">
+              {travelDates.map((d, idx) => (
+                <DateCard key={idx} d={d} idx={idx} packageRates={packageRates} dateCurrency={currSymbol}
+                  onUpdate={handleUpdate} onRemove={handleRemove} onToggleCustom={handleToggleCustom} onRateChange={handleDateRateChange}
+                />
+              ))}
+            </div>
           )}
+
+          {/* Always-visible Add Form */}
+          <div className="border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-xl p-4 bg-amber-50/40 dark:bg-amber-950/10 space-y-3">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+              {travelDates.length === 0 ? 'Add First Departure Date' : '+ Add Another Departure'}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Departure Date *</Label><Input type="date" className="h-9 text-sm" value={newDate.departure_date} onChange={e => setNewDate(p => ({ ...p, departure_date: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Return Date</Label><Input type="date" className="h-9 text-sm" value={newDate.return_date} onChange={e => setNewDate(p => ({ ...p, return_date: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Label (optional)</Label><Input className="h-9 text-sm" placeholder="e.g. Oct 05–10" value={newDate.label} onChange={e => setNewDate(p => ({ ...p, label: e.target.value }))} /></div>
+              <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Total Slots</Label><Input type="number" className="h-9 text-sm" value={newDate.total_slots} onChange={e => setNewDate(p => ({ ...p, total_slots: Number(e.target.value) }))} /></div>
+              <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Status</Label>
+                <Select value={newDate.status} onValueChange={v => setNewDate(p => ({ ...p, status: v }))}><SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(DATE_STATUS).map(([k,v]) => <SelectItem key={k} value={k} className="text-xs">{v.label}</SelectItem>)}</SelectContent></Select>
+              </div>
+            </div>
+            {addError && <p className="text-xs text-rose-600 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {addError}</p>}
+            <Button type="button" size="sm" className="h-8 text-xs gradient-gold text-white border-0 gap-1.5" onClick={handleAddDate}>
+              <Plus className="w-3.5 h-3.5" /> Add Departure
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* ── SECTION: Default Availability Rates (collapsed by default) ── */}
+      {/* ── SECTION: Default Availability Rates ── */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setShowDefaultRates(v => !v)}
-          className="w-full flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 transition-colors text-left"
-        >
-          <DollarSign className="w-4 h-4 text-amber-400 flex-shrink-0" />
-          <span className="text-sm font-bold text-white flex-1">
-            {showDefaultRates ? '− Hide' : '+ Add'} Default Room Rates
-          </span>
-          <span className="text-[10px] text-slate-400">Package-level rates inherited by all dates</span>
-        </button>
-        {showDefaultRates && (
-          <div className="p-4 space-y-3">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {ROOM_RATES.map(r => (
-                <RateRow key={r.key} config={r}
-                  value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
-                  minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
-                  maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
-                  onChange={(k, v) => pkgSet(k, v)}
-                  onChangeAge={(k, v) => pkgSet(k, v)}
-                />
-              ))}
-            </div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-1">Child & Infant Rates</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {CHILD_RATES.map(r => (
-                <RateRow key={r.key} config={r}
-                  value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
-                  minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
-                  maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
-                  onChange={(k, v) => pkgSet(k, v)}
-                  onChangeAge={(k, v) => pkgSet(k, v)}
-                />
-              ))}
-            </div>
+        <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
+          <DollarSign className="w-4 h-4 text-amber-400" />
+          <span className="text-sm font-bold text-white">Default Room Rates</span>
+          <span className="text-[10px] text-slate-400 ml-auto">Package-level rates — inherited by all dates</span>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {ROOM_RATES.map(r => (
+              <RateRow key={r.key} config={r}
+                value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
+                minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
+                maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
+                onChange={(k, v) => pkgSet(k, v)}
+                onChangeAge={(k, v) => pkgSet(k, v)}
+              />
+            ))}
           </div>
-        )}
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-1">Child & Infant Rates</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {CHILD_RATES.map(r => (
+              <RateRow key={r.key} config={r}
+                value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
+                minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
+                maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
+                onChange={(k, v) => pkgSet(k, v)}
+                onChangeAge={(k, v) => pkgSet(k, v)}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
