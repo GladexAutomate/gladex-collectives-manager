@@ -591,11 +591,11 @@ Extract ALL rows. Do not skip any row that has a date.`,
             </F>
             <F label={`Base Cost (${currSymbol})`}>
               <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{currSymbol}</span>
-                <Input type="number" className="pl-7 h-9 text-sm" value={baseForeign} onChange={e => pkgSet('base_price_foreign', Number(e.target.value))} />
+                <Input type="number" className="pl-7 h-9 text-sm" value={baseForeign || ''} onChange={e => pkgSet('base_price_foreign', Number(e.target.value))} />
               </div>
             </F>
             {currency !== 'PHP' && (
-              <F label="Exchange Rate (→ PHP)"><Input type="number" className="h-9 text-sm" value={exRate} onChange={e => pkgSet('exchange_rate', Number(e.target.value))} /></F>
+              <F label="Exchange Rate (→ PHP)"><Input type="number" className="h-9 text-sm" value={exRate || ''} onChange={e => pkgSet('exchange_rate', Number(e.target.value))} /></F>
             )}
             <F label="Base Cost PHP">
               <div className="h-9 flex items-center px-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-md">
@@ -614,7 +614,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
             <F label={useMarkupPct ? 'Markup %' : 'Markup Amount (₱)'}>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{useMarkupPct ? '%' : '₱'}</span>
-                <Input type="number" className="pl-7 h-9 text-sm" value={useMarkupPct ? markupPct : markupFixed} onChange={e => useMarkupPct ? pkgSet('markup_pct', Number(e.target.value)) : pkgSet('markup_amount', Number(e.target.value))} />
+                <Input type="number" className="pl-7 h-9 text-sm" value={(useMarkupPct ? markupPct : markupFixed) || ''} onChange={e => useMarkupPct ? pkgSet('markup_pct', Number(e.target.value)) : pkgSet('markup_amount', Number(e.target.value))} />
               </div>
             </F>
             <F label="Gross Margin">
@@ -703,8 +703,18 @@ Extract ALL rows. Do not skip any row that has a date.`,
                 </F>
               )}
               <F label="Downpayment (₱)">
-                <div className="h-9 flex items-center px-3 bg-purple-100 border border-purple-300 rounded-md">
-                  <span className="text-sm font-bold text-purple-700">₱{(dpBase > 0 ? dpPHP : dp).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600">₱</span>
+                  <Input
+                    type="number"
+                    className="pl-7 h-9 text-sm font-bold border-purple-300 bg-purple-50 text-purple-700 focus:ring-purple-400"
+                    value={(dpBase > 0 ? dpPHP : dp) || ''}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      pkgSet('downpayment_required', v);
+                      pkgSet('downpayment_base_foreign', v);
+                    }}
+                  />
                 </div>
               </F>
             </div>
