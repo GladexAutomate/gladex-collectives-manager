@@ -150,16 +150,18 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
           </div>
 
           {/* Custom Pricing Toggle */}
-          <div className="border-t border-border pt-3">
+          <div className="border-t border-border pt-3 flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => onToggleCustom(idx, !usingCustom)}
-              className={cn("flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-semibold transition-all w-full sm:w-auto",
-                usingCustom ? "bg-amber-500 text-white border-amber-500" : "bg-muted/50 text-muted-foreground border-border hover:border-amber-400")}
+              className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold transition-all",
+                usingCustom ? "bg-amber-500 text-white border-amber-500" : "bg-muted/50 text-muted-foreground border-border hover:border-amber-400 hover:text-amber-700")}
             >
-              <span className={cn("w-3 h-3 rounded-full border-2 flex-shrink-0", usingCustom ? "bg-white border-white" : "border-muted-foreground")} />
-              {usingCustom ? 'Using Custom Pricing' : 'Use Package Default Rates'}
+              {usingCustom ? '✓ Custom Price Active' : '+ Add Price for this Date'}
             </button>
+            {usingCustom && (
+              <span className="text-[10px] text-amber-600 font-medium">Selling: ₱{Number(d.selling_price || 0).toLocaleString()} · Twin: ₱{Number(d.rate_twin || 0).toLocaleString()}</span>
+            )}
           </div>
 
           {/* Per-Date Pricing (only when custom is enabled) */}
@@ -259,6 +261,7 @@ export default function PricingDatesManager({
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDate, setNewDate] = useState(BLANK_DATE());
   const [addError, setAddError] = useState('');
+  const [showDefaultRates, setShowDefaultRates] = useState(false);
 
   // ── Setters ──
   const pkgSet = (key, val) => {
@@ -430,40 +433,6 @@ export default function PricingDatesManager({
         </div>
       </div>
 
-      {/* ── SECTION: Package Default Availability Rates ── */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
-          <span className="text-xs font-bold text-white">Default Availability Rates</span>
-          <span className="text-[10px] text-slate-400">Package-level rates (inherited by dates without custom pricing)</span>
-        </div>
-        <div className="p-4 space-y-3">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {ROOM_RATES.map(r => (
-              <RateRow key={r.key} config={r}
-                value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
-                minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
-                maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
-                onChange={(k, v) => pkgSet(k, v)}
-                onChangeAge={(k, v) => pkgSet(k, v)}
-              />
-            ))}
-          </div>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-1">Child & Infant Rates</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {CHILD_RATES.map(r => (
-              <RateRow key={r.key} config={r}
-                value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
-                minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
-                maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
-                onChange={(k, v) => pkgSet(k, v)}
-                onChangeAge={(k, v) => pkgSet(k, v)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* ── SECTION: Travel Dates ── */}
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="bg-slate-900 px-4 py-3 flex items-center gap-2 flex-wrap">
@@ -520,6 +489,49 @@ export default function PricingDatesManager({
             </>
           )}
         </div>
+      </div>
+
+      {/* ── SECTION: Default Availability Rates (collapsed by default) ── */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowDefaultRates(v => !v)}
+          className="w-full flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 transition-colors text-left"
+        >
+          <DollarSign className="w-4 h-4 text-amber-400 flex-shrink-0" />
+          <span className="text-sm font-bold text-white flex-1">
+            {showDefaultRates ? '− Hide' : '+ Add'} Default Room Rates
+          </span>
+          <span className="text-[10px] text-slate-400">Package-level rates inherited by all dates</span>
+        </button>
+        {showDefaultRates && (
+          <div className="p-4 space-y-3">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {ROOM_RATES.map(r => (
+                <RateRow key={r.key} config={r}
+                  value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
+                  minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
+                  maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
+                  onChange={(k, v) => pkgSet(k, v)}
+                  onChangeAge={(k, v) => pkgSet(k, v)}
+                />
+              ))}
+            </div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider pt-1">Child & Infant Rates</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {CHILD_RATES.map(r => (
+                <RateRow key={r.key} config={r}
+                  value={isCollective ? (form[r.key] || '') : (quote?.[r.key] || '')}
+                  minAge={isCollective ? (form[`${r.key}_age_min`] || '') : (quote?.[`${r.key}_age_min`] || '')}
+                  maxAge={isCollective ? (form[`${r.key}_age_max`] || '') : (quote?.[`${r.key}_age_max`] || '')}
+                  onChange={(k, v) => pkgSet(k, v)}
+                  onChangeAge={(k, v) => pkgSet(k, v)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
