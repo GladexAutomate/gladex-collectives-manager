@@ -91,7 +91,8 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
   const sc = DATE_STATUS[d.status] || DATE_STATUS.open;
   const usingCustom = !!d.use_custom_pricing;
   const rates = usingCustom ? d : packageRates;
-  const sellingPrice = usingCustom && d.selling_price ? d.selling_price : (packageRates.selling_price || 0);
+  // Prefer the date's own stored price (snapshotted at creation); fall back to live package rates for legacy dates
+  const sellingPrice = d.selling_price || packageRates.selling_price || 0;
 
   return (
     <div className={cn("border rounded-lg overflow-hidden bg-card transition-all", usingCustom ? "border-amber-300 dark:border-amber-700" : "border-border")}>
@@ -289,7 +290,26 @@ export default function PricingDatesManager({
       newDate.departure_date && new Date(newDate.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       newDate.return_date && new Date(newDate.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     ].filter(Boolean).join(' – ');
-    setDates(prev => [...prev, { ...newDate, label, total_slots: Number(newDate.total_slots) || 0, booked_slots: Number(newDate.booked_slots) || 0 }]);
+    // Snapshot current package rates so this date's pricing stays independent of future package-level edits
+    const g = (key) => isCollective ? (form?.[key] || '') : (quote?.[key] || '');
+    setDates(prev => [...prev, {
+      ...newDate, label,
+      total_slots: Number(newDate.total_slots) || 0,
+      booked_slots: Number(newDate.booked_slots) || 0,
+      selling_price: sp || 0,
+      base_price_foreign: baseForeign,
+      exchange_rate: exRate,
+      markup_amount: mPHP,
+      rate_twin: g('rate_twin'), rate_twin_age_min: g('rate_twin_age_min'), rate_twin_age_max: g('rate_twin_age_max'),
+      rate_triple: g('rate_triple'), rate_triple_age_min: g('rate_triple_age_min'), rate_triple_age_max: g('rate_triple_age_max'),
+      rate_quad: g('rate_quad'), rate_quad_age_min: g('rate_quad_age_min'), rate_quad_age_max: g('rate_quad_age_max'),
+      rate_single: g('rate_single'), rate_single_age_min: g('rate_single_age_min'), rate_single_age_max: g('rate_single_age_max'),
+      rate_solo: g('rate_solo'), rate_solo_age_min: g('rate_solo_age_min'), rate_solo_age_max: g('rate_solo_age_max'),
+      rate_single_supplement: g('rate_single_supplement'),
+      rate_child_no_bed: g('rate_child_no_bed'), rate_child_no_bed_age_min: g('rate_child_no_bed_age_min'), rate_child_no_bed_age_max: g('rate_child_no_bed_age_max'),
+      rate_child: g('rate_child'), rate_child_age_min: g('rate_child_age_min'), rate_child_age_max: g('rate_child_age_max'),
+      rate_infant: g('rate_infant'), rate_infant_age_min: g('rate_infant_age_min'), rate_infant_age_max: g('rate_infant_age_max'),
+    }]);
     setNewDate(BLANK_DATE());
     setShowAddForm(false);
   };
