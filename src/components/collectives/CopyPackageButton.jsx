@@ -52,12 +52,13 @@ function parseItineraryDays(raw) {
 export function formatPackageForCopy(pkg) {
   const parts = [];
 
-  // Inline push: LABEL: value on one line
-  const line = (emoji, label, value) => {
+  // Inline push: LABEL: value on one line (no emoji on individual lines)
+  const line = (label, value) => {
     if (value == null || value === '' || value === 0 || value === '0') return;
-    parts.push(`${emoji} ${label}: ${String(value)}`);
+    parts.push(`${label}: ${String(value)}`);
   };
 
+  // Section divider — emoji only here
   const divider = (emoji, title) => {
     parts.push('');
     parts.push(`${emoji} ━━━━━━━━━━━━━━ ${title} ━━━━━━━━━━━━━━`);
@@ -73,23 +74,23 @@ export function formatPackageForCopy(pkg) {
   // ── BASIC INFO ──
   divider('📋', 'PACKAGE DETAILS');
   parts.push('');
-  line('📍', 'DESTINATION', pkg.destination);
-  parts.push('🔖 PACKAGE CODE: ');
-  line('🌏', 'PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
+  line('DESTINATION', pkg.destination);
+  parts.push('PACKAGE CODE: ');
+  line('PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
   const statusLabels = { draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure', ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled' };
-  line('📌', 'STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
-  if (pkg.total_slots != null) line('🪑', 'TOTAL SLOTS', pkg.total_slots);
-  if (pkg.available_slots != null) line('✅', 'AVAILABLE SLOTS', pkg.available_slots);
-  if (pkg.guaranteed_departure) parts.push('🛡️ GUARANTEED DEPARTURE: Yes');
-  if (pkg.slots_for_confirmation) parts.push('⏳ SLOT TYPE: For Confirmation (on-request)');
+  line('STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
+  if (pkg.total_slots != null) line('TOTAL SLOTS', pkg.total_slots);
+  if (pkg.available_slots != null) line('AVAILABLE SLOTS', pkg.available_slots);
+  if (pkg.guaranteed_departure) parts.push('GUARANTEED DEPARTURE: Yes');
+  if (pkg.slots_for_confirmation) parts.push('SLOT TYPE: For Confirmation (on-request)');
 
   // ── OPERATOR & LOGISTICS ──
   if (pkg.operator_name || pkg.flight_details || pkg.hotel_details) {
     divider('🏢', 'OPERATOR & LOGISTICS');
     parts.push('');
-    line('🏢', 'OPERATOR', pkg.operator_name);
-    line('✈️', 'FLIGHT / AIRLINE', pkg.flight_details);
-    line('🏨', 'HOTEL', pkg.hotel_details);
+    line('OPERATOR', pkg.operator_name);
+    line('FLIGHT / AIRLINE', pkg.flight_details);
+    line('HOTEL', pkg.hotel_details);
   }
 
   // ── TRAVEL DATES ──
@@ -105,17 +106,17 @@ export function formatPackageForCopy(pkg) {
     divider('📅', 'TRAVEL DATES');
     parts.push('');
     if (tDates.length > 0) {
-      tDates.forEach((d, i) => parts.push(`  ${i + 1}. 📅 ${d}`));
+      tDates.forEach((d, i) => parts.push(`  ${i + 1}. ${d}`));
     } else {
-      parts.push(`  📅 ${singleRange}`);
+      parts.push(`  ${singleRange}`);
     }
   }
 
   // ── DEADLINES ──
   if (pkg.internal_deadline || pkg.supplier_deadline) {
     parts.push('');
-    if (pkg.internal_deadline) line('⏰', 'INTERNAL DEADLINE', new Date(pkg.internal_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
-    if (pkg.supplier_deadline) line('⏳', 'SUPPLIER DEADLINE', new Date(pkg.supplier_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    if (pkg.internal_deadline) line('INTERNAL DEADLINE', new Date(pkg.internal_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    if (pkg.supplier_deadline) line('SUPPLIER DEADLINE', new Date(pkg.supplier_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
   }
 
   // ── PRICING ──
@@ -129,28 +130,28 @@ export function formatPackageForCopy(pkg) {
 
   divider('💰', 'PRICING');
   parts.push('');
-  if (baseForeign > 0 && currency !== 'PHP') line('💱', `BASE PRICE (${currency})`, `${sym}${baseForeign.toLocaleString('en-US')}`);
-  if (basePHP > 0 && currency !== 'PHP') line('🔄', 'BASE PRICE (PHP)', `₱${basePHP.toLocaleString('en-US')}`);
-  if (exRate && currency !== 'PHP') line('📊', 'EXCHANGE RATE', `1 ${currency} = ₱${exRate}`);
-  if (markup > 0) line('📈', 'MARKUP', `₱${markup.toLocaleString('en-US')}`);
-  if (Number(pkg.commission_amount) > 0) line('💼', 'COMMISSION', `₱${Number(pkg.commission_amount).toLocaleString('en-US')}`);
-  if (Number(pkg.downpayment_required) > 0) line('💳', 'DOWNPAYMENT', `₱${Number(pkg.downpayment_required).toLocaleString('en-US')}`);
+  if (baseForeign > 0 && currency !== 'PHP') line(`BASE PRICE (${currency})`, `${sym}${baseForeign.toLocaleString('en-US')}`);
+  if (basePHP > 0 && currency !== 'PHP') line('BASE PRICE (PHP)', `₱${basePHP.toLocaleString('en-US')}`);
+  if (exRate && currency !== 'PHP') line('EXCHANGE RATE', `1 ${currency} = ₱${exRate}`);
+  if (markup > 0) line('MARKUP', `₱${markup.toLocaleString('en-US')}`);
+  if (Number(pkg.commission_amount) > 0) line('COMMISSION', `₱${Number(pkg.commission_amount).toLocaleString('en-US')}`);
+  if (Number(pkg.downpayment_required) > 0) line('DOWNPAYMENT', `₱${Number(pkg.downpayment_required).toLocaleString('en-US')}`);
 
   // ── OCCUPANCY RATES ──
   const rateFields = [
-    ['🛏️', 'TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
-    ['🛏️', 'TRIPLE (per pax)', pkg.rate_triple, pkg.rate_triple_age_min, pkg.rate_triple_age_max],
-    ['🛏️', 'QUAD (per pax)', pkg.rate_quad, pkg.rate_quad_age_min, pkg.rate_quad_age_max],
-    ['🛏️', 'SINGLE (per pax)', pkg.rate_single, pkg.rate_single_age_min, pkg.rate_single_age_max],
-    ['🛏️', 'SOLO', pkg.rate_solo, pkg.rate_solo_age_min, pkg.rate_solo_age_max],
-    ['➕', 'SINGLE SUPPLEMENT', pkg.rate_single_supplement],
-    ['👶', 'CHILD NO BED', pkg.rate_child_no_bed, pkg.rate_child_no_bed_age_min, pkg.rate_child_no_bed_age_max],
-    ['🧒', 'CHILD WITH BED', pkg.rate_child, pkg.rate_child_age_min, pkg.rate_child_age_max],
-    ['👼', 'INFANT', pkg.rate_infant, pkg.rate_infant_age_min, pkg.rate_infant_age_max],
+    ['TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
+    ['TRIPLE (per pax)', pkg.rate_triple, pkg.rate_triple_age_min, pkg.rate_triple_age_max],
+    ['QUAD (per pax)', pkg.rate_quad, pkg.rate_quad_age_min, pkg.rate_quad_age_max],
+    ['SINGLE (per pax)', pkg.rate_single, pkg.rate_single_age_min, pkg.rate_single_age_max],
+    ['SOLO', pkg.rate_solo, pkg.rate_solo_age_min, pkg.rate_solo_age_max],
+    ['SINGLE SUPPLEMENT', pkg.rate_single_supplement],
+    ['CHILD NO BED', pkg.rate_child_no_bed, pkg.rate_child_no_bed_age_min, pkg.rate_child_no_bed_age_max],
+    ['CHILD WITH BED', pkg.rate_child, pkg.rate_child_age_min, pkg.rate_child_age_max],
+    ['INFANT', pkg.rate_infant, pkg.rate_infant_age_min, pkg.rate_infant_age_max],
   ];
 
   const rateLines = [];
-  rateFields.forEach(([emoji, label, rate, min, max]) => {
+  rateFields.forEach(([label, rate, min, max]) => {
     const num = Number(rate);
     if (num > 0) {
       let val = `₱${num.toLocaleString('en-US')}`;
@@ -158,7 +159,7 @@ export function formatPackageForCopy(pkg) {
         const ageRange = [min != null ? `${min}y` : '', max != null ? `${max}y` : ''].filter(Boolean).join('–');
         if (ageRange) val += ` (Ages ${ageRange})`;
       }
-      rateLines.push(`${emoji} ${label}: ${val}`);
+      rateLines.push(`${label}: ${val}`);
     }
   });
 
