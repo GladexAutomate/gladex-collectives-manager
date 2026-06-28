@@ -261,6 +261,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
         ...d,
         total_slots: Number(d.total_slots) || 0,
         booked_slots: Number(d.booked_slots) || 0,
+        available_slots: Math.max(0, (Number(d.total_slots) || 0) - (Number(d.booked_slots) || 0)),
         price_override: d.price_override ? Number(d.price_override) : undefined,
       })),
       status: f.status || 'draft',
@@ -429,9 +430,19 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     return matchSearch && matchStatus;
   });
 
+  // Derive slot totals live from travel_dates when they exist
+  const hasTravelDates = (form.travel_dates || []).length > 0;
+  const derivedTotalSlots = hasTravelDates
+    ? (form.travel_dates || []).reduce((s, d) => s + (Number(d.total_slots) || 0), 0)
+    : Number(form.total_slots) || 0;
+  const derivedBookedSlots = hasTravelDates
+    ? (form.travel_dates || []).reduce((s, d) => s + (Number(d.booked_slots) || 0), 0)
+    : Number(form.booked_pax) || 0;
+  const derivedAvailableSlots = Math.max(0, derivedTotalSlots - derivedBookedSlots);
+
   // Completion validation
   const hasRates = !!(form.rate_twin || form.rate_triple || form.rate_quad || form.rate_single || form.rate_solo || form.rate_child_no_bed || form.rate_child || form.rate_infant);
-  const hasSlots = form.slots_for_confirmation || (Number(form.total_slots) > 0);
+  const hasSlots = form.slots_for_confirmation || derivedTotalSlots > 0;
   const hasItinerary = !!(form.itinerary && form.itinerary.trim());
   const hasTerms = !!(form.terms_conditions && form.terms_conditions.trim());
   const completionItems = [
@@ -592,7 +603,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground ml-auto flex-wrap">
                   <span>Margin: <strong className="text-foreground">{grossMargin}%</strong></span>
                   <span>DP: <strong className="text-foreground">₱{Number(form.downpayment_required).toLocaleString()}</strong></span>
-                  <span>Pax: <strong className="text-foreground">{form.total_slots}</strong></span>
+                  <span>Pax: <strong className="text-foreground">{derivedTotalSlots}</strong>{hasTravelDates && <span className="text-muted-foreground"> ({(form.travel_dates||[]).length}d)</span>}</span>
                   {form.rate_twin && <span>Twin: <strong className="text-amber-600">₱{Number(form.rate_twin).toLocaleString()}</strong></span>}
                 </div>
               </div>
@@ -660,21 +671,48 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                     <Input type="date" value={form.return_date} onChange={e => setF('return_date', e.target.value)} className="h-9" />
                   </F>
                   <F label="Slot Allocation">
-                    <div className="space-y-2">
-                      <Input type="number" placeholder="e.g. 30" value={form.total_slots} onChange={e => setF('total_slots', Number(e.target.value))} className={cn("h-9", form.slots_for_confirmation && 'opacity-40 pointer-events-none')} disabled={form.slots_for_confirmation} />
-                      <button
-                        type="button"
-                        onClick={() => setF('slots_for_confirmation', !form.slots_for_confirmation)}
-                        className={cn("flex items-center gap-2 w-full px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
-                          form.slots_for_confirmation ? "bg-amber-500 text-white border-amber-500" : "bg-muted/50 text-muted-foreground border-border hover:border-amber-400")}
-                      >
-                        <span className={cn("w-3 h-3 rounded-full border-2 flex-shrink-0", form.slots_for_confirmation ? "bg-white border-white" : "border-muted-foreground")} />
-                        For Confirmation
-                      </button>
-                    </div>
+                    {hasTravelDates ? (
+                      <div className="space-y-1.5">
+                        <div className="h-9 flex items-center px-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-md gap-2">
+                          <span className="text-sm font-bold text-sky-700">{derivedTotalSlots}</span>
+                          <span className="text-[10px] text-sky-500">auto from {(form.travel_dates||[]).length} date{(form.travel_dates||[]).length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-[10px]">
+                          {(form.travel_dates||[]).map((d, i) => (
+                            <div key={i} className="flex items-center justify-between px-2 py-1 bg-muted/50 rounded border border-border">
+                              <span className="text-muted-foreground truncate">{d.label || (d.departure_date ? new Date(d.departure_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : `Date ${i+1}`)}</span>
+                              <span className="font-semibold text-foreground ml-1 flex-shrink-0">{d.booked_slots||0}/{d.total_slots||0}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Input type="number" placeholder="e.g. 30" value={form.total_slots} onChange={e => setF('total_slots', Number(e.target.value))} className={cn("h-9", form.slots_for_confirmation && 'opacity-40 pointer-events-none')} disabled={form.slots_for_confirmation} />
+                        <button
+                          type="button"
+                          onClick={() => setF('slots_for_confirmation', !form.slots_for_confirmation)}
+                          className={cn("flex items-center gap-2 w-full px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
+                            form.slots_for_confirmation ? "bg-amber-500 text-white border-amber-500" : "bg-muted/50 text-muted-foreground border-border hover:border-amber-400")}
+                        >
+                          <span className={cn("w-3 h-3 rounded-full border-2 flex-shrink-0", form.slots_for_confirmation ? "bg-white border-white" : "border-muted-foreground")} />
+                          For Confirmation
+                        </button>
+                      </div>
+                    )}
                   </F>
-                  <F label="Booked Pax">
-                    <Input type="number" value={form.booked_pax} onChange={e => setF('booked_pax', Number(e.target.value))} className="h-9" />
+                  <F label={hasTravelDates ? 'Available Slots' : 'Booked Pax'}>
+                    {hasTravelDates ? (
+                      <div className="space-y-1">
+                        <div className="h-9 flex items-center px-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-md gap-2">
+                          <span className="text-sm font-bold text-emerald-700">{derivedAvailableSlots}</span>
+                          <span className="text-[10px] text-emerald-500">of {derivedTotalSlots} available</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{derivedBookedSlots} booked across all dates</p>
+                      </div>
+                    ) : (
+                      <Input type="number" value={form.booked_pax} onChange={e => setF('booked_pax', Number(e.target.value))} className="h-9" />
+                    )}
                   </F>
                   <F label="Guaranteed Departure" className="flex flex-col justify-end">
                     <button
