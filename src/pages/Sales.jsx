@@ -222,6 +222,11 @@ export default function Sales() {
                       <Calendar className="w-3 h-3 flex-shrink-0" />{c.departure_date}
                     </span>
                   )}
+                  {c.travel_dates?.length > 1 && (
+                    <span className="flex items-center gap-0.5 text-[11px] text-sky-600 font-semibold">
+                      📅 {c.travel_dates.length} dates
+                    </span>
+                  )}
                 </div>
 
                 {/* Price highlight */}
@@ -320,6 +325,49 @@ export default function Sales() {
 
                     {/* PRICING TAB */}
                     <TabsContent value="pricing" className="mt-4 space-y-4">
+                      {/* Travel Dates & Slots */}
+                      {c.travel_dates?.length > 0 && (
+                        <div className="mb-5 rounded-xl border border-border overflow-hidden">
+                          <div className="bg-slate-900 px-4 py-2.5 flex items-center gap-2">
+                            <span className="text-xs font-bold text-white">📅 Departure Schedules</span>
+                            <span className="text-[10px] text-slate-400 ml-auto">{c.travel_dates.length} departure{c.travel_dates.length !== 1 ? 's' : ''}</span>
+                          </div>
+                          <div className="divide-y divide-border">
+                            {c.travel_dates.map((d, i) => {
+                              const slotPct = d.total_slots > 0 ? Math.min(100, ((d.booked_slots || 0) / d.total_slots) * 100) : 0;
+                              const depDate = d.departure_date ? new Date(d.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+                              const retDate = d.return_date ? new Date(d.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+                              const price = d.use_custom_pricing ? (d.selling_price || d.rate_twin) : (c.selling_price || c.rate_twin);
+                              const sc = { open: 'bg-emerald-100 text-emerald-700', almost_full: 'bg-amber-100 text-amber-700', sold_out: 'bg-rose-100 text-rose-700', closed: 'bg-slate-100 text-slate-600' }[d.status] || 'bg-emerald-100 text-emerald-700';
+                              return (
+                                <div key={i} className="px-4 py-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm font-semibold text-foreground">{d.label || depDate}</span>
+                                        <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-medium", sc)}>{d.status?.replace('_', ' ') || 'open'}</span>
+                                        {d.use_custom_pricing && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">Custom Price</span>}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        🛫 {depDate}{retDate ? ` → 🛬 ${retDate}` : ''}
+                                      </p>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <p className="text-sm font-bold text-amber-600">{price ? `₱${Number(price).toLocaleString()}` : '—'}<span className="text-[10px] font-normal text-muted-foreground">/twin</span></p>
+                                      <p className="text-[10px] text-muted-foreground">{d.booked_slots || 0}/{d.total_slots || 0} slots</p>
+                                    </div>
+                                  </div>
+                                  {d.total_slots > 0 && (
+                                    <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                                      <div className={cn("h-full rounded-full", slotPct >= 90 ? "bg-rose-500" : slotPct >= 70 ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${Math.min(100, slotPct)}%` }} />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {rates.length > 0 ? (
                         <div className="grid grid-cols-2 gap-2">
                           {rates.map(r => (
@@ -614,6 +662,28 @@ export default function Sales() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Departure date select — show travel_dates when available */}
+            {(() => {
+              const sel = collectives.find(c => c.id === formData.collective_id);
+              const dates = sel?.travel_dates?.filter(d => d.departure_date) || [];
+              if (dates.length === 0) return null;
+              return (
+                <div className="space-y-1.5">
+                  <Label>Departure Date *</Label>
+                  <Select value={formData.departure_date_option || ''} onValueChange={v => setFormData({...formData, departure_date_option: v})}>
+                    <SelectTrigger><SelectValue placeholder="Select departure date" /></SelectTrigger>
+                    <SelectContent>
+                      {dates.map((d, i) => {
+                        const depLabel = d.label || (d.departure_date ? new Date(d.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : `Date ${i+1}`);
+                        const retLabel = d.return_date ? ` → ${new Date(d.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '';
+                        const slots = d.total_slots > 0 ? ` · ${(d.total_slots - (d.booked_slots||0))} slots left` : '';
+                        return <SelectItem key={i} value={d.departure_date}>{depLabel}{retLabel}{slots}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            })()}
             <div className="space-y-1.5">
               <Label>Client Name *</Label>
               <Input value={formData.client_name || ''} onChange={e => setFormData({...formData, client_name: e.target.value})} />

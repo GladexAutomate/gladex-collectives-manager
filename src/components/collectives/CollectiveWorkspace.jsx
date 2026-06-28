@@ -213,13 +213,19 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
   const buildPayload = (f, bPHP_val, mPHP_val) => {
     const bP = bPHP_val !== undefined ? bPHP_val : basePHP;
     const mP = mPHP_val !== undefined ? mPHP_val : markupPHP;
+    // Auto-sync dates and slots from travel_dates when they exist
+    const tDates = (f.travel_dates || []).filter(d => d.departure_date);
+    const sortedByDepart = [...tDates].sort((a, b) => (a.departure_date || '').localeCompare(b.departure_date || ''));
+    const sortedByReturn  = [...tDates].sort((a, b) => (b.return_date   || '').localeCompare(a.return_date   || ''));
+    const autoTotalSlots = tDates.length > 0 ? tDates.reduce((s, d) => s + (Number(d.total_slots) || 0), 0) : (Number(f.total_slots) || 0);
+    const autoBookedSlots = tDates.length > 0 ? tDates.reduce((s, d) => s + (Number(d.booked_slots) || 0), 0) : (Number(f.booked_pax) || 0);
     return {
       name: f.name,
       destination: f.destination,
       travel_type: f.travel_type || 'international',
       operator_name: f.operator_name,
-      departure_date: f.departure_date || undefined,
-      return_date: f.return_date || undefined,
+      departure_date: f.departure_date || sortedByDepart[0]?.departure_date || undefined,
+      return_date:    f.return_date    || sortedByReturn[0]?.return_date    || undefined,
       base_price_currency: f.currency,
       base_price_foreign: Number(f.base_price_foreign) || 0,
       exchange_rate: Number(f.exchange_rate) || 1,
@@ -238,9 +244,9 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       rate_child: Number(f.rate_child) || undefined, rate_child_age_min: Number(f.rate_child_age_min) || undefined, rate_child_age_max: Number(f.rate_child_age_max) || undefined,
       rate_infant: Number(f.rate_infant) || undefined, rate_infant_age_min: Number(f.rate_infant_age_min) || undefined, rate_infant_age_max: Number(f.rate_infant_age_max) || undefined,
       slots_for_confirmation: f.slots_for_confirmation || false,
-      total_slots: Number(f.total_slots) || 0,
-      available_slots: Math.max(0, (Number(f.total_slots) || 0) - (Number(f.booked_pax) || 0)),
-      booked_pax: Number(f.booked_pax) || 0,
+      total_slots:     autoTotalSlots,
+      available_slots: Math.max(0, autoTotalSlots - autoBookedSlots),
+      booked_pax:      Number(f.booked_pax) || 0,
       guaranteed_departure: f.guaranteed_departure || false,
       inclusions: f.inclusions,
       exclusions: f.exclusions,
