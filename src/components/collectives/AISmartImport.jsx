@@ -245,7 +245,7 @@ RULES:
 
       {/* Action buttons */}
       <div className="flex gap-2">
-        <input ref={fileRef} type="file" accept=".pdf,.docx,.xlsx,.csv,.txt" className="hidden" onChange={e => handleFileUpload(e.target.files[0])} />
+        <input ref={fileRef} type="file" accept="image/*,.pdf,.docx,.xlsx,.csv,.txt" className="hidden" onChange={e => handleFileUpload(e.target.files[0])} />
         <Button size="sm" variant="outline" className="text-xs gap-1.5 flex-1" onClick={() => fileRef.current?.click()} disabled={parsing}>
           <Upload className="w-3.5 h-3.5" /> Upload File
         </Button>

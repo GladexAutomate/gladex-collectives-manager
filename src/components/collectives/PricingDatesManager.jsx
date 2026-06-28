@@ -150,7 +150,38 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
             <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Notes</Label><Textarea rows={2} className="text-xs resize-none" value={d.notes || ''} onChange={e => onUpdate(idx, 'notes', e.target.value)} /></div>
           </div>
 
-          {/* Custom Pricing Toggle */}
+          {/* Quick Per-Date Pricing */}
+          <div className="border-t border-border pt-3 space-y-2">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Price for this Departure</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Selling Price / Pax</Label>
+                <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span>
+                  <Input type="number" className="pl-7 h-8 text-sm font-semibold" value={d.selling_price || ''} onChange={e => onRateChange(idx, 'selling_price', Number(e.target.value))} placeholder="e.g. 32,999" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Twin Rate</Label>
+                <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span>
+                  <Input type="number" className="pl-7 h-8 text-sm" value={d.rate_twin || ''} onChange={e => onRateChange(idx, 'rate_twin', Number(e.target.value))} placeholder="Twin" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Triple Rate</Label>
+                <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span>
+                  <Input type="number" className="pl-7 h-8 text-sm" value={d.rate_triple || ''} onChange={e => onRateChange(idx, 'rate_triple', Number(e.target.value))} placeholder="Triple" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Single Rate</Label>
+                <div className="relative"><span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₱</span>
+                  <Input type="number" className="pl-7 h-8 text-sm" value={d.rate_single || ''} onChange={e => onRateChange(idx, 'rate_single', Number(e.target.value))} placeholder="Single" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Full Custom Pricing Toggle (advanced) */}
           <div className="border-t border-border pt-3 flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -158,11 +189,8 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
               className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-semibold transition-all",
                 usingCustom ? "bg-amber-500 text-white border-amber-500" : "bg-muted/50 text-muted-foreground border-border hover:border-amber-400 hover:text-amber-700")}
             >
-              {usingCustom ? '✓ Custom Price Active' : '+ Add Price for this Date'}
+              {usingCustom ? '✓ Full Custom Pricing' : '+ More Room Types & Child Rates'}
             </button>
-            {usingCustom && (
-              <span className="text-[10px] text-amber-600 font-medium">Selling: ₱{Number(d.selling_price || 0).toLocaleString()} · Twin: ₱{Number(d.rate_twin || 0).toLocaleString()}</span>
-            )}
           </div>
 
           {/* Per-Date Pricing (only when custom is enabled) */}
@@ -707,12 +735,12 @@ Extract ALL rows. Do not skip any row that has a date.`,
         </div>
       </div>
 
-      {/* ── SECTION: Default Availability Rates ── */}
+      {/* ── SECTION: Package Room Rates ── */}
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
           <DollarSign className="w-4 h-4 text-amber-400" />
-          <span className="text-sm font-bold text-white">Default Room Rates</span>
-          <span className="text-[10px] text-slate-400 ml-auto">Package-level rates — inherited by all dates</span>
+          <span className="text-sm font-bold text-white">Package Room Rates</span>
+          <span className="text-[10px] text-slate-400 ml-auto">Set per room type — each date can have its own price above</span>
         </div>
         <div className="p-4 space-y-3">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Room Rates</p>
