@@ -2,7 +2,6 @@
 import { Copy, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { generateRefCode } from '@/components/product/SmartImportSidebar';
 import { useState } from 'react';
 
 // ── Smart date range: "Jun 22–26, 2026" instead of "Jun 22 – Jun 26 — Jun 22, 2026 — Jun 26, 2026" ──
@@ -70,12 +69,11 @@ export function formatPackageForCopy(pkg) {
   parts.push(`PACKAGE NAME: ${name.toUpperCase()}`);
   parts.push('');
 
-  push('PACKAGE ID', pkg.id);
-
   // ── BASIC INFO ──
   push('DESTINATION', pkg.destination);
-  const refCode = generateRefCode(pkg);
-  push('PACKAGE CODE', refCode);
+  // PACKAGE CODE is filled in manually after pasting
+  parts.push('PACKAGE CODE:');
+  parts.push('');
   push('PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
 
   // ── STATUS ──
@@ -84,8 +82,6 @@ export function formatPackageForCopy(pkg) {
     ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled'
   };
   push('STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
-  push('LIFECYCLE STAGE', pkg.lifecycle_stage);
-  push('BOOKED PAX', pkg.booked_pax != null ? pkg.booked_pax : null);
   push('TOTAL SLOTS', pkg.total_slots != null ? pkg.total_slots : null);
   push('AVAILABLE SLOTS', pkg.available_slots != null ? pkg.available_slots : null);
 
@@ -131,9 +127,8 @@ export function formatPackageForCopy(pkg) {
   if (basePHP > 0 && currency !== 'PHP') push('BASE PRICE (PHP)', `₱${basePHP.toLocaleString('en-US')}`);
   if (exRate && currency !== 'PHP') push('EXCHANGE RATE', `1 ${currency} = ₱${exRate}`);
   if (markup > 0) push('MARKUP', `₱${markup.toLocaleString('en-US')}`);
-  if (sellPrice > 0) push('SELLING PRICE', `${sym} ${sellPrice.toLocaleString('en-US')} per person`);
 
-  push('COMMISSION', pkg.commission_amount != null ? `₱${Number(pkg.commission_amount).toLocaleString('en-US')}` : null);
+  if (Number(pkg.commission_amount) > 0) push('COMMISSION', `₱${Number(pkg.commission_amount).toLocaleString('en-US')}`);
   push('DOWNPAYMENT', pkg.downpayment_required != null ? `₱${Number(pkg.downpayment_required).toLocaleString('en-US')}` : null);
 
   // ── OCCUPANCY RATES ──
@@ -163,12 +158,7 @@ export function formatPackageForCopy(pkg) {
     }
   });
 
-  if (!hasAnyRate) {
-    // Still show the label for awareness
-    parts.push('OCCUPANCY RATES:');
-    parts.push(na);
-    parts.push('');
-  }
+  // (no fallback when no rates — skip silently)
 
   // ── CONTENT ──
   const bulletField = (label, raw) => {
@@ -205,10 +195,6 @@ export function formatPackageForCopy(pkg) {
   // ── SLOT FLAGS ──
   if (pkg.slots_for_confirmation) push('SLOT TYPE', 'For Confirmation (on-request)');
   if (pkg.guaranteed_departure) push('GUARANTEED DEPARTURE', 'Yes');
-
-  // ── URLs ──
-  push('PACKAGE IMAGE URL', pkg.image_url);
-  push('MARKETING MATERIALS URL', pkg.marketing_materials_url);
 
   return parts.join('\n').trim();
 }
