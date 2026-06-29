@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, Users, RefreshCw, Edit, Package, MapPin, Plane, Calendar, Hotel, UtensilsCrossed, X, ChevronRight, Clock, Star, FileText, AlertCircle, Info, Download } from 'lucide-react';
+import { Plus, Search, Users, RefreshCw, Edit, Package, MapPin, Plane, Calendar, Hotel, UtensilsCrossed, X, ChevronRight, ChevronDown, Clock, Star, FileText, AlertCircle, Info, Download, Globe, Navigation } from 'lucide-react';
 import { broadcastRefresh } from '@/lib/dataSync';
 import CopyPackageButton from '@/components/collectives/CopyPackageButton';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ export default function Sales() {
   const [formError, setFormError] = useState('');
   const [viewingProduct, setViewingProduct] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [openDestination, setOpenDestination] = useState(null);
 
   const loadData = async () => {
     try {
@@ -163,102 +164,191 @@ export default function Sales() {
         </div>
       </div>
 
-      {/* Available Packages for Booking */}
-      {collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Products Available for Sales</p>
-            <span className="text-xs text-muted-foreground">{collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).length} package{collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).length !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {collectives.filter(c => SALES_READY_STATUSES.includes(c.status)).map(c => {
-              const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id && a.file_url);
-              const heroImage = (
-                c.cover_image ||
-                c.image_url ||
-                pkgAssets.find(a => a.status === 'published')?.file_url ||
-                pkgAssets.find(a => a.status === 'approved')?.file_url ||
-                pkgAssets.find(a => a.status === 'pending_approval')?.file_url ||
-                pkgAssets[0]?.file_url ||
-                null
-              );
-              const assetCount = marketingAssets.filter(a => a.collective_id === c.id).length;
-              return (
-              <div
-                key={c.id}
-                onClick={() => setViewingProduct(c)}
-                className="bg-card border border-border rounded-xl overflow-hidden hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group"
-              >
-                {/* Cover image or icon */}
-                <div className="w-full min-h-[180px] max-h-[280px] bg-muted/30 flex items-center justify-center overflow-hidden relative">
-                  {heroImage ? (
-                    <img src={heroImage} alt={c.name} className="w-full h-auto object-contain" onError={e => e.target.style.display='none'} />
-                  ) : (
-                    <Package className="w-10 h-10 text-emerald-300" />
-                  )}
-                  <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-emerald-500 text-white shadow">
-                    🟢 For Sale
+      {/* ── Destination Folder Cards ─────────────────────────────────────── */}
+      {(() => {
+        const salesPkgs = collectives.filter(c => SALES_READY_STATUSES.includes(c.status));
+        if (salesPkgs.length === 0) return null;
+
+        // Group by destination
+        const groups = {};
+        salesPkgs.forEach(c => {
+          const dest = c.destination?.trim() || 'Others';
+          if (!groups[dest]) groups[dest] = [];
+          groups[dest].push(c);
+        });
+        const destinations = Object.keys(groups).sort();
+
+        const tilt = (e) => {
+          const card = e.currentTarget;
+          const r = card.getBoundingClientRect();
+          const x = e.clientX - r.left, y = e.clientY - r.top;
+          const cx = r.width / 2, cy = r.height / 2;
+          const rx = (cy - y) / 11, ry = (x - cx) / 11;
+          card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(12px) scale(1.03)`;
+          card.style.boxShadow = `${ry * 2}px ${-rx * 2}px 40px rgba(0,0,0,0.35)`;
+        };
+        const untilt = (e) => {
+          const card = e.currentTarget;
+          card.style.transform = 'perspective(900px) rotateX(0) rotateY(0) translateZ(0) scale(1)';
+          card.style.boxShadow = '';
+        };
+
+        const PackageCard = ({ c }) => {
+          const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id && a.file_url);
+          const heroImage = c.cover_image || c.image_url ||
+            pkgAssets.find(a => a.status === 'published')?.file_url ||
+            pkgAssets.find(a => a.status === 'approved')?.file_url ||
+            pkgAssets[0]?.file_url || null;
+          const assetCount = marketingAssets.filter(a => a.collective_id === c.id).length;
+          return (
+            <div
+              onClick={() => setViewingProduct(c)}
+              className="bg-card border border-border rounded-xl overflow-hidden hover:border-orange-400 hover:shadow-lg transition-all cursor-pointer group"
+            >
+              <div className="w-full min-h-[160px] max-h-[240px] bg-muted/30 flex items-center justify-center overflow-hidden relative">
+                {heroImage
+                  ? <img src={heroImage} alt={c.name} className="w-full h-auto object-contain" onError={e => e.target.style.display='none'} />
+                  : <Package className="w-10 h-10 text-orange-300" />
+                }
+                <span className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-orange-500 text-white shadow">For Sale</span>
+                {assetCount > 0 && (
+                  <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-black/50 text-white backdrop-blur-sm">
+                    {assetCount} asset{assetCount !== 1 ? 's' : ''}
                   </span>
-                  {assetCount > 0 && (
-                    <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-black/50 text-white backdrop-blur-sm">
-                      {assetCount} marketing asset{assetCount !== 1 ? 's' : ''}
-                    </span>
-                  )}
+                )}
+              </div>
+              <div className="p-3">
+                <p className="text-sm font-bold text-foreground group-hover:text-orange-600 transition-colors line-clamp-2 leading-tight">{c.name}</p>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  {c.nights && <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground"><Clock className="w-3 h-3" />{c.nights}N</span>}
+                  {c.travel_dates?.length > 0
+                    ? <span className="flex items-center gap-0.5 text-[11px] text-orange-500 font-semibold">📅 {c.travel_dates.length} departure{c.travel_dates.length !== 1 ? 's' : ''}</span>
+                    : c.departure_date && <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground"><Calendar className="w-3 h-3" />{c.departure_date}</span>
+                  }
                 </div>
-                <div className="p-3">
-
-                <p className="text-sm font-bold text-foreground group-hover:text-emerald-700 transition-colors line-clamp-1">{c.name}</p>
-
-                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                  {c.destination && (
-                    <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
-                      <MapPin className="w-3 h-3 flex-shrink-0" />{c.destination}
-                    </span>
-                  )}
-                  {c.nights && (
-                    <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
-                      <Clock className="w-3 h-3 flex-shrink-0" />{c.nights}N
-                    </span>
-                  )}
-                  {c.departure_date && (
-                    <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
-                      <Calendar className="w-3 h-3 flex-shrink-0" />{c.departure_date}
-                    </span>
-                  )}
-                  {c.travel_dates?.length > 1 && (
-                    <span className="flex items-center gap-0.5 text-[11px] text-sky-600 font-semibold">
-                      📅 {c.travel_dates.length} dates
-                    </span>
-                  )}
-                </div>
-
-                {/* Price highlight */}
                 <div className="mt-2 pt-2 border-t border-border flex items-center justify-between">
                   <div>
-                    {(c.rate_twin || c.selling_price || c.base_price_foreign) ? (
-                      <p className="text-sm font-bold text-amber-600">
-                        {c.currency === 'PHP' ? '₱' : c.currency === 'USD' ? '$' : (c.currency || '₱')}
-                        {Number(c.rate_twin || c.selling_price || c.base_price_foreign).toLocaleString()}
+                    {(c.rate_twin || c.selling_price) ? (
+                      <p className="text-sm font-bold text-orange-600">
+                        ₱{Number(c.rate_twin || c.selling_price).toLocaleString()}
                         <span className="text-[10px] font-normal text-muted-foreground ml-1">/twin</span>
                       </p>
-                    ) : c.price_per_pax ? (
-                      <p className="text-sm font-bold text-amber-600">₱{Number(c.price_per_pax).toLocaleString()}<span className="text-[10px] font-normal text-muted-foreground ml-1">/pax</span></p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">See pricing</p>
-                    )}
-                    {c.total_slots && <p className="text-[10px] text-muted-foreground">{c.total_slots} slots</p>}
+                    ) : <p className="text-xs text-muted-foreground">See pricing</p>}
                   </div>
-                  <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">
-                    View Details <ChevronRight className="w-3 h-3" />
+                  <span className="text-[10px] text-orange-500 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">
+                    View <ChevronRight className="w-3 h-3" />
                   </span>
                 </div>
-                </div>{/* end p-3 */}
               </div>
-              );
-            })}
+            </div>
+          );
+        };
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Destinations</p>
+              <span className="text-xs text-muted-foreground">{destinations.length} destination{destinations.length !== 1 ? 's' : ''} · {salesPkgs.length} package{salesPkgs.length !== 1 ? 's' : ''}</span>
+            </div>
+
+            {/* ── Destination cards ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {destinations.map(dest => {
+                const pkgs = groups[dest];
+                const isSelected = openDestination === dest;
+                const isIntl = pkgs.every(p => p.travel_type === 'international');
+                const isDomestic = pkgs.every(p => p.travel_type === 'domestic');
+                const soonest = pkgs
+                  .flatMap(p => (p.travel_dates || []).map(d => d.departure_date).concat(p.departure_date || []))
+                  .filter(Boolean).sort()[0];
+
+                const gradientIntl = 'linear-gradient(135deg, #0f2460 0%, #1d4ed8 45%, #0891b2 100%)';
+                const gradientDom = 'linear-gradient(135deg, #7c2d12 0%, #c2410c 45%, #f97316 100%)';
+                const gradientMix = 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 45%, #ec4899 100%)';
+                const bg = isIntl ? gradientIntl : isDomestic ? gradientDom : gradientMix;
+
+                return (
+                  <div
+                    key={dest}
+                    className="cursor-pointer rounded-2xl overflow-hidden"
+                    style={{ transition: 'transform 0.15s ease, box-shadow 0.15s ease', outline: isSelected ? '2.5px solid #f97316' : 'none', outlineOffset: '2px' }}
+                    onMouseMove={tilt}
+                    onMouseLeave={untilt}
+                    onClick={() => setOpenDestination(isSelected ? null : dest)}
+                  >
+                    <div className="relative h-44 flex flex-col justify-between p-4 overflow-hidden" style={{ background: bg }}>
+                      {/* Glow layers */}
+                      <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.18), transparent 60%)' }} />
+                      <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full" style={{ background: 'rgba(0,0,0,0.15)', filter: 'blur(20px)' }} />
+
+                      {/* Type badge */}
+                      <span className="self-start text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full relative z-10"
+                        style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(4px)' }}>
+                        {isIntl ? '🌏 International' : isDomestic ? '🇵🇭 Domestic' : '✈️ Mixed'}
+                      </span>
+
+                      {/* Destination name */}
+                      <div className="relative z-10">
+                        <h3 className="text-xl font-black text-white leading-tight drop-shadow-sm">{dest}</h3>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-xs font-semibold text-white/80 bg-white/15 px-2 py-0.5 rounded-full">
+                            {pkgs.length} package{pkgs.length !== 1 ? 's' : ''}
+                          </span>
+                          {soonest && (
+                            <span className="text-[10px] text-white/55 font-medium">
+                              {new Date(soonest + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Open/close arrow */}
+                      <div className={cn(
+                        "absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center transition-all z-10",
+                        isSelected ? "bg-white/30" : "bg-white/10"
+                      )}>
+                        <ChevronDown className={cn("w-3.5 h-3.5 text-white transition-transform duration-300", isSelected && "rotate-180")} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* ── New Destination card ── */}
+              <div
+                className="cursor-pointer rounded-2xl border-2 border-dashed border-border h-44 flex flex-col items-center justify-center gap-2 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-all group"
+                style={{ transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                onMouseMove={tilt}
+                onMouseLeave={untilt}
+                onClick={openAdd}
+              >
+                <div className="w-11 h-11 rounded-xl bg-muted group-hover:bg-orange-100 dark:group-hover:bg-orange-950/30 flex items-center justify-center transition-colors">
+                  <Plus className="w-5 h-5 text-muted-foreground group-hover:text-orange-500 transition-colors" />
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground group-hover:text-orange-600 transition-colors">New Booking</span>
+                <span className="text-[10px] text-muted-foreground/50 text-center px-4 leading-tight">Manual / no package</span>
+              </div>
+            </div>
+
+            {/* ── Inline expanded packages ── */}
+            {openDestination && groups[openDestination] && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-orange-600 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                    <MapPin className="w-3 h-3" /> {openDestination}
+                    <span className="font-normal text-orange-400">· {groups[openDestination].length} package{groups[openDestination].length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {groups[openDestination].map(c => <PackageCard key={c.id} c={c} />)}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Product Detail Modal */}
       <Dialog open={!!viewingProduct} onOpenChange={open => !open && setViewingProduct(null)}>
