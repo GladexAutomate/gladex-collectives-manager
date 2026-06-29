@@ -117,24 +117,6 @@ export function formatPackageForCopy(pkg) {
     if (pkg.supplier_deadline) line('SUPPLIER DEADLINE', new Date(pkg.supplier_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
   }
 
-  // ── PRICING ──
-  const currency = pkg.base_price_currency || pkg.currency || 'PHP';
-  const currMap = { PHP: '₱', USD: '$', EUR: '€', JPY: '¥', KRW: '₩', SGD: 'S$', HKD: 'HK$', AUD: 'A$' };
-  const sym = currMap[currency] || currency;
-  const baseForeign = Number(pkg.base_price_foreign || 0);
-  const exRate = Number(pkg.exchange_rate || 1);
-  const basePHP = Number(pkg.base_price_php || 0);
-  const markup = Number(pkg.markup_amount || 0);
-
-  divider('💰', 'PRICING');
-  parts.push('');
-  if (baseForeign > 0 && currency !== 'PHP') line(`BASE PRICE (${currency})`, `${sym}${baseForeign.toLocaleString('en-US')}`);
-  if (basePHP > 0 && currency !== 'PHP') line('BASE PRICE (PHP)', `₱${basePHP.toLocaleString('en-US')}`);
-  if (exRate && currency !== 'PHP') line('EXCHANGE RATE', `1 ${currency} = ₱${exRate}`);
-  if (markup > 0) line('MARKUP', `₱${markup.toLocaleString('en-US')}`);
-  if (Number(pkg.commission_amount) > 0) line('COMMISSION', `₱${Number(pkg.commission_amount).toLocaleString('en-US')}`);
-  if (Number(pkg.downpayment_required) > 0) line('DOWNPAYMENT', `₱${Number(pkg.downpayment_required).toLocaleString('en-US')}`);
-
   // ── OCCUPANCY RATES ──
   const rateFields = [
     ['TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
