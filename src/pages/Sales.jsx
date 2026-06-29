@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -60,7 +61,8 @@ export default function Sales() {
   const [marketingAssets, setMarketingAssets] = useState([]);
   const [collectivesWithTasks, setCollectivesWithTasks] = useState(new Set());
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [pkgSearch, setPkgSearch] = useState('');
+  const [bookingSearch, setBookingSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
@@ -179,16 +181,11 @@ export default function Sales() {
 
   const filtered = bookings.filter(b => {
     const matchStatus = statusFilter === 'all' || b.status === statusFilter;
-    if (!search) return matchStatus;
-    const q = search.toLowerCase();
-    const pkg = collectives.find(c => c.id === b.collective_id);
-    const matchName    = b.client_name?.toLowerCase().includes(q);
-    const matchPkgName = pkg?.name?.toLowerCase().includes(q);
-    const pkgCode = pkg?.package_code || pkgCodeStore.get(pkg?.id) || '';
-    const matchCode    = pkgCode.toLowerCase().includes(q)
-                      || b.package_code?.toLowerCase().includes(q)
-                      || b.booking_reference?.toLowerCase().includes(q);
-    return (matchName || matchPkgName || matchCode) && matchStatus;
+    if (!bookingSearch) return matchStatus;
+    const q = bookingSearch.toLowerCase();
+    const matchName = b.client_name?.toLowerCase().includes(q);
+    const matchRef  = b.booking_reference?.toLowerCase().includes(q);
+    return (matchName || matchRef) && matchStatus;
   });
 
   const getCollectiveName = (id) => collectives.find(c => c.id === id)?.name || '—';
@@ -215,6 +212,23 @@ export default function Sales() {
           <Button onClick={openAdd} className="gradient-gold text-white border-0 gap-2">
             <Plus className="w-4 h-4" /> New Booking
           </Button>
+        </div>
+      </div>
+
+      {/* ── Package Code Search ─────────────────────────────────────────── */}
+      <div className="relative">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 transition-all">
+          <Search className="w-4 h-4 text-violet-400 flex-shrink-0" />
+          <input
+            value={pkgSearch}
+            onChange={e => setPkgSearch(e.target.value.replace(/[^a-zA-Z0-9\-=_]/g, ''))}
+            placeholder="Search by package code (e.g. GDX-12345)..."
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono"
+          />
+          {pkgSearch && (
+            <button onClick={() => setPkgSearch('')} className="text-muted-foreground hover:text-foreground transition-colors text-xs px-1">✕</button>
+          )}
+          <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium hidden sm:block">Package Code</span>
         </div>
       </div>
 
@@ -257,6 +271,9 @@ export default function Sales() {
             pkgAssets[0]?.file_url || null;
           const totalAssets = marketingAssets.filter(a => a.collective_id === c.id).length;
           const hasPD = collectivesWithTasks.has(c.id);
+          const cardDp = Number(c.downpayment_required) || 0;
+          const cardSp = Number(c.selling_price) || 0;
+          const cardDpLabel = cardDp > 0 && cardSp > 0 ? (Math.abs(cardDp - Math.round(cardSp * 0.5)) <= 1 ? ' · 50% of fare' : Math.abs(cardDp - Math.round(cardSp * 0.3)) <= 1 ? ' · 30% of fare' : '') : '';
           return (
             <div
               key={c.id}
@@ -290,8 +307,8 @@ export default function Sales() {
                       ? <p className="text-sm font-bold text-orange-600">₱{Number(c.rate_twin || c.selling_price).toLocaleString()}<span className="text-[10px] font-normal text-muted-foreground ml-1">/twin</span></p>
                       : <p className="text-xs text-muted-foreground">See pricing</p>
                     }
-                    {Number(c.downpayment_required) > 0 && (
-                      <p className="text-[10px] text-purple-600 font-semibold mt-0.5">DP: ₱{Number(c.downpayment_required).toLocaleString()} per pax</p>
+                    {cardDp > 0 && (
+                      <p className="text-[10px] text-purple-600 font-semibold mt-0.5">DP: ₱{cardDp.toLocaleString()} per pax{cardDpLabel}</p>
                     )}
                   </div>
                   <span className="text-[10px] text-violet-500 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">View <ChevronRight className="w-3 h-3" /></span>
@@ -338,14 +355,12 @@ export default function Sales() {
         const intlStats = catStats(intlPkgs);
         const domStats  = catStats(domPkgs);
 
-        // ── Package search results (flat view when searching by pkg code/name) ──
+        // ── Package search results (flat view when searching by pkg code) ──
         const allLocalCodes = pkgCodeStore.getAll();
-        const searchQ = search.toLowerCase().trim();
+        const searchQ = pkgSearch.toLowerCase().trim();
         const matchingPkgs = searchQ.length >= 2 ? salesPkgs.filter(p => {
           const code = p.package_code || allLocalCodes[p.id] || '';
-          return p.name?.toLowerCase().includes(searchQ) ||
-                 p.destination?.toLowerCase().includes(searchQ) ||
-                 code.toLowerCase().includes(searchQ);
+          return code.toLowerCase().includes(searchQ) || p.name?.toLowerCase().includes(searchQ);
         }) : [];
 
         return (
@@ -357,21 +372,23 @@ export default function Sales() {
               .plane-ccw { animation: plane-orbit-rev 7s linear infinite; }
             `}</style>
 
-            {/* Package search results — replaces hierarchy when search matches a package */}
-            {matchingPkgs.length > 0 && (
+            {/* Package code search results */}
+            {searchQ.length >= 2 && (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Package className="w-3.5 h-3.5 text-violet-500" />
-                  <span className="font-semibold text-foreground">{matchingPkgs.length} package{matchingPkgs.length !== 1 ? 's' : ''} found</span>
-                  <span>· click to view full details &amp; book</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {matchingPkgs.map(c => <PackageCard key={c.id} c={c} />)}
-                </div>
+                {matchingPkgs.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {matchingPkgs.map(c => <PackageCard key={c.id} c={c} />)}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-muted-foreground text-sm">
+                    <Package className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
+                    No package found for "<strong>{pkgSearch}</strong>"
+                  </div>
+                )}
               </div>
             )}
 
-            <div className={matchingPkgs.length > 0 ? 'hidden' : 'space-y-5'}>
+            <div className={searchQ.length >= 2 ? 'hidden' : 'space-y-5'}>
               {/* ── LEVEL 1: Category cards ──────────────────────────────── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {[
@@ -503,10 +520,14 @@ export default function Sales() {
       {/* Product Detail Modal */}
       <Dialog open={!!viewingProduct} onOpenChange={open => !open && setViewingProduct(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+          <VisuallyHidden><DialogTitle>Package Details</DialogTitle></VisuallyHidden>
           {viewingProduct && (() => {
             const c = viewingProduct;
             const currSymbol = c.currency === 'PHP' ? '₱' : c.currency === 'USD' ? '$' : c.currency === 'JPY' ? '¥' : c.currency === 'KRW' ? '₩' : '₱';
             const fmt = v => v != null && v !== '' ? `${currSymbol}${Number(v).toLocaleString()}` : null;
+            const dp = Number(c.downpayment_required) || 0;
+            const sp = Number(c.selling_price) || 0;
+            const dpLabel = dp > 0 && sp > 0 ? (Math.abs(dp - Math.round(sp * 0.5)) <= 1 ? ' (50% of fare)' : Math.abs(dp - Math.round(sp * 0.3)) <= 1 ? ' (30% of fare)' : '') : '';
             const rates = [
               { label: 'Twin Sharing', value: fmt(c.rate_twin) },
               { label: 'Triple Sharing', value: fmt(c.rate_triple) },
@@ -660,10 +681,10 @@ export default function Sales() {
                           <span className="text-sm font-bold text-sky-700">{fmt(c.commission_amount)}</span>
                         </div>
                       )}
-                      {c.downpayment_required && (
+                      {dp > 0 && (
                         <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 rounded-lg p-3 flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">Required Downpayment <span className="text-[10px]">per pax</span></span>
-                          <span className="text-sm font-bold text-purple-700">₱{Number(c.downpayment_required).toLocaleString()} <span className="text-[10px] font-normal text-purple-500">per pax</span></span>
+                          <span className="text-sm font-bold text-purple-700">₱{dp.toLocaleString()} <span className="text-[10px] font-normal text-purple-500">per pax{dpLabel}</span></span>
                         </div>
                       )}
                     </TabsContent>
@@ -816,11 +837,11 @@ export default function Sales() {
         ))}
       </div>
 
-      {/* Filters */}
+      {/* Booking Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search by client name, package name, or package code..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="Filter bookings by client name or booking reference..." className="pl-9" value={bookingSearch} onChange={e => setBookingSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-40">
