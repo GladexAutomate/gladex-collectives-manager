@@ -79,8 +79,6 @@ export function formatPackageForCopy(pkg) {
   line('PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
   const statusLabels = { draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure', ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled' };
   line('STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
-  if (pkg.total_slots != null) line('TOTAL SLOTS', pkg.total_slots);
-  if (pkg.available_slots != null) line('AVAILABLE SLOTS', pkg.available_slots);
   if (pkg.guaranteed_departure) parts.push('GUARANTEED DEPARTURE: Yes');
   if (pkg.slots_for_confirmation) parts.push('SLOT TYPE: For Confirmation (on-request)');
 
