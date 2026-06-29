@@ -697,7 +697,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                 </div>
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground ml-auto flex-wrap">
                   <span>Margin: <strong className="text-foreground">{grossMargin}%</strong></span>
-                  <span>DP: <strong className="text-foreground">₱{Number(form.downpayment_required).toLocaleString()}</strong></span>
+                  <span>DP: <strong className="text-foreground">₱{Number(form.downpayment_required).toLocaleString()}</strong> <span className="text-muted-foreground">per pax</span></span>
                   <span>Pax: <strong className="text-foreground">{derivedTotalSlots}</strong>{hasTravelDates && <span className="text-muted-foreground"> ({(form.travel_dates||[]).length}d)</span>}</span>
                   {form.rate_twin && <span>Twin: <strong className="text-amber-600">₱{Number(form.rate_twin).toLocaleString()}</strong></span>}
                 </div>

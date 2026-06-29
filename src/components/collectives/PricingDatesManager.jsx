@@ -758,7 +758,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
 
             {/* Total Downpayment (₱) — editable */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <F label="Downpayment (₱)">
+              <F label="Downpayment (₱) per pax">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600">₱</span>
                   <Input
@@ -767,6 +767,24 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     value={(dpBase > 0 ? dpPHP : dp) || ''}
                     onChange={e => pkgSet('downpayment_required', Number(e.target.value))}
                   />
+                </div>
+                <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => pkgSet('downpayment_required', Math.round(sp * 0.5))}
+                    className="text-[10px] px-2 py-1 rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 font-medium transition-colors"
+                    title="Set downpayment to 50% of selling price"
+                  >
+                    50% of fare {sp > 0 ? `= ₱${Math.round(sp * 0.5).toLocaleString()}` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => pkgSet('downpayment_required', Math.round(sp * 0.3))}
+                    className="text-[10px] px-2 py-1 rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 font-medium transition-colors"
+                    title="Set downpayment to 30% of selling price"
+                  >
+                    30% {sp > 0 ? `= ₱${Math.round(sp * 0.3).toLocaleString()}` : ''}
+                  </button>
                 </div>
               </F>
             </div>
