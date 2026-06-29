@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Search, Users, RefreshCw, Edit, Package, MapPin, Plane, Calendar, Hotel, UtensilsCrossed, X, ChevronRight, Clock, Star, FileText, AlertCircle, Info, Download } from 'lucide-react';
 import { broadcastRefresh } from '@/lib/dataSync';
+import CopyPackageButton from '@/components/collectives/CopyPackageButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -312,6 +313,10 @@ export default function Sales() {
                   >
                     <Plus className="w-4 h-4" /> Book This Package
                   </Button>
+                  <CopyPackageButton
+                    pkg={c}
+                    className="relative z-10 bg-white/20 hover:bg-white/30 text-white border-0 gap-1.5 font-semibold backdrop-blur-sm"
+                  />
                 </div>
 
                 {/* Body */}
