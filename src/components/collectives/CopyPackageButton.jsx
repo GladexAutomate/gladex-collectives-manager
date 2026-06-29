@@ -180,7 +180,7 @@ export function formatPackageForCopy(pkg, packageCode = '') {
 
 // ── Copy button component ────────────────────────────────────────────────────
 export default function CopyPackageButton({ pkg, size, variant, className }) {
-  const [packageCode, setPackageCode] = useState('');
+  const [packageCode, setPackageCode] = useState(pkg?.package_code || '');
 
   const handleCopy = async () => {
     const text = formatPackageForCopy(pkg, packageCode);

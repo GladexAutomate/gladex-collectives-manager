@@ -92,11 +92,11 @@ export default function GlobalSearch() {
         const found = [];
 
         collectives.forEach(c => {
-          if (matches(c.name, q) || matches(c.destination, q) || matches(c.operator_name, q)) {
+          if (matches(c.name, q) || matches(c.destination, q) || matches(c.operator_name, q) || matches(c.package_code, q)) {
             found.push({
               type: 'collective', id: c.id,
               title: c.name,
-              subtitle: `${c.destination || ''} · ${c.status || ''}`,
+              subtitle: `${c.package_code ? c.package_code + ' · ' : ''}${c.destination || ''} · ${c.status || ''}`,
               badge: c.status,
             });
           }

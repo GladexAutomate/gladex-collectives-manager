@@ -45,7 +45,7 @@ const STATUS_CONFIG = {
 };
 
 const BLANK = () => ({
-  name: '', destination: '', travel_type: 'international',
+  name: '', package_code: '', destination: '', travel_type: 'international',
   operator_name: '', departure_date: '', return_date: '', nights: '',
   total_slots: 20, slots_for_confirmation: false,
   booked_pax: 0, guaranteed_departure: false,
@@ -224,6 +224,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     const autoBookedSlots = tDates.length > 0 ? tDates.reduce((s, d) => s + (Number(d.booked_slots) || 0), 0) : (Number(f.booked_pax) || 0);
     return {
       name: f.name,
+      package_code: f.package_code || undefined,
       destination: f.destination,
       travel_type: f.travel_type || 'international',
       operator_name: f.operator_name,
@@ -317,6 +318,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     setSaved(false);
     setForm({
       name: c.name || '',
+      package_code: c.package_code || '',
       destination: c.destination || '',
       travel_type: c.travel_type || 'international',
       operator_name: c.operator_name || '',
@@ -725,6 +727,9 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <F label="Collective Name *" className="col-span-2">
                     <Input placeholder="e.g. Japan Cherry Blossom 2026" value={form.name} onChange={e => setF('name', e.target.value)} className={cn("h-9 text-sm", !form.name && 'border-amber-300')} />
+                  </F>
+                  <F label="Package Code">
+                    <Input placeholder="e.g. GDX=12345" value={form.package_code || ''} onChange={e => setF('package_code', e.target.value)} className="h-9 font-mono text-sm" />
                   </F>
                   <F label="Travel Type">
                     <Select value={form.travel_type} onValueChange={v => setF('travel_type', v)}>
