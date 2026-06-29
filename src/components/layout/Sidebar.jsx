@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Globe, CheckSquare, Package, Megaphone,
   FileText, Truck, Star, BarChart3, ClipboardList,
-  Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard, X
+  Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard, X, StickyNote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +22,7 @@ const navItems = [
   { icon: BarChart3,       label: 'Reports',           path: '/reports' },
 ];
 
-export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, onNotepadToggle, notepadOpen }) {
   const location = useLocation();
 
   const NavLink = ({ icon: Icon, label, path }) => {
@@ -66,8 +66,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                 className="w-8 h-8 rounded-lg object-cover"
               />
               <div>
-                <p className="text-xs font-bold text-[hsl(var(--gladex-gold))] leading-tight font-jakarta">GLADEX</p>
-                <p className="text-[9px] text-[hsl(var(--sidebar-foreground))] opacity-60 leading-tight">Group Collectives</p>
+                <p className="text-[10px] font-semibold text-[hsl(var(--sidebar-foreground))] opacity-70 leading-tight tracking-wide">Collectives Dashboard</p>
               </div>
             </div>
           )}
@@ -93,6 +92,18 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         <div className="px-2 pb-4 space-y-1 border-t border-[hsl(var(--sidebar-border))] pt-4">
           <NavLink icon={Bell}     label="Notifications" path="/notifications" />
           <NavLink icon={Settings} label="Settings"      path="/settings" />
+          <button
+            onClick={onNotepadToggle}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
+              notepadOpen
+                ? "bg-orange-500/20 text-orange-400"
+                : "text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))]"
+            )}
+          >
+            <StickyNote className={cn("flex-shrink-0", collapsed && !mobileOpen ? "w-5 h-5" : "w-4 h-4")} />
+            {(!collapsed || mobileOpen) && <span className="text-sm font-medium">Notepad</span>}
+          </button>
         </div>
       </aside>
 
@@ -131,6 +142,18 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         <div className="px-2 pb-4 space-y-1 border-t border-[hsl(var(--sidebar-border))] pt-4">
           <NavLink icon={Bell}     label="Notifications" path="/notifications" />
           <NavLink icon={Settings} label="Settings"      path="/settings" />
+          <button
+            onClick={() => { onNotepadToggle(); onMobileClose(); }}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150",
+              notepadOpen
+                ? "bg-orange-500/20 text-orange-400"
+                : "text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))]"
+            )}
+          >
+            <StickyNote className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm font-medium">Notepad</span>
+          </button>
         </div>
       </aside>
     </>

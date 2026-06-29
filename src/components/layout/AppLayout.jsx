@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import FloatingNotepad from './FloatingNotepad';
 import { cn } from '@/lib/utils';
 
 const pageTitles = {
@@ -25,6 +26,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [notepadOpen, setNotepadOpen] = useState(false);
   const location = useLocation();
 
   const pageTitle = pageTitles[location.pathname] || 'GLADEX System';
@@ -50,7 +52,10 @@ export default function AppLayout() {
         onToggle={() => setCollapsed(!collapsed)}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
+        onNotepadToggle={() => setNotepadOpen(v => !v)}
+        notepadOpen={notepadOpen}
       />
+      {notepadOpen && <FloatingNotepad onClose={() => setNotepadOpen(false)} />}
 
       {/* Mobile backdrop */}
       {mobileOpen && (
