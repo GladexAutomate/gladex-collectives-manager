@@ -133,9 +133,16 @@ export default function Sales() {
   };
 
   const filtered = bookings.filter(b => {
-    const matchSearch = !search || b.client_name?.toLowerCase().includes(search.toLowerCase()) || b.booking_reference?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || b.status === statusFilter;
-    return matchSearch && matchStatus;
+    if (!search) return matchStatus;
+    const q = search.toLowerCase();
+    const pkg = collectives.find(c => c.id === b.collective_id);
+    const matchName    = b.client_name?.toLowerCase().includes(q);
+    const matchPkgName = pkg?.name?.toLowerCase().includes(q);
+    const matchCode    = pkg?.package_code?.toLowerCase().includes(q)
+                      || b.package_code?.toLowerCase().includes(q)
+                      || b.booking_reference?.toLowerCase().includes(q);
+    return (matchName || matchPkgName || matchCode) && matchStatus;
   });
 
   const getCollectiveName = (id) => collectives.find(c => c.id === id)?.name || '—';
@@ -738,7 +745,7 @@ export default function Sales() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search by client name or reference..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="Search by client name, package name, or package code..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-40">
