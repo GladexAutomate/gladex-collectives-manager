@@ -20,6 +20,7 @@ import CopyPackageButton, { RawPackageJSON } from '@/components/collectives/Copy
 import WorkflowProgressBadge from '@/components/workflow/WorkflowProgressBadge';
 import { useNavigate } from 'react-router-dom';
 import { generateRefCode } from '@/components/product/SmartImportSidebar';
+import { pkgCodeStore } from '@/lib/packageCodeStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -195,6 +196,10 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
   const setF = useCallback((key, val) => {
     setForm(prev => {
       const next = { ...prev, [key]: val };
+      // Persist package_code immediately to localStorage (API schema doesn't include it)
+      if (key === 'package_code' && selectedCollective?.id) {
+        pkgCodeStore.set(selectedCollective.id, val);
+      }
       // Auto-save for existing collectives
       if (selectedCollective?.id) {
         if (autoSaveTimer) clearTimeout(autoSaveTimer);
@@ -318,7 +323,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     setSaved(false);
     setForm({
       name: c.name || '',
-      package_code: c.package_code || '',
+      package_code: c.package_code || pkgCodeStore.get(c.id) || '',
       destination: c.destination || '',
       travel_type: c.travel_type || 'international',
       operator_name: c.operator_name || '',

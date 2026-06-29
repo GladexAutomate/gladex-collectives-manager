@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { pkgCodeStore } from '@/lib/packageCodeStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const statusConfig = {
@@ -183,7 +184,8 @@ export default function Sales() {
     const pkg = collectives.find(c => c.id === b.collective_id);
     const matchName    = b.client_name?.toLowerCase().includes(q);
     const matchPkgName = pkg?.name?.toLowerCase().includes(q);
-    const matchCode    = pkg?.package_code?.toLowerCase().includes(q)
+    const pkgCode = pkg?.package_code || pkgCodeStore.get(pkg?.id) || '';
+    const matchCode    = pkgCode.toLowerCase().includes(q)
                       || b.package_code?.toLowerCase().includes(q)
                       || b.booking_reference?.toLowerCase().includes(q);
     return (matchName || matchPkgName || matchCode) && matchStatus;

@@ -5,6 +5,7 @@ import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
+import { pkgCodeStore } from '@/lib/packageCodeStore';
 
 const CATEGORY_CONFIG = {
   collective: { label: 'Collective', icon: Package, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30', path: '/collectives' },
@@ -90,13 +91,15 @@ export default function GlobalSearch() {
         ]);
 
         const found = [];
+        const localCodes = pkgCodeStore.getAll();
 
         collectives.forEach(c => {
-          if (matches(c.name, q) || matches(c.destination, q) || matches(c.operator_name, q) || matches(c.package_code, q)) {
+          const code = c.package_code || localCodes[c.id] || '';
+          if (matches(c.name, q) || matches(c.destination, q) || matches(c.operator_name, q) || matches(code, q)) {
             found.push({
               type: 'collective', id: c.id,
               title: c.name,
-              subtitle: `${c.package_code ? c.package_code + ' · ' : ''}${c.destination || ''} · ${c.status || ''}`,
+              subtitle: `${code ? code + ' · ' : ''}${c.destination || ''} · ${c.status || ''}`,
               badge: c.status,
             });
           }

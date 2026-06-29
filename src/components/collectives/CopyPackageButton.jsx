@@ -3,6 +3,7 @@ import { Copy, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { pkgCodeStore } from '@/lib/packageCodeStore';
 
 // ── Smart date range: "Jun 22–26, 2026" instead of "Jun 22 – Jun 26 — Jun 22, 2026 — Jun 26, 2026" ──
 function formatDateRange(dep, ret) {
@@ -181,7 +182,8 @@ export function formatPackageForCopy(pkg, packageCode = '') {
 // ── Copy button component ────────────────────────────────────────────────────
 export default function CopyPackageButton({ pkg, size, variant, className }) {
   const handleCopy = async () => {
-    const text = formatPackageForCopy(pkg, pkg?.package_code || '');
+    const code = pkg?.package_code || pkgCodeStore.get(pkg?.id) || '';
+    const text = formatPackageForCopy(pkg, code);
     await navigator.clipboard.writeText(text);
     toast.success('Package details copied successfully!', { duration: 2500 });
   };
