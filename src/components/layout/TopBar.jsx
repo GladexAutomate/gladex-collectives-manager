@@ -17,7 +17,6 @@ export default function TopBar({ pageTitle, darkMode, onToggleDark, onMobileMenu
 
         <div>
           <h1 className="text-base md:text-lg font-semibold font-jakarta text-foreground leading-tight">{pageTitle}</h1>
-          <p className="text-[10px] text-muted-foreground hidden sm:block">GLADEX Group Collectives System</p>
         </div>
       </div>
 
