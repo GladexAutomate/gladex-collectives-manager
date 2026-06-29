@@ -57,6 +57,8 @@ export default function Sales() {
       ]);
       setBookings(b);
       setCollectives(c);
+      // Keep viewingProduct in sync with fresh data
+      setViewingProduct(prev => prev ? (c.find(x => x.id === prev.id) || prev) : null);
     } catch (e) {
       console.error('Sales loadData error:', e);
     }

@@ -246,15 +246,22 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       downpayment_base_pd: Number(f.downpayment_base_pd) || undefined,
       downpayment_pd_currency: f.downpayment_pd_currency || undefined,
       downpayment_pd_rate: Number(f.downpayment_pd_rate) || undefined,
-      rate_twin: Number(f.rate_twin) || undefined, rate_twin_age_min: Number(f.rate_twin_age_min) || undefined, rate_twin_age_max: Number(f.rate_twin_age_max) || undefined,
-      rate_triple: Number(f.rate_triple) || undefined, rate_triple_age_min: Number(f.rate_triple_age_min) || undefined, rate_triple_age_max: Number(f.rate_triple_age_max) || undefined,
-      rate_quad: Number(f.rate_quad) || undefined, rate_quad_age_min: Number(f.rate_quad_age_min) || undefined, rate_quad_age_max: Number(f.rate_quad_age_max) || undefined,
-      rate_single: Number(f.rate_single) || undefined, rate_single_age_min: Number(f.rate_single_age_min) || undefined, rate_single_age_max: Number(f.rate_single_age_max) || undefined,
-      rate_solo: Number(f.rate_solo) || undefined, rate_solo_age_min: Number(f.rate_solo_age_min) || undefined, rate_solo_age_max: Number(f.rate_solo_age_max) || undefined,
-      rate_single_supplement: Number(f.rate_single_supplement) || undefined,
-      rate_child_no_bed: Number(f.rate_child_no_bed) || undefined, rate_child_no_bed_age_min: Number(f.rate_child_no_bed_age_min) || undefined, rate_child_no_bed_age_max: Number(f.rate_child_no_bed_age_max) || undefined,
-      rate_child: Number(f.rate_child) || undefined, rate_child_age_min: Number(f.rate_child_age_min) || undefined, rate_child_age_max: Number(f.rate_child_age_max) || undefined,
-      rate_infant: Number(f.rate_infant) || undefined, rate_infant_age_min: Number(f.rate_infant_age_min) || undefined, rate_infant_age_max: Number(f.rate_infant_age_max) || undefined,
+      // nRate: drops blank/null but keeps 0 (valid age min)
+      ...((() => {
+        const nRate = v => (v === '' || v == null) ? undefined : Number(v);
+        const nAge  = v => (v === '' || v == null) ? undefined : Number(v); // 0 is valid
+        return {
+          rate_twin: nRate(f.rate_twin), rate_twin_age_min: nAge(f.rate_twin_age_min), rate_twin_age_max: nAge(f.rate_twin_age_max),
+          rate_triple: nRate(f.rate_triple), rate_triple_age_min: nAge(f.rate_triple_age_min), rate_triple_age_max: nAge(f.rate_triple_age_max),
+          rate_quad: nRate(f.rate_quad), rate_quad_age_min: nAge(f.rate_quad_age_min), rate_quad_age_max: nAge(f.rate_quad_age_max),
+          rate_single: nRate(f.rate_single), rate_single_age_min: nAge(f.rate_single_age_min), rate_single_age_max: nAge(f.rate_single_age_max),
+          rate_solo: nRate(f.rate_solo), rate_solo_age_min: nAge(f.rate_solo_age_min), rate_solo_age_max: nAge(f.rate_solo_age_max),
+          rate_single_supplement: nRate(f.rate_single_supplement),
+          rate_child_no_bed: nRate(f.rate_child_no_bed), rate_child_no_bed_age_min: nAge(f.rate_child_no_bed_age_min), rate_child_no_bed_age_max: nAge(f.rate_child_no_bed_age_max),
+          rate_child: nRate(f.rate_child), rate_child_age_min: nAge(f.rate_child_age_min), rate_child_age_max: nAge(f.rate_child_age_max),
+          rate_infant: nRate(f.rate_infant), rate_infant_age_min: nAge(f.rate_infant_age_min), rate_infant_age_max: nAge(f.rate_infant_age_max),
+        };
+      })()),
       slots_for_confirmation: f.slots_for_confirmation || false,
       total_slots:     autoTotalSlots,
       available_slots: Math.max(0, autoTotalSlots - autoBookedSlots),
