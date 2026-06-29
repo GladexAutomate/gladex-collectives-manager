@@ -637,48 +637,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
               </div>
             </F>
           </div>
-          {/* Row 3: Commission */}
-          <div className="rounded-lg border border-sky-200 bg-sky-50/40 p-3 space-y-2">
-            <span className="text-xs font-bold text-sky-700">Commission / Pax</span>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <F label="Base Currency">
-                <Select value={commCurr} onValueChange={v => {
-                  const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
-                  pkgSet('commission_currency', v);
-                  pkgSet('commission_exchange_rate', rate);
-                  pkgSet('commission_amount', commCurr === 'PHP' ? commBase : commBase * rate);
-                }}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value} – {c.symbol}</SelectItem>)}</SelectContent>
-                </Select>
-              </F>
-              <F label={`Base Cost (${commCurrSym})`}>
-                <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{commCurrSym}</span>
-                  <Input type="number" className="pl-7 h-9 text-sm" value={commBase || ''} onChange={e => {
-                    const v = Number(e.target.value);
-                    pkgSet('commission_base_foreign', v);
-                    pkgSet('commission_amount', commCurr === 'PHP' ? v : v * commRate);
-                  }} />
-                </div>
-              </F>
-              {commCurr !== 'PHP' && (
-                <F label="Exchange Rate (→ ₱)">
-                  <Input type="number" className="h-9 text-sm" value={commRate || ''} onChange={e => {
-                    const v = Number(e.target.value);
-                    pkgSet('commission_exchange_rate', v);
-                    pkgSet('commission_amount', commBase * v);
-                  }} />
-                </F>
-              )}
-              <F label="Commission (₱)">
-                <div className="h-9 flex items-center px-3 bg-sky-100 border border-sky-300 rounded-md">
-                  <span className="text-sm font-bold text-sky-700">₱{(commBase > 0 ? commPHP : commission).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                </div>
-              </F>
-            </div>
-          </div>
-
-          {/* Row 4: Downpayment */}
+          {/* Row 3: Downpayment */}
           <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-3 space-y-3">
             <span className="text-xs font-bold text-purple-700">Required Downpayment</span>
 
