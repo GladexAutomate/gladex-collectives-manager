@@ -144,7 +144,7 @@ export function formatPackageForCopy(pkg) {
   });
 
   if (rateLines.length > 0) {
-    divider('🛏️', 'ROOM RATES');
+    divider('🛏️', 'PACKAGE RATES');
     parts.push('');
     rateLines.forEach(r => parts.push(r));
   }
