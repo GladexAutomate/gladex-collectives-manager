@@ -49,7 +49,7 @@ function parseItineraryDays(raw) {
 }
 
 // ── Format a collective/package into clean copy-paste text ──────────────────
-export function formatPackageForCopy(pkg) {
+export function formatPackageForCopy(pkg, packageCode = '') {
   const parts = [];
 
   // Inline push: LABEL: value on one line (no emoji on individual lines)
@@ -75,21 +75,12 @@ export function formatPackageForCopy(pkg) {
   divider('📋', 'PACKAGE DETAILS');
   parts.push('');
   line('DESTINATION', pkg.destination);
-  parts.push('PACKAGE CODE: ');
+  parts.push(`PACKAGE CODE: ${packageCode}`);
   line('PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
   const statusLabels = { draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure', ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled' };
   line('STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
   if (pkg.guaranteed_departure) parts.push('GUARANTEED DEPARTURE: Yes');
   if (pkg.slots_for_confirmation) parts.push('SLOT TYPE: For Confirmation (on-request)');
-
-  // ── OPERATOR & LOGISTICS ──
-  if (pkg.operator_name || pkg.flight_details || pkg.hotel_details) {
-    divider('🏢', 'OPERATOR & LOGISTICS');
-    parts.push('');
-    line('OPERATOR', pkg.operator_name);
-    line('FLIGHT / AIRLINE', pkg.flight_details);
-    line('HOTEL', pkg.hotel_details);
-  }
 
   // ── TRAVEL DATES ──
   const tDates = pkg.travel_dates?.length
@@ -189,8 +180,10 @@ export function formatPackageForCopy(pkg) {
 
 // ── Copy button component ────────────────────────────────────────────────────
 export default function CopyPackageButton({ pkg, size, variant, className }) {
+  const [packageCode, setPackageCode] = useState('');
+
   const handleCopy = async () => {
-    const text = formatPackageForCopy(pkg);
+    const text = formatPackageForCopy(pkg, packageCode);
     await navigator.clipboard.writeText(text);
     toast.success('Package details copied successfully!', { duration: 2500 });
   };
@@ -209,16 +202,25 @@ export default function CopyPackageButton({ pkg, size, variant, className }) {
   }
 
   return (
-    <Button
-      size={size || 'sm'}
-      variant={variant || 'ghost'}
-      className={className}
-      onClick={handleCopy}
-      title="Copy package details"
-    >
-      <Copy className="w-3.5 h-3.5" />
-      <span className="hidden sm:inline">Copy</span>
-    </Button>
+    <div className="flex items-center gap-1.5">
+      <input
+        value={packageCode}
+        onChange={e => setPackageCode(e.target.value)}
+        onClick={e => e.stopPropagation()}
+        placeholder="Package Code"
+        className="h-7 px-2 text-xs border border-white/50 rounded-md bg-white text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-orange-300 w-28"
+      />
+      <Button
+        size={size || 'sm'}
+        variant={variant || 'ghost'}
+        className={className}
+        onClick={handleCopy}
+        title="Copy package details"
+      >
+        <Copy className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Copy</span>
+      </Button>
+    </div>
   );
 }
 
