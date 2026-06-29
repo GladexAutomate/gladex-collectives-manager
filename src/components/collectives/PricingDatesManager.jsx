@@ -301,9 +301,11 @@ export default function PricingDatesManager({
   // Downpayment base fields
   const dpCurr = isCollective ? (form?.downpayment_currency || 'PHP') : 'PHP';
   const dpCurrSym = CURRENCIES.find(c => c.value === dpCurr)?.symbol || '₱';
-  const dpBase = isCollective ? (Number(form?.downpayment_base_foreign) || 0) : 0;
-  const dpRate = isCollective ? (Number(form?.downpayment_exchange_rate) || 1) : 1;
-  const dpPHP = dpCurr === 'PHP' ? dpBase : dpBase * dpRate;
+  const dpBaseOps = isCollective ? (Number(form?.downpayment_base_ops) || 0) : 0;
+  const dpBasePD  = isCollective ? (Number(form?.downpayment_base_pd)  || 0) : 0;
+  const dpBase    = dpBaseOps + dpBasePD;
+  const dpRate    = isCollective ? (Number(form?.downpayment_exchange_rate) || 1) : 1;
+  const dpPHP     = dpCurr === 'PHP' ? dpBase : dpBase * dpRate;
   const useMarkupPct = isCollective ? form?._use_markup_pct : quote?.use_markup_pct;
   const markupPct = isCollective ? form?.markup_pct : quote?.markup_pct;
   const markupFixed = isCollective ? form?.markup_amount : quote?.markup_php;
@@ -670,26 +672,42 @@ Extract ALL rows. Do not skip any row that has a date.`,
           </div>
 
           {/* Row 4: Downpayment */}
-          <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-3 space-y-2">
+          <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-3 space-y-3">
             <span className="text-xs font-bold text-purple-700">Required Downpayment</span>
+
+            {/* Row 4a: Currency + two base cost inputs + exchange rate */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <F label="Base Currency">
                 <Select value={dpCurr} onValueChange={v => {
                   const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
                   pkgSet('downpayment_currency', v);
                   pkgSet('downpayment_exchange_rate', rate);
-                  pkgSet('downpayment_required', dpCurr === 'PHP' ? dpBase : dpBase * rate);
+                  const total = dpBaseOps + dpBasePD;
+                  pkgSet('downpayment_required', v === 'PHP' ? total : total * rate);
                 }}>
                   <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value} – {c.symbol}</SelectItem>)}</SelectContent>
                 </Select>
               </F>
-              <F label={`Base Cost (${dpCurrSym})`}>
+              <F label={`Base Cost — Ops (${dpCurrSym})`}>
                 <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{dpCurrSym}</span>
-                  <Input type="number" className="pl-7 h-9 text-sm" value={dpBase || ''} onChange={e => {
+                  <Input type="number" className="pl-7 h-9 text-sm" value={dpBaseOps || ''} onChange={e => {
                     const v = Number(e.target.value);
-                    pkgSet('downpayment_base_foreign', v);
-                    pkgSet('downpayment_required', dpCurr === 'PHP' ? v : v * dpRate);
+                    const total = v + dpBasePD;
+                    pkgSet('downpayment_base_ops', v);
+                    pkgSet('downpayment_base_foreign', total);
+                    pkgSet('downpayment_required', dpCurr === 'PHP' ? total : total * dpRate);
+                  }} />
+                </div>
+              </F>
+              <F label={`Base Cost — PD (${dpCurrSym})`}>
+                <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{dpCurrSym}</span>
+                  <Input type="number" className="pl-7 h-9 text-sm" value={dpBasePD || ''} onChange={e => {
+                    const v = Number(e.target.value);
+                    const total = dpBaseOps + v;
+                    pkgSet('downpayment_base_pd', v);
+                    pkgSet('downpayment_base_foreign', total);
+                    pkgSet('downpayment_required', dpCurr === 'PHP' ? total : total * dpRate);
                   }} />
                 </div>
               </F>
@@ -702,17 +720,27 @@ Extract ALL rows. Do not skip any row that has a date.`,
                   }} />
                 </F>
               )}
+            </div>
+
+            {/* Row 4b: Total base summary + editable PHP downpayment */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {dpBase > 0 && (
+                <F label={`Total Base (${dpCurrSym})`}>
+                  <div className="h-9 flex items-center px-3 bg-purple-100 border border-purple-200 rounded-md">
+                    <span className="text-sm font-bold text-purple-600">{dpCurrSym}{dpBase.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  </div>
+                </F>
+              )}
               <F label="Downpayment (₱)">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600">₱</span>
                   <Input
                     type="number"
-                    className="pl-7 h-9 text-sm font-bold border-purple-300 bg-purple-50 text-purple-700 focus:ring-purple-400"
+                    className="pl-7 h-9 text-sm font-bold border-purple-300 bg-purple-50 text-purple-700"
                     value={(dpBase > 0 ? dpPHP : dp) || ''}
                     onChange={e => {
                       const v = Number(e.target.value);
                       pkgSet('downpayment_required', v);
-                      pkgSet('downpayment_base_foreign', v);
                     }}
                   />
                 </div>
