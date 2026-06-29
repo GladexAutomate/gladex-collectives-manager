@@ -285,10 +285,15 @@ export default function Sales() {
                   }
                 </div>
                 <div className="mt-2 pt-2 border-t border-border flex items-center justify-between">
-                  {(c.rate_twin || c.selling_price)
-                    ? <p className="text-sm font-bold text-orange-600">₱{Number(c.rate_twin || c.selling_price).toLocaleString()}<span className="text-[10px] font-normal text-muted-foreground ml-1">/twin</span></p>
-                    : <p className="text-xs text-muted-foreground">See pricing</p>
-                  }
+                  <div>
+                    {(c.rate_twin || c.selling_price)
+                      ? <p className="text-sm font-bold text-orange-600">₱{Number(c.rate_twin || c.selling_price).toLocaleString()}<span className="text-[10px] font-normal text-muted-foreground ml-1">/twin</span></p>
+                      : <p className="text-xs text-muted-foreground">See pricing</p>
+                    }
+                    {Number(c.downpayment_required) > 0 && (
+                      <p className="text-[10px] text-purple-600 font-semibold mt-0.5">DP: ₱{Number(c.downpayment_required).toLocaleString()} per pax</p>
+                    )}
+                  </div>
                   <span className="text-[10px] text-violet-500 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">View <ChevronRight className="w-3 h-3" /></span>
                 </div>
               </div>
@@ -333,6 +338,16 @@ export default function Sales() {
         const intlStats = catStats(intlPkgs);
         const domStats  = catStats(domPkgs);
 
+        // ── Package search results (flat view when searching by pkg code/name) ──
+        const allLocalCodes = pkgCodeStore.getAll();
+        const searchQ = search.toLowerCase().trim();
+        const matchingPkgs = searchQ.length >= 2 ? salesPkgs.filter(p => {
+          const code = p.package_code || allLocalCodes[p.id] || '';
+          return p.name?.toLowerCase().includes(searchQ) ||
+                 p.destination?.toLowerCase().includes(searchQ) ||
+                 code.toLowerCase().includes(searchQ);
+        }) : [];
+
         return (
           <>
             <style>{`
@@ -342,7 +357,21 @@ export default function Sales() {
               .plane-ccw { animation: plane-orbit-rev 7s linear infinite; }
             `}</style>
 
-            <div className="space-y-5">
+            {/* Package search results — replaces hierarchy when search matches a package */}
+            {matchingPkgs.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Package className="w-3.5 h-3.5 text-violet-500" />
+                  <span className="font-semibold text-foreground">{matchingPkgs.length} package{matchingPkgs.length !== 1 ? 's' : ''} found</span>
+                  <span>· click to view full details &amp; book</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {matchingPkgs.map(c => <PackageCard key={c.id} c={c} />)}
+                </div>
+              </div>
+            )}
+
+            <div className={matchingPkgs.length > 0 ? 'hidden' : 'space-y-5'}>
               {/* ── LEVEL 1: Category cards ──────────────────────────────── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {[
@@ -632,9 +661,9 @@ export default function Sales() {
                         </div>
                       )}
                       {c.downpayment_required && (
-                        <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 rounded-lg p-3 flex justify-between">
-                          <span className="text-xs text-muted-foreground">Required Downpayment</span>
-                          <span className="text-sm font-bold text-purple-700">{fmt(c.downpayment_required)}</span>
+                        <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 rounded-lg p-3 flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Required Downpayment <span className="text-[10px]">per pax</span></span>
+                          <span className="text-sm font-bold text-purple-700">₱{Number(c.downpayment_required).toLocaleString()} <span className="text-[10px] font-normal text-purple-500">per pax</span></span>
                         </div>
                       )}
                     </TabsContent>
