@@ -650,14 +650,6 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                     ))}
                   </SelectContent>
                 </Select>
-                {/* Package Code — saves to DB via setF/auto-save */}
-                <input
-                  value={form.package_code || ''}
-                  onChange={e => setF('package_code', e.target.value)}
-                  placeholder="Package Code"
-                  className="h-7 px-2 text-[11px] font-mono border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground w-32 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  title="Package Code (auto-saves)"
-                />
                 {autoSaved && <span className="text-[10px] text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Auto-saved</span>}
                 {(selectedCollective || form) && (
                   <CopyPackageButton pkg={{ ...selectedCollective, ...form }} size="sm" variant="outline" className="h-7 text-xs gap-1" />
@@ -738,8 +730,16 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
               {/* ── PACKAGE INFO ── */}
               {activeTab === 'info' && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <F label="Collective Name *" className="col-span-2">
+                  <F label="Collective Name *">
                     <Input placeholder="e.g. Japan Cherry Blossom 2026" value={form.name} onChange={e => setF('name', e.target.value)} className={cn("h-9 text-sm", !form.name && 'border-amber-300')} />
+                  </F>
+                  <F label="Package Code">
+                    <Input
+                      placeholder="e.g. GDX-12345"
+                      value={form.package_code || ''}
+                      onChange={e => setF('package_code', e.target.value)}
+                      className="h-9 text-sm font-mono"
+                    />
                   </F>
                   <F label="Travel Type">
                     <Select value={form.travel_type} onValueChange={v => setF('travel_type', v)}>
