@@ -93,9 +93,11 @@ export function formatPackageForCopy(pkg, packageCode = '') {
   // ── TRAVEL DATES ──
   const tDates = pkg.travel_dates?.length
     ? pkg.travel_dates.map(d => {
-        const label = d.label || '';
         const range = formatDateRange(d.departure_date, d.return_date);
-        return label ? `${label}: ${range}` : range;
+        // Only prepend label when it's a meaningful name (not an auto-generated date string)
+        const label = d.label?.trim() || '';
+        const looksLikeDate = /^\d|^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(label);
+        return label && !looksLikeDate ? `${label}: ${range}` : range;
       }).filter(Boolean)
     : [];
   const singleRange = formatDateRange(pkg.departure_date, pkg.return_date);
@@ -134,8 +136,10 @@ export function formatPackageForCopy(pkg, packageCode = '') {
     const num = Number(rate);
     if (num > 0) {
       let val = `₱${num.toLocaleString('en-US')}`;
-      if (min != null || max != null) {
-        const ageRange = [min != null ? `${min}y` : '', max != null ? `${max}y` : ''].filter(Boolean).join('–');
+      const hasMin = min !== null && min !== undefined && min !== '' && !isNaN(Number(min));
+      const hasMax = max !== null && max !== undefined && max !== '' && !isNaN(Number(max));
+      if (hasMin || hasMax) {
+        const ageRange = [hasMin ? `${Number(min)}` : '', hasMax ? `${Number(max)}` : ''].filter(Boolean).join('–');
         if (ageRange) val += ` (Ages ${ageRange})`;
       }
       rateLines.push(`${label}: ${val}`);
