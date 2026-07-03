@@ -55,6 +55,11 @@ const getDatePrice = (collective, dateStr) => {
   const date = collective.travel_dates?.find(d => d.departure_date === dateStr);
   return (date?.selling_price || (date?.use_custom_pricing ? date?.rate_twin : null) || collective.selling_price || collective.rate_twin || 0);
 };
+// Book & Buy uses the package's "Required Book & Pay" amount (set in Collectives) if configured,
+// otherwise falls back to the regular selling price for that date.
+const getBookAndBuyPrice = (collective, dateStr) => {
+  return collective?.book_buy_required || getDatePrice(collective, dateStr);
+};
 
 export default function Sales() {
   const [bookings, setBookings] = useState([]);
@@ -134,12 +139,12 @@ export default function Sales() {
     };
   }, []);
 
-  // Book & Buy is always paid in full, so auto-fill the Total Amount from the
-  // package's selling price instead of making the agent look it up and type it in.
+  // Book & Buy is always paid in full, so auto-fill the Total Amount from the package's
+  // "Required Book & Pay" amount (Collectives) if set, otherwise its selling price.
   useEffect(() => {
     if (!isBookAndBuyBooking || !formData.collective_id || !formData.departure_date_option) return;
     const collective = collectives.find(c => c.id === formData.collective_id);
-    const price = getDatePrice(collective, formData.departure_date_option) * (formData.pax_count || 1);
+    const price = getBookAndBuyPrice(collective, formData.departure_date_option) * (formData.pax_count || 1);
     if (price > 0 && formData.total_amount !== price) {
       setFormData(fd => ({ ...fd, total_amount: price }));
     }

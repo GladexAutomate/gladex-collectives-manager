@@ -313,6 +313,23 @@ export default function PricingDatesManager({
 
   const dpBase       = dpBaseOps + dpBasePD;
   const dpPHP        = dpOpsPhp + dpPdPhp;
+
+  // Book & Buy (full payment) base fields — same Ops/PD-with-currency shape as the downpayment above
+  const bb           = isCollective ? (Number(form?.book_buy_required) || 0) : 0;
+  const bbOpsCurr    = isCollective ? (form?.book_buy_ops_currency || 'PHP') : 'PHP';
+  const bbOpsSym     = CURRENCIES.find(c => c.value === bbOpsCurr)?.symbol || '₱';
+  const bbOpsRate    = isCollective ? (Number(form?.book_buy_ops_rate) || 1) : 1;
+  const bbBaseOps    = isCollective ? (Number(form?.book_buy_base_ops) || 0) : 0;
+  const bbOpsPhp     = bbOpsCurr === 'PHP' ? bbBaseOps : bbBaseOps * bbOpsRate;
+
+  const bbPdCurr     = isCollective ? (form?.book_buy_pd_currency || 'PHP') : 'PHP';
+  const bbPdSym      = CURRENCIES.find(c => c.value === bbPdCurr)?.symbol || '₱';
+  const bbPdRate     = isCollective ? (Number(form?.book_buy_pd_rate) || 1) : 1;
+  const bbBasePD     = isCollective ? (Number(form?.book_buy_base_pd) || 0) : 0;
+  const bbPdPhp      = bbPdCurr === 'PHP' ? bbBasePD : bbBasePD * bbPdRate;
+
+  const bbBase       = bbBaseOps + bbBasePD;
+  const bbPHP        = bbOpsPhp + bbPdPhp;
   const useMarkupPct = isCollective ? form?._use_markup_pct : quote?.use_markup_pct;
   const markupPct = isCollective ? form?.markup_pct : quote?.markup_pct;
   const markupFixed = isCollective ? form?.markup_amount : quote?.markup_php;
@@ -354,6 +371,21 @@ export default function PricingDatesManager({
     if (collectiveId) localStorage.setItem(`dp_type_${collectiveId}`, val);
     if (val === '50pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.5));
     if (val === '30pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.3));
+  };
+
+  // ── Book & Buy (full payment) fare-type selector — same fixed/percent-of-fare pattern ──
+  const [bbType, setBbType] = useState(() => {
+    return collectiveId ? (localStorage.getItem(`bb_type_${collectiveId}`) || 'fixed') : 'fixed';
+  });
+  useEffect(() => {
+    if (collectiveId) {
+      setBbType(localStorage.getItem(`bb_type_${collectiveId}`) || 'fixed');
+    }
+  }, [collectiveId]);
+  const handleBbTypeChange = (val) => {
+    setBbType(val);
+    if (collectiveId) localStorage.setItem(`bb_type_${collectiveId}`, val);
+    if (val === '100pct' && sp > 0) pkgSet('book_buy_required', Math.round(sp));
   };
 
   const [newDate, setNewDate] = useState(BLANK_DATE());
@@ -798,6 +830,117 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     </SelectItem>
                     <SelectItem value="30pct">
                       30% of fare{sp > 0 ? ` — ₱${Math.round(sp * 0.3).toLocaleString()}` : ''}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </F>
+            </div>
+          </div>
+
+          {/* Row 5: Required Book & Pay (full payment) — manual, set here per package */}
+          <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-3 space-y-3">
+            <span className="text-xs font-bold text-rose-700">Required Book & Pay</span>
+            <p className="text-[10px] text-muted-foreground -mt-2">Full payment amount used when a departure falls inside the Book & Buy window (Sales applies this automatically).</p>
+
+            {/* Ops + PD side by side, each with inline currency */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Ops */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-semibold text-rose-600">Operations (Ops)</span>
+                <div className="flex gap-1.5">
+                  <Select value={bbOpsCurr} onValueChange={v => {
+                    const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
+                    pkgSet('book_buy_ops_currency', v);
+                    pkgSet('book_buy_ops_rate', rate);
+                    const opsPhp = v === 'PHP' ? bbBaseOps : bbBaseOps * rate;
+                    pkgSet('book_buy_required', opsPhp + bbPdPhp);
+                  }}>
+                    <SelectTrigger className="h-9 text-xs w-24 flex-shrink-0"><SelectValue /></SelectTrigger>
+                    <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{bbOpsSym}</span>
+                    <Input type="number" className="pl-7 h-9 text-sm" value={bbBaseOps || ''} onChange={e => {
+                      const v = Number(e.target.value);
+                      const opsPhp = bbOpsCurr === 'PHP' ? v : v * bbOpsRate;
+                      pkgSet('book_buy_base_ops', v);
+                      pkgSet('book_buy_required', opsPhp + bbPdPhp);
+                    }} />
+                  </div>
+                </div>
+                {bbOpsCurr !== 'PHP' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Rate → ₱</span>
+                    <Input type="number" className="h-8 text-xs" value={bbOpsRate || ''} onChange={e => {
+                      const v = Number(e.target.value);
+                      pkgSet('book_buy_ops_rate', v);
+                      pkgSet('book_buy_required', bbBaseOps * v + bbPdPhp);
+                    }} />
+                    {bbBaseOps > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bbBaseOps * bbOpsRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* PD */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-semibold text-rose-600">Product Dev (PD)</span>
+                <div className="flex gap-1.5">
+                  <Select value={bbPdCurr} onValueChange={v => {
+                    const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
+                    pkgSet('book_buy_pd_currency', v);
+                    pkgSet('book_buy_pd_rate', rate);
+                    const pdPhp = v === 'PHP' ? bbBasePD : bbBasePD * rate;
+                    pkgSet('book_buy_required', bbOpsPhp + pdPhp);
+                  }}>
+                    <SelectTrigger className="h-9 text-xs w-24 flex-shrink-0"><SelectValue /></SelectTrigger>
+                    <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{bbPdSym}</span>
+                    <Input type="number" className="pl-7 h-9 text-sm" value={bbBasePD || ''} onChange={e => {
+                      const v = Number(e.target.value);
+                      const pdPhp = bbPdCurr === 'PHP' ? v : v * bbPdRate;
+                      pkgSet('book_buy_base_pd', v);
+                      pkgSet('book_buy_required', bbOpsPhp + pdPhp);
+                    }} />
+                  </div>
+                </div>
+                {bbPdCurr !== 'PHP' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">Rate → ₱</span>
+                    <Input type="number" className="h-8 text-xs" value={bbPdRate || ''} onChange={e => {
+                      const v = Number(e.target.value);
+                      pkgSet('book_buy_pd_rate', v);
+                      pkgSet('book_buy_required', bbOpsPhp + bbBasePD * v);
+                    }} />
+                    {bbBasePD > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bbBasePD * bbPdRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Total Book & Pay (₱) — editable */}
+            <div className="flex flex-wrap gap-3 items-end">
+              <F label="Book & Pay (₱) per pax">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-rose-600">₱</span>
+                  <Input
+                    type="number"
+                    className="pl-7 h-9 text-sm font-bold border-rose-300 bg-rose-50 text-rose-700 w-40"
+                    value={(bbBase > 0 ? bbPHP : bb) || ''}
+                    onChange={e => pkgSet('book_buy_required', Number(e.target.value))}
+                  />
+                </div>
+              </F>
+              <F label="Fare Type">
+                <Select value={bbType} onValueChange={handleBbTypeChange}>
+                  <SelectTrigger className="h-9 text-xs w-48 border-rose-300 bg-rose-50 text-rose-700 font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Custom / Fixed Amount</SelectItem>
+                    <SelectItem value="100pct">
+                      100% of fare{sp > 0 ? ` — ₱${Math.round(sp).toLocaleString()}` : ''}
                     </SelectItem>
                   </SelectContent>
                 </Select>
