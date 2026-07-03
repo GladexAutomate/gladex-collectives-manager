@@ -33,6 +33,26 @@ const visaStatusConfig = {
 
 const SALES_READY_STATUSES = ['active', 'open_booking', 'confirmed_departure', 'ongoing'];
 
+// A departure within this many days no longer qualifies for a downpayment plan —
+// the client must Book & Buy (pay in full) since there isn't enough lead time to collect balance.
+const BOOK_AND_BUY_WINDOW_DAYS = 30;
+const daysUntil = (dateStr) => {
+  if (!dateStr) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.round((target - today) / (1000 * 60 * 60 * 24));
+};
+const isBookAndBuyDate = (dateStr) => {
+  const d = daysUntil(dateStr);
+  return d !== null && d <= BOOK_AND_BUY_WINDOW_DAYS;
+};
+// Per-date price override wins, falling back to the package-level selling price.
+const getDatePrice = (collective, dateStr) => {
+  if (!collective) return 0;
+  const date = collective.travel_dates?.find(d => d.departure_date === dateStr);
+  return (date?.selling_price || (date?.use_custom_pricing ? date?.rate_twin : null) || collective.selling_price || collective.rate_twin || 0);
+};
+
 export default function Sales() {
   const [bookings, setBookings] = useState([]);
   const [collectives, setCollectives] = useState([]);
@@ -44,6 +64,7 @@ export default function Sales() {
   const [showModal, setShowModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [formData, setFormData] = useState({});
+  const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [viewingProduct, setViewingProduct] = useState(null);
@@ -95,6 +116,17 @@ export default function Sales() {
     };
   }, []);
 
+  // Book & Buy is always paid in full, so auto-fill the Total Amount from the
+  // package's selling price instead of making the agent look it up and type it in.
+  useEffect(() => {
+    if (!isBookAndBuyBooking || !formData.collective_id || !formData.departure_date_option) return;
+    const collective = collectives.find(c => c.id === formData.collective_id);
+    const price = getDatePrice(collective, formData.departure_date_option) * (formData.pax_count || 1);
+    if (price > 0 && formData.total_amount !== price) {
+      setFormData(fd => ({ ...fd, total_amount: price }));
+    }
+  }, [isBookAndBuyBooking, formData.collective_id, formData.departure_date_option, formData.pax_count, collectives]);
+
   const openAdd = () => {
     setEditingBooking(null);
     setFormData({ status: 'inquiry', source: 'direct', visa_status: 'not_required', pax_count: 1 });
@@ -121,10 +153,22 @@ export default function Sales() {
       return;
     }
     setSaving(true);
+    // Book & Buy departures (within the 30-day window) always require full payment upfront —
+    // "Payment Received?" there means the full amount, so mirror it onto full_payment_paid/balance
+    // too, otherwise the booking would show as fully paid on one flag but still "pending" on the other.
+    const payload = isBookAndBuyDate(formData.departure_date_option)
+      ? {
+          ...formData,
+          downpayment_amount: formData.total_amount,
+          full_payment_paid: formData.downpayment_paid,
+          full_payment_date: formData.downpayment_paid ? (formData.full_payment_date || new Date().toISOString().slice(0, 10)) : formData.full_payment_date,
+          balance: formData.downpayment_paid ? 0 : formData.total_amount,
+        }
+      : formData;
     if (editingBooking) {
-      await base44.entities.Booking.update(editingBooking.id, formData);
+      await base44.entities.Booking.update(editingBooking.id, payload);
     } else {
-      await base44.entities.Booking.create(formData);
+      await base44.entities.Booking.create(payload);
     }
     setSaving(false);
     setShowModal(false);
@@ -876,7 +920,8 @@ export default function Sales() {
                         const depLabel = d.label || (d.departure_date ? new Date(d.departure_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : `Date ${i+1}`);
                         const retLabel = d.return_date ? ` → ${new Date(d.return_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '';
                         const slots = d.total_slots > 0 ? ` · ${(d.total_slots - (d.booked_slots||0))} slots left` : '';
-                        return <SelectItem key={i} value={d.departure_date}>{depLabel}{retLabel}{slots}</SelectItem>;
+                        const fareTag = isBookAndBuyDate(d.departure_date) ? ' · Book & Buy' : ' · Downpayment OK';
+                        return <SelectItem key={i} value={d.departure_date}>{depLabel}{retLabel}{slots}{fareTag}</SelectItem>;
                       })}
                     </SelectContent>
                   </Select>
@@ -922,23 +967,45 @@ export default function Sales() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Total Amount (₱)</Label>
-              <Input type="number" value={formData.total_amount || ''} onChange={e => setFormData({...formData, total_amount: Number(e.target.value)})} />
+              <Label>Total Amount (₱) {isBookAndBuyBooking && <span className="text-[10px] font-normal text-muted-foreground">(auto-filled from package price)</span>}</Label>
+              <Input type="number" value={formData.total_amount || ''} disabled={isBookAndBuyBooking} onChange={e => setFormData({...formData, total_amount: Number(e.target.value)})} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Downpayment (₱)</Label>
-              <Input type="number" value={formData.downpayment_amount || ''} onChange={e => setFormData({...formData, downpayment_amount: Number(e.target.value)})} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>DP Paid?</Label>
-              <Select value={formData.downpayment_paid ? 'yes' : 'no'} onValueChange={v => setFormData({...formData, downpayment_paid: v === 'yes'})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="no">No</SelectItem>
-                  <SelectItem value="yes">Yes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {(() => {
+              const bookAndBuy = isBookAndBuyBooking;
+              return (
+                <div className="md:col-span-2 space-y-1.5">
+                  {formData.departure_date_option && (
+                    <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold",
+                      bookAndBuy ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200")}>
+                      {bookAndBuy
+                        ? `⚠ Departure is within ${BOOK_AND_BUY_WINDOW_DAYS} days — Book & Buy required, full payment only.`
+                        : '✓ Downpayment plan available for this departure.'}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>{bookAndBuy ? 'Full Payment (₱)' : 'Downpayment (₱)'}</Label>
+                      <Input
+                        type="number"
+                        value={(bookAndBuy ? formData.total_amount : formData.downpayment_amount) || ''}
+                        disabled={bookAndBuy}
+                        onChange={e => setFormData({...formData, downpayment_amount: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{bookAndBuy ? 'Payment Received?' : 'DP Paid?'}</Label>
+                      <Select value={formData.downpayment_paid ? 'yes' : 'no'} onValueChange={v => setFormData({...formData, downpayment_paid: v === 'yes'})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="no">No</SelectItem>
+                          <SelectItem value="yes">Yes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="space-y-1.5">
               <Label>Full Payment Due</Label>
               <Input type="date" value={formData.full_payment_due || ''} onChange={e => setFormData({...formData, full_payment_due: e.target.value})} />
