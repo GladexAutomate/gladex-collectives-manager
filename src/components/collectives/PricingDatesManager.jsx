@@ -314,22 +314,23 @@ export default function PricingDatesManager({
   const dpBase       = dpBaseOps + dpBasePD;
   const dpPHP        = dpOpsPhp + dpPdPhp;
 
-  // Book & Buy (full payment) base fields — same Ops/PD-with-currency shape as the downpayment above
-  const bb           = isCollective ? (Number(form?.book_buy_required) || 0) : 0;
-  const bbOpsCurr    = isCollective ? (form?.book_buy_ops_currency || 'PHP') : 'PHP';
-  const bbOpsSym     = CURRENCIES.find(c => c.value === bbOpsCurr)?.symbol || '₱';
-  const bbOpsRate    = isCollective ? (Number(form?.book_buy_ops_rate) || 1) : 1;
-  const bbBaseOps    = isCollective ? (Number(form?.book_buy_base_ops) || 0) : 0;
-  const bbOpsPhp     = bbOpsCurr === 'PHP' ? bbBaseOps : bbBaseOps * bbOpsRate;
+  // Book & Buy base fields
+  const bnbOpsCurr = isCollective ? (form?.bnb_ops_currency || 'PHP') : 'PHP';
+  const bnbOpsSym  = CURRENCIES.find(c => c.value === bnbOpsCurr)?.symbol || '₱';
+  const bnbOpsRate = isCollective ? (Number(form?.bnb_ops_rate) || 1) : 1;
+  const bnbBaseOps = isCollective ? (Number(form?.bnb_base_ops) || 0) : 0;
+  const bnbOpsPhp  = bnbOpsCurr === 'PHP' ? bnbBaseOps : bnbBaseOps * bnbOpsRate;
 
-  const bbPdCurr     = isCollective ? (form?.book_buy_pd_currency || 'PHP') : 'PHP';
-  const bbPdSym      = CURRENCIES.find(c => c.value === bbPdCurr)?.symbol || '₱';
-  const bbPdRate     = isCollective ? (Number(form?.book_buy_pd_rate) || 1) : 1;
-  const bbBasePD     = isCollective ? (Number(form?.book_buy_base_pd) || 0) : 0;
-  const bbPdPhp      = bbPdCurr === 'PHP' ? bbBasePD : bbBasePD * bbPdRate;
+  const bnbPdCurr  = isCollective ? (form?.bnb_pd_currency || 'PHP') : 'PHP';
+  const bnbPdSym   = CURRENCIES.find(c => c.value === bnbPdCurr)?.symbol || '₱';
+  const bnbPdRate  = isCollective ? (Number(form?.bnb_pd_rate) || 1) : 1;
+  const bnbBasePD  = isCollective ? (Number(form?.bnb_base_pd) || 0) : 0;
+  const bnbPdPhp   = bnbPdCurr === 'PHP' ? bnbBasePD : bnbBasePD * bnbPdRate;
 
-  const bbBase       = bbBaseOps + bbBasePD;
-  const bbPHP        = bbOpsPhp + bbPdPhp;
+  const bnbBase    = bnbBaseOps + bnbBasePD;
+  const bnbPHP     = bnbOpsPhp + bnbPdPhp;
+  const bnbAmount  = isCollective ? (Number(form?.book_and_buy_amount) || 0) : 0;
+
   const useMarkupPct = isCollective ? form?._use_markup_pct : quote?.use_markup_pct;
   const markupPct = isCollective ? form?.markup_pct : quote?.markup_pct;
   const markupFixed = isCollective ? form?.markup_amount : quote?.markup_php;
@@ -373,19 +374,18 @@ export default function PricingDatesManager({
     if (val === '30pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.3));
   };
 
-  // ── Book & Buy (full payment) fare-type selector — same fixed/percent-of-fare pattern ──
-  const [bbType, setBbType] = useState(() => {
-    return collectiveId ? (localStorage.getItem(`bb_type_${collectiveId}`) || 'fixed') : 'fixed';
+  const [bnbType, setBnbType] = useState(() => {
+    return collectiveId ? (localStorage.getItem(`bnb_type_${collectiveId}`) || 'fixed') : 'fixed';
   });
   useEffect(() => {
-    if (collectiveId) {
-      setBbType(localStorage.getItem(`bb_type_${collectiveId}`) || 'fixed');
-    }
+    if (collectiveId) setBnbType(localStorage.getItem(`bnb_type_${collectiveId}`) || 'fixed');
   }, [collectiveId]);
-  const handleBbTypeChange = (val) => {
-    setBbType(val);
-    if (collectiveId) localStorage.setItem(`bb_type_${collectiveId}`, val);
-    if (val === '100pct' && sp > 0) pkgSet('book_buy_required', Math.round(sp));
+  const handleBnbTypeChange = (val) => {
+    setBnbType(val);
+    if (collectiveId) localStorage.setItem(`bnb_type_${collectiveId}`, val);
+    if (val === '50pct' && sp > 0) pkgSet('book_and_buy_amount', Math.round(sp * 0.5));
+    if (val === '30pct' && sp > 0) pkgSet('book_and_buy_amount', Math.round(sp * 0.3));
+    if (val === 'full' && sp > 0) pkgSet('book_and_buy_amount', Math.round(sp));
   };
 
   const [newDate, setNewDate] = useState(BLANK_DATE());
@@ -408,6 +408,9 @@ export default function PricingDatesManager({
         currency: 'currency', base_price_foreign: 'base_cost_foreign', exchange_rate: 'exchange_rate',
         markup_amount: 'markup_php', markup_pct: 'markup_pct', _use_markup_pct: 'use_markup_pct',
         commission_amount: 'commission_per_pax', downpayment_required: 'downpayment_required',
+        bnb_ops_currency: 'bnb_ops_currency', bnb_ops_rate: 'bnb_ops_rate', bnb_base_ops: 'bnb_base_ops',
+        bnb_pd_currency: 'bnb_pd_currency', bnb_pd_rate: 'bnb_pd_rate', bnb_base_pd: 'bnb_base_pd',
+        book_and_buy_amount: 'book_and_buy_amount',
         rate_twin: 'rate_twin', rate_twin_age_min: 'rate_twin_age_min', rate_twin_age_max: 'rate_twin_age_max',
         rate_triple: 'rate_triple', rate_triple_age_min: 'rate_triple_age_min', rate_triple_age_max: 'rate_triple_age_max',
         rate_quad: 'rate_quad', rate_quad_age_min: 'rate_quad_age_min', rate_quad_age_max: 'rate_quad_age_max',
@@ -837,46 +840,47 @@ Extract ALL rows. Do not skip any row that has a date.`,
             </div>
           </div>
 
-          {/* Row 5: Required Book & Pay (full payment) — manual, set here per package */}
+          {/* Row 5: Book & Buy */}
           <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-3 space-y-3">
-            <span className="text-xs font-bold text-rose-700">Required Book & Pay</span>
-            <p className="text-[10px] text-muted-foreground -mt-2">Full payment amount used when a departure falls inside the Book & Buy window (Sales applies this automatically).</p>
+            <div>
+              <span className="text-xs font-bold text-rose-700">Required Book & Pay</span>
+              <p className="text-[10px] text-rose-500 mt-0.5">Full payment amount used when a departure falls inside the Book & Buy window (Sales applies this automatically).</p>
+            </div>
 
-            {/* Ops + PD side by side, each with inline currency */}
             <div className="grid grid-cols-2 gap-3">
               {/* Ops */}
               <div className="space-y-1.5">
                 <span className="text-[11px] font-semibold text-rose-600">Operations (Ops)</span>
                 <div className="flex gap-1.5">
-                  <Select value={bbOpsCurr} onValueChange={v => {
+                  <Select value={bnbOpsCurr} onValueChange={v => {
                     const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
-                    pkgSet('book_buy_ops_currency', v);
-                    pkgSet('book_buy_ops_rate', rate);
-                    const opsPhp = v === 'PHP' ? bbBaseOps : bbBaseOps * rate;
-                    pkgSet('book_buy_required', opsPhp + bbPdPhp);
+                    pkgSet('bnb_ops_currency', v);
+                    pkgSet('bnb_ops_rate', rate);
+                    const opsPhp = v === 'PHP' ? bnbBaseOps : bnbBaseOps * rate;
+                    pkgSet('book_and_buy_amount', opsPhp + bnbPdPhp);
                   }}>
                     <SelectTrigger className="h-9 text-xs w-24 flex-shrink-0"><SelectValue /></SelectTrigger>
                     <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value}</SelectItem>)}</SelectContent>
                   </Select>
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{bbOpsSym}</span>
-                    <Input type="number" className="pl-7 h-9 text-sm" value={bbBaseOps || ''} onChange={e => {
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{bnbOpsSym}</span>
+                    <Input type="number" className="pl-7 h-9 text-sm" value={bnbBaseOps || ''} onChange={e => {
                       const v = Number(e.target.value);
-                      const opsPhp = bbOpsCurr === 'PHP' ? v : v * bbOpsRate;
-                      pkgSet('book_buy_base_ops', v);
-                      pkgSet('book_buy_required', opsPhp + bbPdPhp);
+                      const opsPhp = bnbOpsCurr === 'PHP' ? v : v * bnbOpsRate;
+                      pkgSet('bnb_base_ops', v);
+                      pkgSet('book_and_buy_amount', opsPhp + bnbPdPhp);
                     }} />
                   </div>
                 </div>
-                {bbOpsCurr !== 'PHP' && (
+                {bnbOpsCurr !== 'PHP' && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">Rate → ₱</span>
-                    <Input type="number" className="h-8 text-xs" value={bbOpsRate || ''} onChange={e => {
+                    <Input type="number" className="h-8 text-xs" value={bnbOpsRate || ''} onChange={e => {
                       const v = Number(e.target.value);
-                      pkgSet('book_buy_ops_rate', v);
-                      pkgSet('book_buy_required', bbBaseOps * v + bbPdPhp);
+                      pkgSet('bnb_ops_rate', v);
+                      pkgSet('book_and_buy_amount', bnbBaseOps * v + bnbPdPhp);
                     }} />
-                    {bbBaseOps > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bbBaseOps * bbOpsRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
+                    {bnbBaseOps > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bnbBaseOps * bnbOpsRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
                   </div>
                 )}
               </div>
@@ -885,41 +889,41 @@ Extract ALL rows. Do not skip any row that has a date.`,
               <div className="space-y-1.5">
                 <span className="text-[11px] font-semibold text-rose-600">Product Dev (PD)</span>
                 <div className="flex gap-1.5">
-                  <Select value={bbPdCurr} onValueChange={v => {
+                  <Select value={bnbPdCurr} onValueChange={v => {
                     const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
-                    pkgSet('book_buy_pd_currency', v);
-                    pkgSet('book_buy_pd_rate', rate);
-                    const pdPhp = v === 'PHP' ? bbBasePD : bbBasePD * rate;
-                    pkgSet('book_buy_required', bbOpsPhp + pdPhp);
+                    pkgSet('bnb_pd_currency', v);
+                    pkgSet('bnb_pd_rate', rate);
+                    const pdPhp = v === 'PHP' ? bnbBasePD : bnbBasePD * rate;
+                    pkgSet('book_and_buy_amount', bnbOpsPhp + pdPhp);
                   }}>
                     <SelectTrigger className="h-9 text-xs w-24 flex-shrink-0"><SelectValue /></SelectTrigger>
                     <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value}</SelectItem>)}</SelectContent>
                   </Select>
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{bbPdSym}</span>
-                    <Input type="number" className="pl-7 h-9 text-sm" value={bbBasePD || ''} onChange={e => {
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{bnbPdSym}</span>
+                    <Input type="number" className="pl-7 h-9 text-sm" value={bnbBasePD || ''} onChange={e => {
                       const v = Number(e.target.value);
-                      const pdPhp = bbPdCurr === 'PHP' ? v : v * bbPdRate;
-                      pkgSet('book_buy_base_pd', v);
-                      pkgSet('book_buy_required', bbOpsPhp + pdPhp);
+                      const pdPhp = bnbPdCurr === 'PHP' ? v : v * bnbPdRate;
+                      pkgSet('bnb_base_pd', v);
+                      pkgSet('book_and_buy_amount', bnbOpsPhp + pdPhp);
                     }} />
                   </div>
                 </div>
-                {bbPdCurr !== 'PHP' && (
+                {bnbPdCurr !== 'PHP' && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">Rate → ₱</span>
-                    <Input type="number" className="h-8 text-xs" value={bbPdRate || ''} onChange={e => {
+                    <Input type="number" className="h-8 text-xs" value={bnbPdRate || ''} onChange={e => {
                       const v = Number(e.target.value);
-                      pkgSet('book_buy_pd_rate', v);
-                      pkgSet('book_buy_required', bbOpsPhp + bbBasePD * v);
+                      pkgSet('bnb_pd_rate', v);
+                      pkgSet('book_and_buy_amount', bnbOpsPhp + bnbBasePD * v);
                     }} />
-                    {bbBasePD > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bbBasePD * bbPdRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
+                    {bnbBasePD > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bnbBasePD * bnbPdRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Total Book & Pay (₱) — editable */}
+            {/* Total Book & Pay + Fare Type */}
             <div className="flex flex-wrap gap-3 items-end">
               <F label="Book & Pay (₱) per pax">
                 <div className="relative">
@@ -927,21 +931,21 @@ Extract ALL rows. Do not skip any row that has a date.`,
                   <Input
                     type="number"
                     className="pl-7 h-9 text-sm font-bold border-rose-300 bg-rose-50 text-rose-700 w-40"
-                    value={(bbBase > 0 ? bbPHP : bb) || ''}
-                    onChange={e => pkgSet('book_buy_required', Number(e.target.value))}
+                    value={(bnbBase > 0 ? bnbPHP : bnbAmount) || ''}
+                    onChange={e => pkgSet('book_and_buy_amount', Number(e.target.value))}
                   />
                 </div>
               </F>
               <F label="Fare Type">
-                <Select value={bbType} onValueChange={handleBbTypeChange}>
+                <Select value={bnbType} onValueChange={handleBnbTypeChange}>
                   <SelectTrigger className="h-9 text-xs w-48 border-rose-300 bg-rose-50 text-rose-700 font-medium">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fixed">Custom / Fixed Amount</SelectItem>
-                    <SelectItem value="100pct">
-                      100% of fare{sp > 0 ? ` — ₱${Math.round(sp).toLocaleString()}` : ''}
-                    </SelectItem>
+                    <SelectItem value="50pct">50% of fare{sp > 0 ? ` — ₱${Math.round(sp * 0.5).toLocaleString()}` : ''}</SelectItem>
+                    <SelectItem value="30pct">30% of fare{sp > 0 ? ` — ₱${Math.round(sp * 0.3).toLocaleString()}` : ''}</SelectItem>
+                    <SelectItem value="full">Full fare{sp > 0 ? ` — ₱${sp.toLocaleString()}` : ''}</SelectItem>
                   </SelectContent>
                 </Select>
               </F>
