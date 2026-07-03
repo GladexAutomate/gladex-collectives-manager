@@ -84,10 +84,7 @@ export function formatPackageForCopy(pkg, packageCode = '') {
   if (pkg.slots_for_confirmation) parts.push('SLOT TYPE: For Confirmation (on-request)');
   if (Number(pkg.downpayment_required) > 0) {
     const dpAmt = Number(pkg.downpayment_required);
-    const spAmt = Number(pkg.selling_price) || 0;
-    const dpSuffix = spAmt > 0 && Math.abs(dpAmt - Math.round(spAmt * 0.5)) <= 1 ? ' (50% of fare)'
-                   : spAmt > 0 && Math.abs(dpAmt - Math.round(spAmt * 0.3)) <= 1 ? ' (30% of fare)' : '';
-    parts.push(`DOWNPAYMENT: ₱${dpAmt.toLocaleString()} per pax${dpSuffix}`);
+    parts.push(`DOWNPAYMENT: ₱${dpAmt.toLocaleString()} per pax`);
   }
 
   // ── TRAVEL DATES ──

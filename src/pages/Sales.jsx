@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate as useSalesNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Plus, Search, Users, RefreshCw, Edit, Package, MapPin, Plane, Calendar, Hotel, UtensilsCrossed, X, ChevronRight, ChevronDown, Clock, Star, FileText, AlertCircle, Info, Download, Globe, Navigation } from 'lucide-react';
 import { broadcastRefresh } from '@/lib/dataSync';
@@ -74,6 +75,20 @@ export default function Sales() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null); // 'international' | 'domestic'
   const [openDestination, setOpenDestination] = useState(null);
+  const [salesView, setSalesView] = useState('packages'); // 'packages' | 'bookings'
+
+  // ── Deep-link: pre-populate search from global search bar ─────────────────
+  const location = useLocation();
+  const salesNavigate = useSalesNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const searchParam = params.get('search');
+    if (searchParam) {
+      setPkgSearch(searchParam);
+      salesNavigate('/sales', { replace: true });
+    }
+  }, [location.search]);
 
   const loadData = async () => {
     try {
@@ -199,13 +214,14 @@ export default function Sales() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold font-jakarta text-foreground">Sales & Reservations</h2>
           <p className="text-sm text-muted-foreground">Manage all bookings and client reservations</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5 text-xs">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </Button>
@@ -215,10 +231,43 @@ export default function Sales() {
         </div>
       </div>
 
+      {/* ── View Toggle ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 p-1 bg-muted/60 rounded-xl border border-border w-fit">
+        {[
+          { key: 'packages', icon: Package, label: 'Packages', count: null },
+          { key: 'bookings', icon: Users, label: 'Bookings', count: bookings.length },
+        ].map(v => (
+          <button
+            key={v.key}
+            onClick={() => setSalesView(v.key)}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap",
+              salesView === v.key
+                ? "bg-card text-foreground shadow-sm border border-border/60"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <v.icon className="w-4 h-4" />
+            {v.label}
+            {v.count != null && v.count > 0 && (
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                salesView === v.key ? "bg-orange-100 text-orange-600" : "bg-muted text-muted-foreground"
+              )}>
+                {v.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── PACKAGES VIEW ───────────────────────────────────────────────── */}
+      {salesView === 'packages' && <>
+
       {/* ── Package Code Search ─────────────────────────────────────────── */}
       <div className="relative">
-        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-violet-400 focus-within:border-violet-400 transition-all">
-          <Search className="w-4 h-4 text-violet-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-orange-400 transition-all">
+          <Search className="w-4 h-4 text-orange-400 flex-shrink-0" />
           <input
             value={pkgSearch}
             onChange={e => setPkgSearch(e.target.value.replace(/[^a-zA-Z0-9\-=_]/g, ''))}
@@ -248,19 +297,13 @@ export default function Sales() {
         const domGroups  = groupByDest(domPkgs);
         const currentGroups = selectedCategory === 'international' ? intlGroups : domGroups;
 
-        const tilt = (e) => {
-          const card = e.currentTarget;
-          const r = card.getBoundingClientRect();
-          const x = e.clientX - r.left, y = e.clientY - r.top;
-          const cx = r.width / 2, cy = r.height / 2;
-          const rx = (cy - y) / 10, ry = (x - cx) / 10;
-          card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(14px) scale(1.03)`;
-          card.style.boxShadow = `${ry * 2.5}px ${-rx * 2.5}px 45px rgba(0,0,0,0.4)`;
+        const hoverLift = (e) => {
+          e.currentTarget.style.transform = 'translateY(-5px) scale(1.015)';
+          e.currentTarget.style.boxShadow = '0 20px 50px rgba(0,0,0,0.28)';
         };
-        const untilt = (e) => {
-          const card = e.currentTarget;
-          card.style.transform = 'perspective(900px) rotateX(0) rotateY(0) translateZ(0) scale(1)';
-          card.style.boxShadow = '';
+        const hoverReset = (e) => {
+          e.currentTarget.style.transform = '';
+          e.currentTarget.style.boxShadow = '';
         };
 
         const PackageCard = ({ c }) => {
@@ -278,7 +321,7 @@ export default function Sales() {
             <div
               key={c.id}
               onClick={() => setViewingProduct(c)}
-              className="bg-card border border-border rounded-xl overflow-hidden hover:border-violet-400 hover:shadow-xl transition-all cursor-pointer group"
+              className="bg-card border border-border rounded-xl overflow-hidden hover:border-orange-400 hover:shadow-xl transition-all cursor-pointer group"
             >
               <div className="w-full min-h-[150px] max-h-[220px] bg-muted/30 flex items-center justify-center overflow-hidden relative">
                 {heroImage
@@ -293,7 +336,7 @@ export default function Sales() {
                 <span className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-orange-500 text-white shadow">For Sale</span>
               </div>
               <div className="p-3">
-                <p className="text-sm font-bold text-foreground group-hover:text-violet-600 transition-colors line-clamp-2 leading-snug">{c.name}</p>
+                <p className="text-sm font-bold text-foreground group-hover:text-orange-600 transition-colors line-clamp-2 leading-snug">{c.name}</p>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {c.nights && <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground"><Clock className="w-3 h-3" />{c.nights}N</span>}
                   {c.travel_dates?.length > 0
@@ -308,10 +351,10 @@ export default function Sales() {
                       : <p className="text-xs text-muted-foreground">See pricing</p>
                     }
                     {cardDp > 0 && (
-                      <p className="text-[10px] text-purple-600 font-semibold mt-0.5">DP: ₱{cardDp.toLocaleString()} per pax{cardDpLabel}</p>
+                      <p className="text-[10px] text-sky-600 font-semibold mt-0.5">DP: ₱{cardDp.toLocaleString()} per pax{cardDpLabel}</p>
                     )}
                   </div>
-                  <span className="text-[10px] text-violet-500 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">View <ChevronRight className="w-3 h-3" /></span>
+                  <span className="text-[10px] text-sky-500 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">View <ChevronRight className="w-3 h-3" /></span>
                 </div>
               </div>
             </div>
@@ -319,17 +362,20 @@ export default function Sales() {
         };
 
         // ── Destination sub-cards (level 2) ──────────────────────────────────
-        const DestCard = ({ dest, pkgs, onClick, isSelected }) => {
+        const DestCard = ({ dest, pkgs, onClick, isSelected, variant }) => {
           const soonest = pkgs.flatMap(p => (p.travel_dates || []).map(d => d.departure_date).concat(p.departure_date || [])).filter(Boolean).sort()[0];
+          const destBg = variant === 'domestic'
+            ? 'linear-gradient(135deg, #431407 0%, #9a3412 50%, #ea580c 100%)'
+            : 'linear-gradient(135deg, #0c1445 0%, #1e3a8a 50%, #2563eb 100%)';
           return (
             <div
               className="cursor-pointer rounded-xl overflow-hidden"
               style={{ transition: 'transform 0.15s ease, box-shadow 0.15s ease', outline: isSelected ? '2.5px solid #f97316' : 'none', outlineOffset: '2px' }}
-              onMouseMove={tilt} onMouseLeave={untilt}
+              onMouseEnter={hoverLift} onMouseLeave={hoverReset}
               onClick={onClick}
             >
               <div className="relative h-32 flex flex-col justify-between p-3 overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #3b0764 0%, #6d28d9 50%, #7c3aed 100%)' }}>
+                style={{ background: destBg }}>
                 <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 75% 25%, rgba(255,255,255,0.15), transparent 60%)' }} />
                 <span className="self-start text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full relative z-10"
                   style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)' }}>
@@ -358,9 +404,12 @@ export default function Sales() {
         // ── Package search results (flat view when searching by pkg code) ──
         const allLocalCodes = pkgCodeStore.getAll();
         const searchQ = pkgSearch.toLowerCase().trim();
-        const matchingPkgs = searchQ.length >= 2 ? salesPkgs.filter(p => {
+        // Search ALL collectives (not just sales-ready) so no package slips through
+        const matchingPkgs = searchQ.length >= 1 ? collectives.filter(p => {
           const code = p.package_code || allLocalCodes[p.id] || '';
-          return code.toLowerCase().includes(searchQ) || p.name?.toLowerCase().includes(searchQ);
+          return code.toLowerCase().includes(searchQ)
+            || p.name?.toLowerCase().includes(searchQ)
+            || p.destination?.toLowerCase().includes(searchQ);
         }) : [];
 
         return (
@@ -373,7 +422,7 @@ export default function Sales() {
             `}</style>
 
             {/* Package code search results */}
-            {searchQ.length >= 2 && (
+            {searchQ.length >= 1 && (
               <div className="space-y-3">
                 {matchingPkgs.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -388,16 +437,16 @@ export default function Sales() {
               </div>
             )}
 
-            <div className={searchQ.length >= 2 ? 'hidden' : 'space-y-5'}>
+            <div className={searchQ.length >= 1 ? 'hidden' : 'space-y-5'}>
               {/* ── LEVEL 1: Category cards ──────────────────────────────── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {[
                   { key: 'international', label: 'International', emoji: '🌏', stats: intlStats,
-                    bg: 'linear-gradient(135deg, #1e0a3c 0%, #4c1d95 35%, #6d28d9 65%, #7c3aed 100%)',
-                    glow: 'rgba(139,92,246,0.5)', orbitClass: 'plane-cw', planeStyle: '✈️' },
+                    bg: 'linear-gradient(135deg, #0a1628 0%, #1e3a8a 35%, #1d4ed8 65%, #3b82f6 100%)',
+                    glow: 'rgba(59,130,246,0.6)', orbitClass: 'plane-cw', planeStyle: '✈️' },
                   { key: 'domestic', label: 'Domestic', emoji: '🇵🇭', stats: domStats,
-                    bg: 'linear-gradient(135deg, #200e3a 0%, #5b21b6 35%, #7c3aed 65%, #a855f7 100%)',
-                    glow: 'rgba(168,85,247,0.5)', orbitClass: 'plane-ccw', planeStyle: '🛩️' },
+                    bg: 'linear-gradient(135deg, #431407 0%, #9a3412 35%, #c2410c 65%, #f97316 100%)',
+                    glow: 'rgba(249,115,22,0.6)', orbitClass: 'plane-ccw', planeStyle: '🛩️' },
                 ].map(cat => {
                   const isActive = selectedCategory === cat.key;
                   return (
@@ -405,7 +454,7 @@ export default function Sales() {
                       key={cat.key}
                       className="cursor-pointer rounded-2xl overflow-hidden"
                       style={{ transition: 'transform 0.15s ease, box-shadow 0.15s ease', outline: isActive ? '3px solid #f97316' : 'none', outlineOffset: '3px' }}
-                      onMouseMove={tilt} onMouseLeave={untilt}
+                      onMouseEnter={hoverLift} onMouseLeave={hoverReset}
                       onClick={() => { setSelectedCategory(isActive ? null : cat.key); setOpenDestination(null); }}
                     >
                       <div className="relative h-56 flex flex-col justify-between p-6 overflow-hidden" style={{ background: cat.bg }}>
@@ -476,20 +525,21 @@ export default function Sales() {
                         <DestCard
                           key={dest} dest={dest} pkgs={currentGroups[dest]}
                           isSelected={openDestination === dest}
+                          variant={selectedCategory}
                           onClick={() => setOpenDestination(openDestination === dest ? null : dest)}
                         />
                       ))}
                       {/* Manual booking card */}
                       <div
-                        className="cursor-pointer rounded-xl border-2 border-dashed border-border h-32 flex flex-col items-center justify-center gap-1.5 hover:border-violet-400 hover:bg-violet-50/50 dark:hover:bg-violet-950/10 transition-all group"
+                        className="cursor-pointer rounded-xl border-2 border-dashed border-border h-32 flex flex-col items-center justify-center gap-1.5 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-all group"
                         style={{ transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
-                        onMouseMove={tilt} onMouseLeave={untilt}
+                        onMouseEnter={hoverLift} onMouseLeave={hoverReset}
                         onClick={openAdd}
                       >
-                        <div className="w-9 h-9 rounded-xl bg-muted group-hover:bg-violet-100 dark:group-hover:bg-violet-950/30 flex items-center justify-center transition-colors">
-                          <Plus className="w-4 h-4 text-muted-foreground group-hover:text-violet-500 transition-colors" />
+                        <div className="w-9 h-9 rounded-xl bg-muted group-hover:bg-orange-100 dark:group-hover:bg-orange-950/30 flex items-center justify-center transition-colors">
+                          <Plus className="w-4 h-4 text-muted-foreground group-hover:text-orange-500 transition-colors" />
                         </div>
-                        <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-violet-600 transition-colors">New Booking</span>
+                        <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-orange-600 transition-colors">New Booking</span>
                       </div>
                     </div>
                   )}
@@ -501,9 +551,9 @@ export default function Sales() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-border" />
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-violet-700 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-sky-700 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800">
                       <MapPin className="w-3 h-3" /> {openDestination}
-                      <span className="font-normal text-violet-400">· {currentGroups[openDestination].length} package{currentGroups[openDestination].length !== 1 ? 's' : ''}</span>
+                      <span className="font-normal text-sky-400">· {currentGroups[openDestination].length} package{currentGroups[openDestination].length !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="h-px flex-1 bg-border" />
                   </div>
@@ -517,7 +567,9 @@ export default function Sales() {
         );
       })()}
 
-      {/* Product Detail Modal */}
+      </> /* end packages view */}
+
+      {/* Product Detail Modal — always mounted so it works from both views */}
       <Dialog open={!!viewingProduct} onOpenChange={open => !open && setViewingProduct(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
           <VisuallyHidden><DialogTitle>Package Details</DialogTitle></VisuallyHidden>
@@ -827,6 +879,9 @@ export default function Sales() {
         </DialogContent>
       </Dialog>
 
+      {/* ── BOOKINGS VIEW ───────────────────────────────────────────────── */}
+      {salesView === 'bookings' && <>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {summaryStats.map((s, i) => (
@@ -932,6 +987,8 @@ export default function Sales() {
           </div>
         </div>
       )}
+
+      </> /* end bookings view */}
 
       {/* Add/Edit Booking Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>

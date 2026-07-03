@@ -200,8 +200,14 @@ export default function GlobalSearch() {
   const categories = [...new Set(results.map(r => r.type))];
 
   const handleSelect = (result) => {
-    const cfg = CATEGORY_CONFIG[result.type];
-    if (cfg) navigate(cfg.path);
+    if (result.type === 'collective') {
+      // Navigate to Sales and pre-populate the package search bar with the current query
+      // — cards will appear immediately without any extra click
+      navigate(`/sales?search=${encodeURIComponent(query)}`);
+    } else {
+      const cfg = CATEGORY_CONFIG[result.type];
+      if (cfg) navigate(cfg.path);
+    }
     setOpen(false);
     setQuery('');
   };

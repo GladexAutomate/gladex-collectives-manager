@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, Trash2, Calendar, Users, AlertTriangle, ChevronDown, ChevronUp, DollarSign, Sparkles, Upload, Loader2, CheckCircle, X, Image } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -338,6 +338,23 @@ export default function PricingDatesManager({
     rate_infant: form?.rate_infant, rate_infant_age_min: form?.rate_infant_age_min, rate_infant_age_max: form?.rate_infant_age_max,
     selling_price: sp,
   } : {};
+
+  // ── Downpayment fare-type selector ──
+  const collectiveId = form?.id || '';
+  const [dpType, setDpType] = useState(() => {
+    return collectiveId ? (localStorage.getItem(`dp_type_${collectiveId}`) || 'fixed') : 'fixed';
+  });
+  useEffect(() => {
+    if (collectiveId) {
+      setDpType(localStorage.getItem(`dp_type_${collectiveId}`) || 'fixed');
+    }
+  }, [collectiveId]);
+  const handleDpTypeChange = (val) => {
+    setDpType(val);
+    if (collectiveId) localStorage.setItem(`dp_type_${collectiveId}`, val);
+    if (val === '50pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.5));
+    if (val === '30pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.3));
+  };
 
   const [newDate, setNewDate] = useState(BLANK_DATE());
   const [addError, setAddError] = useState('');
@@ -757,35 +774,33 @@ Extract ALL rows. Do not skip any row that has a date.`,
             </div>
 
             {/* Total Downpayment (₱) — editable */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="flex flex-wrap gap-3 items-end">
               <F label="Downpayment (₱) per pax">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600">₱</span>
                   <Input
                     type="number"
-                    className="pl-7 h-9 text-sm font-bold border-purple-300 bg-purple-50 text-purple-700"
+                    className="pl-7 h-9 text-sm font-bold border-purple-300 bg-purple-50 text-purple-700 w-40"
                     value={(dpBase > 0 ? dpPHP : dp) || ''}
                     onChange={e => pkgSet('downpayment_required', Number(e.target.value))}
                   />
                 </div>
-                <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => pkgSet('downpayment_required', Math.round(sp * 0.5))}
-                    className="text-[10px] px-2 py-1 rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 font-medium transition-colors"
-                    title="Set downpayment to 50% of selling price"
-                  >
-                    50% of fare {sp > 0 ? `= ₱${Math.round(sp * 0.5).toLocaleString()}` : ''}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => pkgSet('downpayment_required', Math.round(sp * 0.3))}
-                    className="text-[10px] px-2 py-1 rounded-md bg-purple-100 text-purple-700 hover:bg-purple-200 font-medium transition-colors"
-                    title="Set downpayment to 30% of selling price"
-                  >
-                    30% {sp > 0 ? `= ₱${Math.round(sp * 0.3).toLocaleString()}` : ''}
-                  </button>
-                </div>
+              </F>
+              <F label="Fare Type">
+                <Select value={dpType} onValueChange={handleDpTypeChange}>
+                  <SelectTrigger className="h-9 text-xs w-48 border-purple-300 bg-purple-50 text-purple-700 font-medium">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Custom / Fixed Amount</SelectItem>
+                    <SelectItem value="50pct">
+                      50% of fare{sp > 0 ? ` — ₱${Math.round(sp * 0.5).toLocaleString()}` : ''}
+                    </SelectItem>
+                    <SelectItem value="30pct">
+                      30% of fare{sp > 0 ? ` — ₱${Math.round(sp * 0.3).toLocaleString()}` : ''}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </F>
             </div>
           </div>
