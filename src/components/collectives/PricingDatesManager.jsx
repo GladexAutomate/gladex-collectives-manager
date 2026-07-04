@@ -938,16 +938,6 @@ Extract ALL rows. Do not skip any row that has a date.`,
                 </div>
               )}
 
-              {/* Book & Buy: full fare indicator */}
-              {dpType === 'book_buy' && (
-                <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-purple-100 dark:bg-purple-950/30 border border-purple-300">
-                  <span className="text-xs font-semibold text-purple-700">Full Fare Required</span>
-                  {sp > 0 && (
-                    <span className="text-sm font-black text-purple-700">₱{Math.round(sp).toLocaleString()}</span>
-                  )}
-                  <span className="text-[10px] text-purple-500 ml-auto">Sales charges full amount for close departures</span>
-                </div>
-              )}
             </div>
           </div>
 
