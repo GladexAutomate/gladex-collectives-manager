@@ -20,10 +20,10 @@ export default function Reports() {
       base44.entities.Payment.list(),
       base44.entities.Survey.list(),
     ]).then(([c, b, p, s]) => {
-      setCollectives(c);
-      setBookings(b);
-      setPayments(p);
-      setSurveys(s);
+      setCollectives(Array.isArray(c) ? c : []);
+      setBookings(Array.isArray(b) ? b : []);
+      setPayments(Array.isArray(p) ? p : []);
+      setSurveys(Array.isArray(s) ? s : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);

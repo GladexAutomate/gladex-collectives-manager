@@ -70,14 +70,14 @@ export default function Marketing() {
       base44.entities.MarketingAsset.list('-created_date'),
       base44.entities.Collective.list('-created_date'),
     ]).then(([a, c]) => {
-      setAssets(a);
-      setCollectives(c);
+      setAssets(Array.isArray(a) ? a : []);
+      setCollectives(Array.isArray(c) ? c : []);
       setLoading(false);
     }).catch(() => setLoading(false));
     base44.entities.ChecklistTask.list()
       .then(tasks => {
         const mkIds = new Set(
-          tasks.filter(t => t.department === 'marketing').map(t => t.collective_id).filter(Boolean)
+          (Array.isArray(tasks) ? tasks : []).filter(t => t.department === 'marketing').map(t => t.collective_id).filter(Boolean)
         );
         setMkCollectiveIds(mkIds);
       })
@@ -92,8 +92,8 @@ export default function Marketing() {
           base44.entities.MarketingAsset.list('-created_date'),
           base44.entities.Collective.list('-created_date'),
         ]);
-        setAssets(a);
-        setCollectives(c);
+        setAssets(Array.isArray(a) ? a : []);
+        setCollectives(Array.isArray(c) ? c : []);
       } finally {
         refreshing = false;
       }
@@ -172,8 +172,8 @@ export default function Marketing() {
       base44.entities.MarketingAsset.list('-created_date'),
       base44.entities.Collective.list('-created_date'),
     ]);
-    setAssets(a);
-    setCollectives(c);
+    setAssets(Array.isArray(a) ? a : []);
+    setCollectives(Array.isArray(c) ? c : []);
   };
 
   const handleDelete = async (asset) => {

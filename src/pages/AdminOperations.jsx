@@ -71,7 +71,7 @@ export default function AdminOperations() {
       base44.entities.Payment.list('-created_date'),
       base44.entities.Collective.list(),
     ]).then(([b, p, c]) => {
-      setBookings(b); setPayments(p); setCollectives(c); setLoading(false);
+      setBookings(Array.isArray(b) ? b : []); setPayments(Array.isArray(p) ? p : []); setCollectives(Array.isArray(c) ? c : []); setLoading(false);
     }).catch(() => setLoading(false));
   };
 

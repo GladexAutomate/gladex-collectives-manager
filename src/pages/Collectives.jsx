@@ -25,8 +25,8 @@ export default function Collectives() {
       base44.entities.Collective.list('-created_date'),
       base44.entities.MarketingAsset.list(),
     ]).then(([colls, assets]) => {
-      setCollectives(colls);
-      setMarketingAssets(assets);
+      setCollectives(Array.isArray(colls) ? colls : []);
+      setMarketingAssets(Array.isArray(assets) ? assets : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };

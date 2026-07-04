@@ -42,9 +42,9 @@ export default function Payments() {
       base44.entities.Booking.list(),
       base44.entities.Collective.list(),
     ]).then(([p, b, c]) => {
-      setPayments(p);
-      setBookings(b);
-      setCollectives(c);
+      setPayments(Array.isArray(p) ? p : []);
+      setBookings(Array.isArray(b) ? b : []);
+      setCollectives(Array.isArray(c) ? c : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };

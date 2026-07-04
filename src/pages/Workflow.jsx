@@ -113,16 +113,16 @@ export default function Workflow() {
 
   // Load collectives list on mount
   useEffect(() => {
-    base44.entities.Collective.list('-updated_date', 100).then(setCollectives).catch(() => {});
+    base44.entities.Collective.list('-updated_date', 100).then(data => setCollectives(Array.isArray(data) ? data : [])).catch(() => {});
     base44.entities.ChecklistTask.list()
-      .then(tasks => setCollectivesWithTasks(new Set(tasks.map(t => t.collective_id).filter(Boolean))))
+      .then(tasks => setCollectivesWithTasks(new Set((Array.isArray(tasks) ? tasks : []).map(t => t.collective_id).filter(Boolean))))
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     const cid = params.get('collective');
     if (cid) setSelectedCollective(cid);
     // Refresh collectives list when other pages make changes
     const onRefresh = () => {
-      base44.entities.Collective.list('-updated_date', 100).then(setCollectives).catch(() => {});
+      base44.entities.Collective.list('-updated_date', 100).then(data => setCollectives(Array.isArray(data) ? data : [])).catch(() => {});
     };
     window.addEventListener('gladex:refresh', onRefresh);
     return () => window.removeEventListener('gladex:refresh', onRefresh);
@@ -141,7 +141,7 @@ export default function Workflow() {
     base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
       .then(data => {
         if (cancelled) return;
-        setTasks(data);
+        setTasks(Array.isArray(data) ? data : []);
         setTasksLoading(false);
       })
       .catch(() => {
@@ -159,7 +159,7 @@ export default function Workflow() {
     setRegenerating(true);
     try {
       const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
-      setTasks(fresh);
+      setTasks(Array.isArray(fresh) ? fresh : []);
     } finally {
       setRegenerating(false);
     }
@@ -410,7 +410,7 @@ export default function Workflow() {
           <Button size="sm" variant="outline" onClick={() => {
             setTasksError(null); setTasksLoading(true);
             base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
-              .then(d => { setTasks(d); setTasksLoading(false); })
+              .then(d => { setTasks(Array.isArray(d) ? d : []); setTasksLoading(false); })
               .catch(() => { setTasksError('Unable to load checklist. Please try again.'); setTasksLoading(false); });
           }}>Retry</Button>
         </div>
@@ -540,7 +540,7 @@ export default function Workflow() {
                 setTasksError(null);
                 setTasksLoading(true);
                 base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
-                  .then(d => { setTasks(d); setTasksLoading(false); })
+                  .then(d => { setTasks(Array.isArray(d) ? d : []); setTasksLoading(false); })
                   .catch(() => { setTasksError('Unable to load checklist. Please try again.'); setTasksLoading(false); });
               }}
               onToggle={handleTaskToggle}

@@ -46,8 +46,8 @@ export default function Feedback() {
       base44.entities.Survey.list('-created_date'),
       base44.entities.Collective.list(),
     ]).then(([s, c]) => {
-      setSurveys(s);
-      setCollectives(c);
+      setSurveys(Array.isArray(s) ? s : []);
+      setCollectives(Array.isArray(c) ? c : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };

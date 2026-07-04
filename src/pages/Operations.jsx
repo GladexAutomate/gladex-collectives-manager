@@ -12,7 +12,7 @@ export default function Operations() {
 
   useEffect(() => {
     base44.entities.Collective.list().then(data => {
-      setCollectives(data.filter(c => ['ongoing', 'active', 'launched'].includes(c.status)));
+      setCollectives((Array.isArray(data) ? data : []).filter(c => ['ongoing', 'active', 'launched'].includes(c.status)));
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);

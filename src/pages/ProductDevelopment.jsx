@@ -39,9 +39,9 @@ export default function ProductDevelopment() {
       base44.entities.MarketingAsset.list(),
       base44.entities.Booking.list(),
     ]).then(([cols, assets, bkgs]) => {
-      setCollectives(cols);
-      setMarketingAssets(assets);
-      setBookings(bkgs);
+      setCollectives(Array.isArray(cols) ? cols : []);
+      setMarketingAssets(Array.isArray(assets) ? assets : []);
+      setBookings(Array.isArray(bkgs) ? bkgs : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
@@ -51,7 +51,7 @@ export default function ProductDevelopment() {
     base44.entities.ChecklistTask.list()
       .then(tasks => {
         const pdIds = new Set(
-          tasks.filter(t => t.department === 'product_development').map(t => t.collective_id).filter(Boolean)
+          (Array.isArray(tasks) ? tasks : []).filter(t => t.department === 'product_development').map(t => t.collective_id).filter(Boolean)
         );
         setPdCollectiveIds(pdIds);
       })
@@ -172,7 +172,7 @@ export default function ProductDevelopment() {
       {activeTab === 'ezquote' && (
         <EZQuoteWorkspace
           collectives={collectives}
-          onCollectivesChange={() => base44.entities.Collective.list('-created_date').then(setCollectives)}
+          onCollectivesChange={() => base44.entities.Collective.list('-created_date').then(data => setCollectives(Array.isArray(data) ? data : []))}
         />
       )}
     </div>

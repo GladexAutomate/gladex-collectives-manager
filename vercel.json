@@ -1,6 +1,12 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "build": {
+    "env": {
+      "VITE_BASE44_APP_ID": "6a02de8b1ffe6ae63146992c",
+      "VITE_BASE44_APP_BASE_URL": "https://gladex-collective-flow.base44.app"
+    }
+  },
   "routes": [
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }

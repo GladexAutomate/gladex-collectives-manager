@@ -43,7 +43,7 @@ export default function Documents() {
 
   const loadDocs = () => {
     base44.entities.Document.list('-created_date').then(data => {
-      setDocuments(data);
+      setDocuments(Array.isArray(data) ? data : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
