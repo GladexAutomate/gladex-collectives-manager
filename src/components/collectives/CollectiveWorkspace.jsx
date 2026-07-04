@@ -59,6 +59,7 @@ const BLANK = () => ({
   book_buy_required: 0,
   book_buy_base_ops: 0, book_buy_ops_currency: 'PHP', book_buy_ops_rate: 1,
   book_buy_base_pd: 0, book_buy_pd_currency: 'PHP', book_buy_pd_rate: 1,
+  dp_type: 'fixed',
   rate_twin: '', rate_twin_age_min: '', rate_twin_age_max: '',
   rate_triple: '', rate_triple_age_min: '', rate_triple_age_max: '',
   rate_quad: '', rate_quad_age_min: '', rate_quad_age_max: '',
@@ -262,6 +263,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       book_buy_base_pd: Number(f.book_buy_base_pd) || undefined,
       book_buy_pd_currency: f.book_buy_pd_currency || undefined,
       book_buy_pd_rate: Number(f.book_buy_pd_rate) || undefined,
+      dp_type: f.dp_type || 'fixed',
       // nRate: drops blank/null but keeps 0 (valid age min)
       ...((() => {
         const nRate = v => (v === '' || v == null) ? undefined : Number(v);
@@ -365,6 +367,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       book_buy_base_ops: c.book_buy_base_ops || 0,
       book_buy_ops_currency: c.book_buy_ops_currency || 'PHP',
       book_buy_ops_rate: c.book_buy_ops_rate || 1,
+      dp_type: c.dp_type || 'fixed',
       book_buy_base_pd: c.book_buy_base_pd || 0,
       book_buy_pd_currency: c.book_buy_pd_currency || 'PHP',
       book_buy_pd_rate: c.book_buy_pd_rate || 1,

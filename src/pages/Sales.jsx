@@ -73,7 +73,8 @@ export default function Sales() {
   const [showModal, setShowModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [formData, setFormData] = useState({});
-  const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option);
+  const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option) || modalCollective?.dp_type === 'book_buy';
+  const modalCollective = collectives.find(c => c.id === formData.collective_id);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [viewingProduct, setViewingProduct] = useState(null);
@@ -142,16 +143,21 @@ export default function Sales() {
     };
   }, []);
 
-  // Book & Buy is always paid in full, so auto-fill the Total Amount from the package's
-  // "Required Book & Pay" amount (Collectives) if set, otherwise its selling price.
+  // Auto-fill payment amounts when collective or departure changes (new bookings only).
   useEffect(() => {
-    if (!isBookAndBuyBooking || !formData.collective_id || !formData.departure_date_option) return;
+    if (editingBooking || !formData.collective_id) return;
     const collective = collectives.find(c => c.id === formData.collective_id);
-    const price = getBookAndBuyPrice(collective, formData.departure_date_option) * (formData.pax_count || 1);
-    if (price > 0 && formData.total_amount !== price) {
-      setFormData(fd => ({ ...fd, total_amount: price }));
+    if (!collective) return;
+    const pax = formData.pax_count || 1;
+    const bnb = isBookAndBuyDate(formData.departure_date_option) || collective.dp_type === 'book_buy';
+    if (bnb) {
+      const price = getBookAndBuyPrice(collective, formData.departure_date_option) * pax;
+      if (price > 0) setFormData(fd => ({ ...fd, total_amount: price, downpayment_amount: price }));
+    } else {
+      const dp = Number(collective.downpayment_required) || 0;
+      if (dp > 0) setFormData(fd => ({ ...fd, downpayment_amount: dp * pax }));
     }
-  }, [isBookAndBuyBooking, formData.collective_id, formData.departure_date_option, formData.pax_count, collectives]);
+  }, [editingBooking, formData.collective_id, formData.departure_date_option, formData.pax_count, collectives]);
 
   const openAdd = () => {
     setEditingBooking(null);
@@ -323,8 +329,8 @@ export default function Sales() {
           const totalAssets = marketingAssets.filter(a => a.collective_id === c.id).length;
           const hasPD = collectivesWithTasks.has(c.id);
           const cardDp = Number(c.downpayment_required) || 0;
-          const cardSp = Number(c.selling_price) || 0;
-          const cardDpLabel = cardDp > 0 && cardSp > 0 ? (Math.abs(cardDp - Math.round(cardSp * 0.5)) <= 1 ? ' · 50% of fare' : Math.abs(cardDp - Math.round(cardSp * 0.3)) <= 1 ? ' · 30% of fare' : '') : '';
+          const cardDpType = c.dp_type || 'fixed';
+          const cardDpLabel = cardDpType === '50pct' ? ' · 50% of fare' : cardDpType === '30pct' ? ' · 30% of fare' : '';
           return (
             <div
               key={c.id}
@@ -358,9 +364,10 @@ export default function Sales() {
                       ? <p className="text-sm font-bold text-orange-600">₱{Number(c.rate_twin || c.selling_price).toLocaleString()}<span className="text-[10px] font-normal text-muted-foreground ml-1">/twin</span></p>
                       : <p className="text-xs text-muted-foreground">See pricing</p>
                     }
-                    {cardDp > 0 && (
-                      <p className="text-[10px] text-sky-600 font-semibold mt-0.5">DP: ₱{cardDp.toLocaleString()} per pax{cardDpLabel}</p>
-                    )}
+                    {cardDpType === 'book_buy'
+                      ? <p className="text-[10px] text-rose-600 font-semibold mt-0.5">⚡ Book & Buy — Full Payment</p>
+                      : cardDp > 0 && <p className="text-[10px] text-sky-600 font-semibold mt-0.5">DP: ₱{cardDp.toLocaleString()} per pax{cardDpLabel}</p>
+                    }
                   </div>
                   <span className="text-[10px] text-sky-500 font-semibold flex items-center gap-0.5 group-hover:gap-1 transition-all">View <ChevronRight className="w-3 h-3" /></span>
                 </div>
@@ -586,8 +593,8 @@ export default function Sales() {
             const currSymbol = c.currency === 'PHP' ? '₱' : c.currency === 'USD' ? '$' : c.currency === 'JPY' ? '¥' : c.currency === 'KRW' ? '₩' : '₱';
             const fmt = v => v != null && v !== '' ? `${currSymbol}${Number(v).toLocaleString()}` : null;
             const dp = Number(c.downpayment_required) || 0;
-            const sp = Number(c.selling_price) || 0;
-            const dpLabel = dp > 0 && sp > 0 ? (Math.abs(dp - Math.round(sp * 0.5)) <= 1 ? ' (50% of fare)' : Math.abs(dp - Math.round(sp * 0.3)) <= 1 ? ' (30% of fare)' : '') : '';
+            const detailDpType = c.dp_type || 'fixed';
+            const dpLabel = detailDpType === '50pct' ? ' (50% of fare)' : detailDpType === '30pct' ? ' (30% of fare)' : '';
             const rates = [
               { label: 'Twin Sharing', value: fmt(c.rate_twin) },
               { label: 'Triple Sharing', value: fmt(c.rate_triple) },
@@ -741,12 +748,17 @@ export default function Sales() {
                           <span className="text-sm font-bold text-sky-700">{fmt(c.commission_amount)}</span>
                         </div>
                       )}
-                      {dp > 0 && (
+                      {detailDpType === 'book_buy' ? (
+                        <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 rounded-lg p-3 flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Payment Policy</span>
+                          <span className="text-sm font-bold text-rose-700">⚡ Book & Buy — Full Payment Required</span>
+                        </div>
+                      ) : dp > 0 ? (
                         <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 rounded-lg p-3 flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">Required Downpayment <span className="text-[10px]">per pax</span></span>
                           <span className="text-sm font-bold text-purple-700">₱{dp.toLocaleString()} <span className="text-[10px] font-normal text-purple-500">per pax{dpLabel}</span></span>
                         </div>
-                      )}
+                      ) : null}
                     </TabsContent>
 
                     {/* ITINERARY TAB */}
@@ -1089,14 +1101,24 @@ export default function Sales() {
             </div>
             {(() => {
               const bookAndBuy = isBookAndBuyBooking;
+              const mc = modalCollective;
+              const mcDpType = mc?.dp_type || 'fixed';
+              const mcDp = Number(mc?.downpayment_required) || 0;
+              const dpHint = !bookAndBuy && mcDp > 0
+                ? (mcDpType === '50pct' ? ` · 50% — ₱${mcDp.toLocaleString()} per pax`
+                  : mcDpType === '30pct' ? ` · 30% — ₱${mcDp.toLocaleString()} per pax`
+                  : ` · ₱${mcDp.toLocaleString()} per pax`)
+                : '';
               return (
                 <div className="md:col-span-2 space-y-1.5">
-                  {formData.departure_date_option && (
+                  {(formData.departure_date_option || mcDpType === 'book_buy') && (
                     <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold",
                       bookAndBuy ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200")}>
                       {bookAndBuy
-                        ? `⚠ Departure is within ${BOOK_AND_BUY_WINDOW_DAYS} days — Book & Buy required, full payment only.`
-                        : '✓ Downpayment plan available for this departure.'}
+                        ? (mc?.dp_type === 'book_buy'
+                          ? '⚡ This package requires full payment (Book & Buy policy).'
+                          : `⚠ Departure is within ${BOOK_AND_BUY_WINDOW_DAYS} days — Book & Buy required, full payment only.`)
+                        : `✓ Downpayment plan available${dpHint}.`}
                     </div>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

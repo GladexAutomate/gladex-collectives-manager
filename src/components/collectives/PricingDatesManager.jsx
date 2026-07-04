@@ -387,16 +387,19 @@ export default function PricingDatesManager({
   // ── Downpayment fare-type selector ──
   const collectiveId = form?.id || '';
   const [dpType, setDpType] = useState(() => {
+    if (form?.dp_type) return form.dp_type;
     return collectiveId ? (localStorage.getItem(`dp_type_${collectiveId}`) || 'fixed') : 'fixed';
   });
   useEffect(() => {
+    if (form?.dp_type) { setDpType(form.dp_type); return; }
     if (collectiveId) {
       setDpType(localStorage.getItem(`dp_type_${collectiveId}`) || 'fixed');
     }
-  }, [collectiveId]);
+  }, [collectiveId, form?.dp_type]);
   const handleDpTypeChange = (val) => {
     setDpType(val);
     if (collectiveId) localStorage.setItem(`dp_type_${collectiveId}`, val);
+    pkgSet('dp_type', val);
     if (val === '50pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.5));
     if (val === '30pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.3));
     if (val === 'book_buy' && sp > 0) pkgSet('book_buy_required', Math.round(sp));
