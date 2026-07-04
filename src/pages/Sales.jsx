@@ -74,7 +74,8 @@ export default function Sales() {
   const [editingBooking, setEditingBooking] = useState(null);
   const [formData, setFormData] = useState({});
   const modalCollective = collectives.find(c => c.id === formData.collective_id);
-  const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option) || modalCollective?.dp_type === 'book_buy';
+  const modalDpType = modalCollective ? (modalCollective.dp_type || localStorage.getItem(`dp_type_${modalCollective.id}`) || 'fixed') : 'fixed';
+  const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option) || modalDpType === 'book_buy';
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [viewingProduct, setViewingProduct] = useState(null);
@@ -149,7 +150,7 @@ export default function Sales() {
     const collective = collectives.find(c => c.id === formData.collective_id);
     if (!collective) return;
     const pax = formData.pax_count || 1;
-    const bnb = isBookAndBuyDate(formData.departure_date_option) || collective.dp_type === 'book_buy';
+    const bnb = isBookAndBuyDate(formData.departure_date_option) || (collective.dp_type || localStorage.getItem(`dp_type_${collective.id}`) || 'fixed') === 'book_buy';
     if (bnb) {
       const price = getBookAndBuyPrice(collective, formData.departure_date_option) * pax;
       if (price > 0) setFormData(fd => ({ ...fd, total_amount: price, downpayment_amount: price }));
@@ -320,6 +321,10 @@ export default function Sales() {
           e.currentTarget.style.boxShadow = '';
         };
 
+        // dp_type is not in the API schema — read from API first, fall back to localStorage
+        // (PricingDatesManager writes `dp_type_${id}` to localStorage whenever user changes the mode)
+        const getDpType = (c) => c.dp_type || localStorage.getItem(`dp_type_${c.id}`) || 'fixed';
+
         const PackageCard = ({ c }) => {
           const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id && a.file_url);
           const heroImage = c.cover_image || c.image_url ||
@@ -329,7 +334,7 @@ export default function Sales() {
           const totalAssets = marketingAssets.filter(a => a.collective_id === c.id).length;
           const hasPD = collectivesWithTasks.has(c.id);
           const cardDp = Number(c.downpayment_required) || 0;
-          const cardDpType = c.dp_type || 'fixed';
+          const cardDpType = getDpType(c);
           const cardDpLabel = cardDpType === '50pct' ? ' · 50% of fare' : cardDpType === '30pct' ? ' · 30% of fare' : '';
           return (
             <div
@@ -593,7 +598,7 @@ export default function Sales() {
             const currSymbol = c.currency === 'PHP' ? '₱' : c.currency === 'USD' ? '$' : c.currency === 'JPY' ? '¥' : c.currency === 'KRW' ? '₩' : '₱';
             const fmt = v => v != null && v !== '' ? `${currSymbol}${Number(v).toLocaleString()}` : null;
             const dp = Number(c.downpayment_required) || 0;
-            const detailDpType = c.dp_type || 'fixed';
+            const detailDpType = getDpType(c);
             const dpLabel = detailDpType === '50pct' ? ' (50% of fare)' : detailDpType === '30pct' ? ' (30% of fare)' : '';
             const rates = [
               { label: 'Twin Sharing', value: fmt(c.rate_twin) },
@@ -1102,7 +1107,7 @@ export default function Sales() {
             {(() => {
               const bookAndBuy = isBookAndBuyBooking;
               const mc = modalCollective;
-              const mcDpType = mc?.dp_type || 'fixed';
+              const mcDpType = modalDpType;
               const mcDp = Number(mc?.downpayment_required) || 0;
               const dpHint = !bookAndBuy && mcDp > 0
                 ? (mcDpType === '50pct' ? ` · 50% — ₱${mcDp.toLocaleString()} per pax`
@@ -1115,7 +1120,7 @@ export default function Sales() {
                     <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold",
                       bookAndBuy ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200")}>
                       {bookAndBuy
-                        ? (mc?.dp_type === 'book_buy'
+                        ? (mcDpType === 'book_buy'
                           ? '⚡ This package requires full payment (Book & Buy policy).'
                           : `⚠ Departure is within ${BOOK_AND_BUY_WINDOW_DAYS} days — Book & Buy required, full payment only.`)
                         : `✓ Downpayment plan available${dpHint}.`}
