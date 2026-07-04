@@ -10,6 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+const BOOK_AND_BUY_WINDOW_DAYS = 30;
+const daysUntilDeparture = (dateStr) => {
+  if (!dateStr) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dep = new Date(dateStr + 'T00:00:00');
+  return Math.round((dep - today) / (1000 * 60 * 60 * 24));
+};
+
 const CURRENCIES = [
   { value: 'PHP', symbol: '₱', label: 'PHP', defaultRate: 1 },
   { value: 'USD', symbol: '$', label: 'USD', defaultRate: 58 },
@@ -99,12 +107,30 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
   const dateCurrSymbol = CURRENCIES.find(c => c.value === dateCurr)?.symbol || '₱';
   const dateBasePHP = dateCurr === 'PHP' ? (Number(d.base_price_foreign) || 0) : (Number(d.base_price_foreign) || 0) * (Number(d.exchange_rate) || 1);
 
+  // Book & Buy: departure within 30-day window triggers full-payment policy in Sales
+  const daysLeft = daysUntilDeparture(d.departure_date);
+  const isBookAndBuy = daysLeft !== null && daysLeft >= 0 && daysLeft <= BOOK_AND_BUY_WINDOW_DAYS;
+  const isPast = daysLeft !== null && daysLeft < 0;
+
   return (
-    <div className={cn("border rounded-lg overflow-hidden bg-card transition-all", usingCustom ? "border-amber-300 dark:border-amber-700" : "border-border")}>
+    <div className={cn(
+      "border rounded-lg overflow-hidden bg-card transition-all",
+      isBookAndBuy ? "border-rose-400 dark:border-rose-600" :
+      usingCustom ? "border-amber-300 dark:border-amber-700" : "border-border"
+    )}>
+      {/* Book & Buy top banner */}
+      {isBookAndBuy && (
+        <div className="bg-rose-500 px-3 py-1 flex items-center gap-2">
+          <span className="text-[10px] font-bold text-white tracking-wide">⚡ BOOK & BUY</span>
+          <span className="text-[10px] text-rose-100">
+            {daysLeft === 0 ? 'Departure today — full payment required' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} away — full payment required in Sales`}
+          </span>
+        </div>
+      )}
       {/* Card Header */}
       <div className="flex items-center gap-3 p-3">
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", usingCustom ? "bg-amber-100 dark:bg-amber-950/30" : "bg-muted")}>
-          <Calendar className={cn("w-4 h-4", usingCustom ? "text-amber-600" : "text-muted-foreground")} />
+        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", isBookAndBuy ? "bg-rose-100 dark:bg-rose-950/30" : usingCustom ? "bg-amber-100 dark:bg-amber-950/30" : "bg-muted")}>
+          <Calendar className={cn("w-4 h-4", isBookAndBuy ? "text-rose-600" : usingCustom ? "text-amber-600" : "text-muted-foreground")} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -114,6 +140,7 @@ function DateCard({ d, idx, packageRates, onUpdate, onRemove, onToggleCustom, on
             <span className={cn("text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0", sc.class)}>{sc.label}</span>
             {usingCustom && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0">Custom Pricing</span>}
             {fillPct >= 80 && <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+            {isPast && <span className="text-[10px] text-muted-foreground italic flex-shrink-0">Past</span>}
           </div>
           <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground flex-wrap">
             {d.departure_date && <span>🛫 {d.departure_date}</span>}
@@ -373,6 +400,7 @@ export default function PricingDatesManager({
     if (val === '50pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.5));
     if (val === '30pct' && sp > 0) pkgSet('downpayment_required', Math.round(sp * 0.3));
     if (val === 'book_buy' && sp > 0) pkgSet('book_buy_required', Math.round(sp));
+    if (val !== 'book_buy') pkgSet('book_buy_required', 0);
   };
 
   const [newDate, setNewDate] = useState(BLANK_DATE());
