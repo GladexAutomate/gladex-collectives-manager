@@ -41,9 +41,9 @@ export default function Dashboard() {
       base44.entities.Booking.list('-updated_date', 100),
       base44.entities.Payment.filter({ status: 'verified' }, '-payment_date', 100),
     ]).then(([c, b, p]) => {
-      setCollectives(c);
-      setBookings(b);
-      setPayments(p);
+      setCollectives(Array.isArray(c) ? c : []);
+      setBookings(Array.isArray(b) ? b : []);
+      setPayments(Array.isArray(p) ? p : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);

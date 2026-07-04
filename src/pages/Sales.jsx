@@ -101,10 +101,12 @@ export default function Sales() {
         base44.entities.Booking.list('-created_date'),
         base44.entities.Collective.list(),
       ]);
-      setBookings(b);
-      setCollectives(c);
+      const safeB = Array.isArray(b) ? b : [];
+      const safeC = Array.isArray(c) ? c : [];
+      setBookings(safeB);
+      setCollectives(safeC);
       // Keep viewingProduct in sync with fresh data
-      setViewingProduct(prev => prev ? (c.find(x => x.id === prev.id) || prev) : null);
+      setViewingProduct(prev => prev ? (safeC.find(x => x.id === prev.id) || prev) : null);
     } catch (e) {
       console.error('Sales loadData error:', e);
     }
@@ -119,7 +121,8 @@ export default function Sales() {
     // Load tasks to know which packages have a real workflow
     try {
       const tasks = await base44.entities.ChecklistTask.list();
-      const ids = new Set(tasks.map(t => t.collective_id).filter(Boolean));
+      const tasksArr = Array.isArray(tasks) ? tasks : [];
+      const ids = new Set(tasksArr.map(t => t.collective_id).filter(Boolean));
       setCollectivesWithTasks(ids);
     } catch (e) {
       setCollectivesWithTasks(new Set());

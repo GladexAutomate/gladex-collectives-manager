@@ -315,21 +315,21 @@ export default function PricingDatesManager({
   const dpPHP        = dpOpsPhp + dpPdPhp;
 
   // Book & Buy base fields
-  const bnbOpsCurr = isCollective ? (form?.bnb_ops_currency || 'PHP') : 'PHP';
+  const bnbOpsCurr = isCollective ? (form?.book_buy_ops_currency || 'PHP') : 'PHP';
   const bnbOpsSym  = CURRENCIES.find(c => c.value === bnbOpsCurr)?.symbol || '₱';
-  const bnbOpsRate = isCollective ? (Number(form?.bnb_ops_rate) || 1) : 1;
-  const bnbBaseOps = isCollective ? (Number(form?.bnb_base_ops) || 0) : 0;
+  const bnbOpsRate = isCollective ? (Number(form?.book_buy_ops_rate) || 1) : 1;
+  const bnbBaseOps = isCollective ? (Number(form?.book_buy_base_ops) || 0) : 0;
   const bnbOpsPhp  = bnbOpsCurr === 'PHP' ? bnbBaseOps : bnbBaseOps * bnbOpsRate;
 
-  const bnbPdCurr  = isCollective ? (form?.bnb_pd_currency || 'PHP') : 'PHP';
+  const bnbPdCurr  = isCollective ? (form?.book_buy_pd_currency || 'PHP') : 'PHP';
   const bnbPdSym   = CURRENCIES.find(c => c.value === bnbPdCurr)?.symbol || '₱';
-  const bnbPdRate  = isCollective ? (Number(form?.bnb_pd_rate) || 1) : 1;
-  const bnbBasePD  = isCollective ? (Number(form?.bnb_base_pd) || 0) : 0;
+  const bnbPdRate  = isCollective ? (Number(form?.book_buy_pd_rate) || 1) : 1;
+  const bnbBasePD  = isCollective ? (Number(form?.book_buy_base_pd) || 0) : 0;
   const bnbPdPhp   = bnbPdCurr === 'PHP' ? bnbBasePD : bnbBasePD * bnbPdRate;
 
   const bnbBase    = bnbBaseOps + bnbBasePD;
   const bnbPHP     = bnbOpsPhp + bnbPdPhp;
-  const bnbAmount  = isCollective ? (Number(form?.book_and_buy_amount) || 0) : 0;
+  const bnbAmount  = isCollective ? (Number(form?.book_buy_required) || 0) : 0;
 
   const useMarkupPct = isCollective ? form?._use_markup_pct : quote?.use_markup_pct;
   const markupPct = isCollective ? form?.markup_pct : quote?.markup_pct;
@@ -383,9 +383,9 @@ export default function PricingDatesManager({
   const handleBnbTypeChange = (val) => {
     setBnbType(val);
     if (collectiveId) localStorage.setItem(`bnb_type_${collectiveId}`, val);
-    if (val === '50pct' && sp > 0) pkgSet('book_and_buy_amount', Math.round(sp * 0.5));
-    if (val === '30pct' && sp > 0) pkgSet('book_and_buy_amount', Math.round(sp * 0.3));
-    if (val === 'full' && sp > 0) pkgSet('book_and_buy_amount', Math.round(sp));
+    if (val === '50pct' && sp > 0) pkgSet('book_buy_required', Math.round(sp * 0.5));
+    if (val === '30pct' && sp > 0) pkgSet('book_buy_required', Math.round(sp * 0.3));
+    if (val === 'full' && sp > 0) pkgSet('book_buy_required', Math.round(sp));
   };
 
   const [newDate, setNewDate] = useState(BLANK_DATE());
@@ -408,9 +408,9 @@ export default function PricingDatesManager({
         currency: 'currency', base_price_foreign: 'base_cost_foreign', exchange_rate: 'exchange_rate',
         markup_amount: 'markup_php', markup_pct: 'markup_pct', _use_markup_pct: 'use_markup_pct',
         commission_amount: 'commission_per_pax', downpayment_required: 'downpayment_required',
-        bnb_ops_currency: 'bnb_ops_currency', bnb_ops_rate: 'bnb_ops_rate', bnb_base_ops: 'bnb_base_ops',
-        bnb_pd_currency: 'bnb_pd_currency', bnb_pd_rate: 'bnb_pd_rate', bnb_base_pd: 'bnb_base_pd',
-        book_and_buy_amount: 'book_and_buy_amount',
+        book_buy_ops_currency: 'book_buy_ops_currency', book_buy_ops_rate: 'book_buy_ops_rate', book_buy_base_ops: 'book_buy_base_ops',
+        book_buy_pd_currency: 'book_buy_pd_currency', book_buy_pd_rate: 'book_buy_pd_rate', book_buy_base_pd: 'book_buy_base_pd',
+        book_buy_required: 'book_buy_required',
         rate_twin: 'rate_twin', rate_twin_age_min: 'rate_twin_age_min', rate_twin_age_max: 'rate_twin_age_max',
         rate_triple: 'rate_triple', rate_triple_age_min: 'rate_triple_age_min', rate_triple_age_max: 'rate_triple_age_max',
         rate_quad: 'rate_quad', rate_quad_age_min: 'rate_quad_age_min', rate_quad_age_max: 'rate_quad_age_max',
@@ -854,10 +854,10 @@ Extract ALL rows. Do not skip any row that has a date.`,
                 <div className="flex gap-1.5">
                   <Select value={bnbOpsCurr} onValueChange={v => {
                     const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
-                    pkgSet('bnb_ops_currency', v);
-                    pkgSet('bnb_ops_rate', rate);
+                    pkgSet('book_buy_ops_currency', v);
+                    pkgSet('book_buy_ops_rate', rate);
                     const opsPhp = v === 'PHP' ? bnbBaseOps : bnbBaseOps * rate;
-                    pkgSet('book_and_buy_amount', opsPhp + bnbPdPhp);
+                    pkgSet('book_buy_required', opsPhp + bnbPdPhp);
                   }}>
                     <SelectTrigger className="h-9 text-xs w-24 flex-shrink-0"><SelectValue /></SelectTrigger>
                     <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value}</SelectItem>)}</SelectContent>
@@ -867,8 +867,8 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     <Input type="number" className="pl-7 h-9 text-sm" value={bnbBaseOps || ''} onChange={e => {
                       const v = Number(e.target.value);
                       const opsPhp = bnbOpsCurr === 'PHP' ? v : v * bnbOpsRate;
-                      pkgSet('bnb_base_ops', v);
-                      pkgSet('book_and_buy_amount', opsPhp + bnbPdPhp);
+                      pkgSet('book_buy_base_ops', v);
+                      pkgSet('book_buy_required', opsPhp + bnbPdPhp);
                     }} />
                   </div>
                 </div>
@@ -877,8 +877,8 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">Rate → ₱</span>
                     <Input type="number" className="h-8 text-xs" value={bnbOpsRate || ''} onChange={e => {
                       const v = Number(e.target.value);
-                      pkgSet('bnb_ops_rate', v);
-                      pkgSet('book_and_buy_amount', bnbBaseOps * v + bnbPdPhp);
+                      pkgSet('book_buy_ops_rate', v);
+                      pkgSet('book_buy_required', bnbBaseOps * v + bnbPdPhp);
                     }} />
                     {bnbBaseOps > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bnbBaseOps * bnbOpsRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
                   </div>
@@ -891,10 +891,10 @@ Extract ALL rows. Do not skip any row that has a date.`,
                 <div className="flex gap-1.5">
                   <Select value={bnbPdCurr} onValueChange={v => {
                     const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
-                    pkgSet('bnb_pd_currency', v);
-                    pkgSet('bnb_pd_rate', rate);
+                    pkgSet('book_buy_pd_currency', v);
+                    pkgSet('book_buy_pd_rate', rate);
                     const pdPhp = v === 'PHP' ? bnbBasePD : bnbBasePD * rate;
-                    pkgSet('book_and_buy_amount', bnbOpsPhp + pdPhp);
+                    pkgSet('book_buy_required', bnbOpsPhp + pdPhp);
                   }}>
                     <SelectTrigger className="h-9 text-xs w-24 flex-shrink-0"><SelectValue /></SelectTrigger>
                     <SelectContent>{CURRENCIES.map(c => <SelectItem key={c.value} value={c.value} className="text-xs">{c.value}</SelectItem>)}</SelectContent>
@@ -904,8 +904,8 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     <Input type="number" className="pl-7 h-9 text-sm" value={bnbBasePD || ''} onChange={e => {
                       const v = Number(e.target.value);
                       const pdPhp = bnbPdCurr === 'PHP' ? v : v * bnbPdRate;
-                      pkgSet('bnb_base_pd', v);
-                      pkgSet('book_and_buy_amount', bnbOpsPhp + pdPhp);
+                      pkgSet('book_buy_base_pd', v);
+                      pkgSet('book_buy_required', bnbOpsPhp + pdPhp);
                     }} />
                   </div>
                 </div>
@@ -914,8 +914,8 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">Rate → ₱</span>
                     <Input type="number" className="h-8 text-xs" value={bnbPdRate || ''} onChange={e => {
                       const v = Number(e.target.value);
-                      pkgSet('bnb_pd_rate', v);
-                      pkgSet('book_and_buy_amount', bnbOpsPhp + bnbBasePD * v);
+                      pkgSet('book_buy_pd_rate', v);
+                      pkgSet('book_buy_required', bnbOpsPhp + bnbBasePD * v);
                     }} />
                     {bnbBasePD > 0 && <span className="text-[10px] text-rose-600 font-semibold whitespace-nowrap">= ₱{(bnbBasePD * bnbPdRate).toLocaleString(undefined,{maximumFractionDigits:0})}</span>}
                   </div>
@@ -932,7 +932,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     type="number"
                     className="pl-7 h-9 text-sm font-bold border-rose-300 bg-rose-50 text-rose-700 w-40"
                     value={(bnbBase > 0 ? bnbPHP : bnbAmount) || ''}
-                    onChange={e => pkgSet('book_and_buy_amount', Number(e.target.value))}
+                    onChange={e => pkgSet('book_buy_required', Number(e.target.value))}
                   />
                 </div>
               </F>
