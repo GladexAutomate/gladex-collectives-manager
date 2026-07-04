@@ -73,8 +73,9 @@ export default function Sales() {
   const [showModal, setShowModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [formData, setFormData] = useState({});
+  const getDpType = (c) => c?.dp_type || (c?.id ? localStorage.getItem(`dp_type_${c.id}`) : null) || 'fixed';
   const modalCollective = collectives.find(c => c.id === formData.collective_id);
-  const modalDpType = modalCollective ? (modalCollective.dp_type || localStorage.getItem(`dp_type_${modalCollective.id}`) || 'fixed') : 'fixed';
+  const modalDpType = getDpType(modalCollective);
   const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option) || modalDpType === 'book_buy';
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
@@ -320,10 +321,6 @@ export default function Sales() {
           e.currentTarget.style.transform = '';
           e.currentTarget.style.boxShadow = '';
         };
-
-        // dp_type is not in the API schema — read from API first, fall back to localStorage
-        // (PricingDatesManager writes `dp_type_${id}` to localStorage whenever user changes the mode)
-        const getDpType = (c) => c.dp_type || localStorage.getItem(`dp_type_${c.id}`) || 'fixed';
 
         const PackageCard = ({ c }) => {
           const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id && a.file_url);
