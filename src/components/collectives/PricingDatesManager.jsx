@@ -386,11 +386,29 @@ export default function PricingDatesManager({
 
   // ── Downpayment fare-type selector ──
   const collectiveId = form?.id || '';
-  const [dpType, setDpType] = useState(() =>
-    collectiveId ? (localStorage.getItem(`dp_type_${collectiveId}`) || 'fixed') : 'fixed'
-  );
+  // Infer dp_type from saved amounts when localStorage is empty (e.g. different browser/Vercel vs localhost)
+  const inferDpTypeFromForm = () => {
+    if ((form?.book_buy_required || 0) > 0) return 'book_buy';
+    const dp = Number(form?.downpayment_required) || 0;
+    const s = Number(sp) || 0;
+    if (dp > 0 && s > 0) {
+      if (dp === Math.round(s * 0.5)) return '50pct';
+      if (dp === Math.round(s * 0.3)) return '30pct';
+    }
+    return 'fixed';
+  };
+  const [dpType, setDpType] = useState(() => {
+    if (collectiveId) {
+      const saved = localStorage.getItem(`dp_type_${collectiveId}`);
+      if (saved) return saved;
+    }
+    return inferDpTypeFromForm();
+  });
   useEffect(() => {
-    if (collectiveId) setDpType(localStorage.getItem(`dp_type_${collectiveId}`) || 'fixed');
+    if (collectiveId) {
+      const saved = localStorage.getItem(`dp_type_${collectiveId}`);
+      setDpType(saved || inferDpTypeFromForm());
+    }
   }, [collectiveId]);
   const handleDpTypeChange = (val) => {
     setDpType(val);

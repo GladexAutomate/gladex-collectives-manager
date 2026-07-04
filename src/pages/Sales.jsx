@@ -60,6 +60,19 @@ const getDatePrice = (collective, dateStr) => {
 const getBookAndBuyPrice = (collective, dateStr) => {
   return collective?.book_buy_required || getDatePrice(collective, dateStr);
 };
+// Infer dp_type from saved amounts when localStorage is unavailable (e.g. different browser/origin).
+// Fare Type amounts are always exactly 50% or 30% of selling_price; Per Pax is a custom number.
+const inferDpType = (c) => {
+  if (!c) return 'fixed';
+  if ((c.book_buy_required || 0) > 0) return 'book_buy';
+  const dp = Number(c.downpayment_required) || 0;
+  const sp = Number(c.selling_price) || 0;
+  if (dp > 0 && sp > 0) {
+    if (dp === Math.round(sp * 0.5)) return '50pct';
+    if (dp === Math.round(sp * 0.3)) return '30pct';
+  }
+  return 'fixed';
+};
 
 export default function Sales() {
   const [bookings, setBookings] = useState([]);
@@ -73,7 +86,7 @@ export default function Sales() {
   const [showModal, setShowModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [formData, setFormData] = useState({});
-  const getDpType = (c) => c?.dp_type || (c?.id ? localStorage.getItem(`dp_type_${c.id}`) : null) || 'fixed';
+  const getDpType = (c) => c?.dp_type || (c?.id ? localStorage.getItem(`dp_type_${c.id}`) : null) || inferDpType(c);
   const modalCollective = collectives.find(c => c.id === formData.collective_id);
   const modalDpType = getDpType(modalCollective);
   const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option) || modalDpType === 'book_buy';
