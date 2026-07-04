@@ -334,6 +334,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     setIsNew(false);
     setSaved(false);
     setForm({
+      id: c.id,
       name: c.name || '',
       package_code: c.package_code || pkgCodeStore.get(c.id) || '',
       destination: c.destination || '',
