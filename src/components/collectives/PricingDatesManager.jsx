@@ -920,7 +920,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                           : "bg-white dark:bg-card text-purple-600 border-purple-300 hover:bg-purple-50"
                       )}
                     >
-                      50%{sp > 0 ? ` — ₱${Math.round(sp * 0.5).toLocaleString()}` : ''}
+                      50%
                     </button>
                     <button
                       type="button"
@@ -932,7 +932,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                           : "bg-white dark:bg-card text-purple-600 border-purple-300 hover:bg-purple-50"
                       )}
                     >
-                      30%{sp > 0 ? ` — ₱${Math.round(sp * 0.3).toLocaleString()}` : ''}
+                      30%
                     </button>
                   </div>
                 </div>
