@@ -73,8 +73,8 @@ export default function Sales() {
   const [showModal, setShowModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [formData, setFormData] = useState({});
-  const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option) || modalCollective?.dp_type === 'book_buy';
   const modalCollective = collectives.find(c => c.id === formData.collective_id);
+  const isBookAndBuyBooking = isBookAndBuyDate(formData.departure_date_option) || modalCollective?.dp_type === 'book_buy';
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [viewingProduct, setViewingProduct] = useState(null);
