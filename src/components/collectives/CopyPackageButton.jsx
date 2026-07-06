@@ -80,6 +80,7 @@ export function formatPackageForCopy(pkg, packageCode = '') {
   line('PACKAGE TYPE', pkg.travel_type === 'domestic' ? 'Domestic' : pkg.travel_type === 'international' ? 'International' : pkg.travel_type);
   const statusLabels = { draft: 'Draft', open_booking: 'Open Booking', confirmed_departure: 'Confirmed Departure', ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled' };
   line('STATUS', statusLabels[pkg.status] || pkg.status || 'Draft');
+  if (pkg.nights) line('DURATION', `${pkg.nights} nights`);
   if (pkg.guaranteed_departure) parts.push('GUARANTEED DEPARTURE: Yes');
   if (pkg.slots_for_confirmation) parts.push('SLOT TYPE: For Confirmation (on-request)');
   if (Number(pkg.downpayment_required) > 0) {
@@ -160,6 +161,8 @@ export function formatPackageForCopy(pkg, packageCode = '') {
     });
   };
 
+  bulletSection('✈️', 'FLIGHT DETAILS', pkg.flight_details);
+  bulletSection('🏨', 'HOTEL DETAILS', pkg.hotel_details);
   bulletSection('✅', 'PACKAGE INCLUSIONS', pkg.inclusions);
   bulletSection('❌', 'PACKAGE EXCLUSIONS', pkg.exclusions);
   bulletSection('🎯', 'OPTIONAL TOURS', pkg.optional_tours);
