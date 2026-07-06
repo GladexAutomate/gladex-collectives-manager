@@ -5,6 +5,43 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 import { pkgCodeStore } from '@/lib/packageCodeStore';
 
+// ── Short date for grouping header: "SEP 10-14, 2026" ──
+function formatShortDateRange(dep, ret) {
+  if (!dep) return '';
+  const dD = new Date(dep + 'T00:00:00');
+  const dR = ret ? new Date(ret + 'T00:00:00') : null;
+  const mo = (d) => d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const dd = (d) => String(d.getDate()).padStart(2, '0');
+  if (!dR) return `${mo(dD)} ${dd(dD)}, ${dD.getFullYear()}`;
+  if (dD.getMonth() === dR.getMonth() && dD.getFullYear() === dR.getFullYear()) {
+    return `${mo(dD)} ${dd(dD)}-${dd(dR)}, ${dD.getFullYear()}`;
+  }
+  return `${mo(dD)} ${dd(dD)}-${mo(dR)} ${dd(dR)}, ${dD.getFullYear()}`;
+}
+
+// ── Get effective rates for a travel_date (falls back to package-level) ──
+function getEffectiveRates(d, pkg) {
+  const uc = !!d.use_custom_pricing;
+  const n = (v) => Number(v) || 0;
+  return {
+    adult: n(d.selling_price) || n(uc ? d.rate_twin : pkg.rate_twin),
+    triple: n(uc ? d.rate_triple : pkg.rate_triple),
+    quad: n(uc ? d.rate_quad : pkg.rate_quad),
+    single: n(uc ? d.rate_single : pkg.rate_single),
+    solo: n(uc ? d.rate_solo : pkg.rate_solo),
+    single_supplement: n(uc ? d.rate_single_supplement : pkg.rate_single_supplement),
+    child_no_bed: n(uc ? d.rate_child_no_bed : pkg.rate_child_no_bed),
+    child_no_bed_age_min: pkg.rate_child_no_bed_age_min,
+    child_no_bed_age_max: pkg.rate_child_no_bed_age_max,
+    child: n(uc ? d.rate_child : pkg.rate_child),
+    child_age_min: pkg.rate_child_age_min,
+    child_age_max: pkg.rate_child_age_max,
+    infant: n(uc ? d.rate_infant : pkg.rate_infant),
+    infant_age_min: pkg.rate_infant_age_min,
+    infant_age_max: pkg.rate_infant_age_max,
+  };
+}
+
 // ── Smart date range: "Jun 22–26, 2026" instead of "Jun 22 – Jun 26 — Jun 22, 2026 — Jun 26, 2026" ──
 function formatDateRange(dep, ret) {
   if (!dep && !ret) return '';
@@ -88,24 +125,82 @@ export function formatPackageForCopy(pkg, packageCode = '') {
     parts.push(`DOWNPAYMENT: ₱${dpAmt.toLocaleString()} per pax`);
   }
 
-  // ── TRAVEL DATES ──
-  const tDates = pkg.travel_dates?.length
-    ? pkg.travel_dates.map(d => {
-        const range = formatDateRange(d.departure_date, d.return_date);
-        // Only prepend label when it's a meaningful name (not an auto-generated date string)
-        const label = d.label?.trim() || '';
-        const looksLikeDate = /^\d|^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(label);
-        return label && !looksLikeDate ? `${label}: ${range}` : range;
-      }).filter(Boolean)
-    : [];
-  const singleRange = formatDateRange(pkg.departure_date, pkg.return_date);
-  if (tDates.length > 0 || singleRange) {
-    divider('📅', 'TRAVEL DATES');
+  // ── TRAVEL DATES & RATES (grouped by rate set) ──
+  if (pkg.travel_dates?.length > 0) {
+    const groups = new Map();
+    const groupOrder = [];
+    pkg.travel_dates.forEach(d => {
+      const r = getEffectiveRates(d, pkg);
+      const key = [r.adult, r.triple, r.quad, r.single, r.solo, r.single_supplement, r.child_no_bed, r.child, r.infant].join('|');
+      if (!groups.has(key)) { groups.set(key, { r, dates: [] }); groupOrder.push(key); }
+      groups.get(key).dates.push(formatShortDateRange(d.departure_date, d.return_date));
+    });
+
+    divider('📅', 'TRAVEL DATES & RATES');
     parts.push('');
-    if (tDates.length > 0) {
-      tDates.forEach((d, i) => parts.push(`  ${i + 1}. ${d}`));
-    } else {
+
+    const fmtAmt = v => `₱${Number(v).toLocaleString('en-US')}`;
+    const ageTag = (mn, mx) => {
+      const hasMin = mn !== null && mn !== undefined && mn !== '' && !isNaN(Number(mn));
+      const hasMax = mx !== null && mx !== undefined && mx !== '' && !isNaN(Number(mx));
+      if (!hasMin && !hasMax) return '';
+      const r2 = [hasMin ? `${Number(mn)}` : '', hasMax ? `${Number(mx)}` : ''].filter(Boolean).join('-');
+      return ` (${r2} yrs old)`;
+    };
+
+    groupOrder.forEach(key => {
+      const { r, dates } = groups.get(key);
+      parts.push(`🔸 ${dates.join(' / ')}`);
+      parts.push('');
+      if (r.adult > 0) parts.push(`   Adult Rate: ${fmtAmt(r.adult)} per pax`);
+      if (r.triple > 0) parts.push(`   Triple Sharing: ${fmtAmt(r.triple)} per pax`);
+      if (r.quad > 0) parts.push(`   Quad Sharing: ${fmtAmt(r.quad)} per pax`);
+      if (r.single > 0) parts.push(`   Single Occupancy: ${fmtAmt(r.single)} per pax`);
+      if (r.solo > 0) parts.push(`   Solo Rate: ${fmtAmt(r.solo)} per pax`);
+      if (r.single_supplement > 0) parts.push(`   Single Supplement: ${fmtAmt(r.single_supplement)} per pax`);
+      if (r.child_no_bed > 0) parts.push(`   Child W/o Bed${ageTag(r.child_no_bed_age_min, r.child_no_bed_age_max)}: ${fmtAmt(r.child_no_bed)} per pax`);
+      if (r.child > 0) parts.push(`   Child W/ Bed${ageTag(r.child_age_min, r.child_age_max)}: ${fmtAmt(r.child)} per pax`);
+      if (r.infant > 0) parts.push(`   Infant Fee${ageTag(r.infant_age_min, r.infant_age_max)}: ${fmtAmt(r.infant)} per pax`);
+      parts.push('');
+    });
+  } else {
+    // No travel_dates — old format: separate dates then rates
+    const singleRange = formatDateRange(pkg.departure_date, pkg.return_date);
+    if (singleRange) {
+      divider('📅', 'TRAVEL DATES');
+      parts.push('');
       parts.push(`  ${singleRange}`);
+    }
+
+    const rateFields = [
+      ['TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
+      ['TRIPLE (per pax)', pkg.rate_triple, pkg.rate_triple_age_min, pkg.rate_triple_age_max],
+      ['QUAD (per pax)', pkg.rate_quad, pkg.rate_quad_age_min, pkg.rate_quad_age_max],
+      ['SINGLE (per pax)', pkg.rate_single, pkg.rate_single_age_min, pkg.rate_single_age_max],
+      ['SOLO', pkg.rate_solo, pkg.rate_solo_age_min, pkg.rate_solo_age_max],
+      ['SINGLE SUPPLEMENT', pkg.rate_single_supplement],
+      ['CHILD NO BED', pkg.rate_child_no_bed, pkg.rate_child_no_bed_age_min, pkg.rate_child_no_bed_age_max],
+      ['CHILD WITH BED', pkg.rate_child, pkg.rate_child_age_min, pkg.rate_child_age_max],
+      ['INFANT', pkg.rate_infant, pkg.rate_infant_age_min, pkg.rate_infant_age_max],
+    ];
+    const rateLines = [];
+    rateFields.forEach(([label, rate, min, max]) => {
+      const num = Number(rate);
+      if (num > 0) {
+        let val = `₱${num.toLocaleString('en-US')}`;
+        const hasMin = min !== null && min !== undefined && min !== '' && !isNaN(Number(min));
+        const hasMax = max !== null && max !== undefined && max !== '' && !isNaN(Number(max));
+        if (hasMin || hasMax) {
+          const ageRange = [hasMin ? `${Number(min)}` : '', hasMax ? `${Number(max)}` : ''].filter(Boolean).join('–');
+          if (ageRange) val += ` (Ages ${ageRange})`;
+        }
+        rateLines.push(`${label}: ${val}`);
+      }
+    });
+    if (rateLines.length > 0) {
+      divider('🛏️', 'PACKAGE RATES');
+      parts.push('');
+      rateLines.forEach(r => parts.push(r));
     }
   }
 
@@ -114,40 +209,6 @@ export function formatPackageForCopy(pkg, packageCode = '') {
     parts.push('');
     if (pkg.internal_deadline) line('INTERNAL DEADLINE', new Date(pkg.internal_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
     if (pkg.supplier_deadline) line('SUPPLIER DEADLINE', new Date(pkg.supplier_deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
-  }
-
-  // ── OCCUPANCY RATES ──
-  const rateFields = [
-    ['TWIN (per pax)', pkg.rate_twin, pkg.rate_twin_age_min, pkg.rate_twin_age_max],
-    ['TRIPLE (per pax)', pkg.rate_triple, pkg.rate_triple_age_min, pkg.rate_triple_age_max],
-    ['QUAD (per pax)', pkg.rate_quad, pkg.rate_quad_age_min, pkg.rate_quad_age_max],
-    ['SINGLE (per pax)', pkg.rate_single, pkg.rate_single_age_min, pkg.rate_single_age_max],
-    ['SOLO', pkg.rate_solo, pkg.rate_solo_age_min, pkg.rate_solo_age_max],
-    ['SINGLE SUPPLEMENT', pkg.rate_single_supplement],
-    ['CHILD NO BED', pkg.rate_child_no_bed, pkg.rate_child_no_bed_age_min, pkg.rate_child_no_bed_age_max],
-    ['CHILD WITH BED', pkg.rate_child, pkg.rate_child_age_min, pkg.rate_child_age_max],
-    ['INFANT', pkg.rate_infant, pkg.rate_infant_age_min, pkg.rate_infant_age_max],
-  ];
-
-  const rateLines = [];
-  rateFields.forEach(([label, rate, min, max]) => {
-    const num = Number(rate);
-    if (num > 0) {
-      let val = `₱${num.toLocaleString('en-US')}`;
-      const hasMin = min !== null && min !== undefined && min !== '' && !isNaN(Number(min));
-      const hasMax = max !== null && max !== undefined && max !== '' && !isNaN(Number(max));
-      if (hasMin || hasMax) {
-        const ageRange = [hasMin ? `${Number(min)}` : '', hasMax ? `${Number(max)}` : ''].filter(Boolean).join('–');
-        if (ageRange) val += ` (Ages ${ageRange})`;
-      }
-      rateLines.push(`${label}: ${val}`);
-    }
-  });
-
-  if (rateLines.length > 0) {
-    divider('🛏️', 'PACKAGE RATES');
-    parts.push('');
-    rateLines.forEach(r => parts.push(r));
   }
 
   // ── CONTENT ──
