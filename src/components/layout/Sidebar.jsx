@@ -15,7 +15,7 @@ const navItems = [
   { icon: Megaphone,       label: 'Marketing',         path: '/marketing' },
   { icon: Users,           label: 'Sales',             path: '/sales' },
   { icon: CreditCard,      label: 'Accounting',        path: '/accounting' },
-  { icon: ClipboardList,   label: 'Admin Operations',  path: '/admin-operations' },
+  { icon: ClipboardList,   label: 'Admin',             path: '/admin-operations' },
   { icon: FileText,        label: 'Documents',         path: '/documents' },
   { icon: Truck,           label: 'Operations',        path: '/operations' },
   { icon: Star,            label: 'Feedback',          path: '/feedback' },

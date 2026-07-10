@@ -20,6 +20,7 @@ const pageTitles = {
   '/reports': 'Reports',
   '/notifications': 'Notifications',
   '/settings': 'Settings',
+  '/admin-operations': 'Admin',
 };
 
 export default function AppLayout() {
