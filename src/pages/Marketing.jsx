@@ -60,10 +60,12 @@ export default function Marketing() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
   const [preselectedPkg, setPreselectedPkg] = useState(null);
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const imageInputRef = useRef(null);
   const proofInputRef = useRef(null);
+  const attachmentsInputRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -113,7 +115,7 @@ export default function Marketing() {
     setEditingAsset(null);
     setPreselectedPkg(pkgId);
     const title = pkgId ? autoTitle(pkgId, 'poster') : '';
-    setFormData({ status: 'draft', asset_type: 'poster', platform: [], collective_id: pkgId || '', title });
+    setFormData({ status: 'draft', asset_type: 'poster', platform: [], collective_id: pkgId || '', title, attachments: [] });
     setShowModal(true);
   };
 
@@ -140,6 +142,24 @@ export default function Marketing() {
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     setFormData(prev => ({ ...prev, proof_url: file_url }));
     setUploadingProof(false);
+  };
+
+  const handleUploadAttachments = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadingAttachments(true);
+    const uploaded = [];
+    for (const file of files) {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      uploaded.push({ url: file_url, name: file.name, type: file.type });
+    }
+    setFormData(prev => ({ ...prev, attachments: [...(prev.attachments || []), ...uploaded] }));
+    setUploadingAttachments(false);
+    e.target.value = '';
+  };
+
+  const removeAttachment = (idx) => {
+    setFormData(prev => ({ ...prev, attachments: (prev.attachments || []).filter((_, i) => i !== idx) }));
   };
 
   const handleSave = async () => {
@@ -509,6 +529,60 @@ export default function Marketing() {
                 </button>
               )}
             </div>
+            {/* Attachments — multiple files/posters */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Attachments / Posters</Label>
+                <span className="text-[10px] text-muted-foreground">{(formData.attachments || []).length} file{(formData.attachments || []).length !== 1 ? 's' : ''}</span>
+              </div>
+              <input
+                ref={attachmentsInputRef}
+                type="file"
+                accept="image/*,video/*,application/pdf,.doc,.docx"
+                multiple
+                className="hidden"
+                onChange={handleUploadAttachments}
+              />
+              {/* Attachment thumbnails */}
+              {(formData.attachments || []).length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {(formData.attachments || []).map((att, idx) => {
+                    const isImage = att.type?.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg)$/i.test(att.name || '');
+                    return (
+                      <div key={idx} className="relative group rounded-lg overflow-hidden border border-border bg-muted/30">
+                        {isImage ? (
+                          <img src={att.url} alt={att.name} className="w-full h-20 object-cover" />
+                        ) : (
+                          <div className="w-full h-20 flex flex-col items-center justify-center gap-1">
+                            <Paperclip className="w-5 h-5 text-muted-foreground" />
+                            <span className="text-[9px] text-muted-foreground text-center px-1 truncate w-full">{att.name}</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity">
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                            <Download className="w-4 h-4 text-white" />
+                          </a>
+                          <button onClick={() => removeAttachment(idx)} className="text-rose-400 hover:text-rose-300">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => attachmentsInputRef.current?.click()}
+                className="w-full h-14 border-2 border-dashed border-border rounded-lg flex items-center justify-center gap-2 hover:border-primary transition-colors text-muted-foreground hover:text-primary"
+              >
+                {uploadingAttachments
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Uploading…</span></>
+                  : <><Upload className="w-4 h-4" /><span className="text-xs">Add files or posters (multiple allowed)</span></>
+                }
+              </button>
+            </div>
+
             <div className="space-y-1.5">
               <Label>Caption/Copy</Label>
               <Textarea rows={3} placeholder="Social media caption or copy..." value={formData.caption || ''} onChange={e => setFormData({...formData, caption: e.target.value})} />
@@ -613,6 +687,28 @@ function AssetCard({ asset, pkgName, onEdit, onDelete, onPublish, onSubmit, onVi
             <span className="truncate">Proof</span>
             <Download className="w-2.5 h-2.5 flex-shrink-0 ml-auto" />
           </a>
+        )}
+        {/* Attachments strip */}
+        {asset.attachments?.length > 0 && (
+          <div className="mb-2 space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{asset.attachments.length} Attachment{asset.attachments.length !== 1 ? 's' : ''}</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {asset.attachments.map((att, idx) => {
+                const isImage = att.type?.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg)$/i.test(att.name || '');
+                return isImage ? (
+                  <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" title={att.name}>
+                    <img src={att.url} alt={att.name} className="w-10 h-10 object-cover rounded border border-border hover:opacity-80 transition-opacity" />
+                  </a>
+                ) : (
+                  <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" title={att.name}
+                    className="flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted/40 hover:bg-muted text-[10px] text-muted-foreground max-w-[80px] truncate">
+                    <Paperclip className="w-2.5 h-2.5 flex-shrink-0" />
+                    <span className="truncate">{att.name || 'File'}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
         )}
         {asset.caption && <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{asset.caption}</p>}
 
