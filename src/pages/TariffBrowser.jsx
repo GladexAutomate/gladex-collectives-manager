@@ -2,9 +2,9 @@
 import { useState, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
-  Folder, FolderOpen, FolderPlus, Upload, ChevronRight, Home,
+  FolderPlus, Upload, ChevronRight, Home,
   File, Download, Trash2, Loader2, FileText, Image as ImageIcon,
-  Film, X, Plus, FolderX
+  Film, X, FolderX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,33 +41,16 @@ const ROOT_FOLDERS = [
   'VIETNAM',
 ];
 
-const FOLDER_EMOJIS = {
-  '.LAND ARRANGEMENT.': '🏨',
-  'AMERICA':            '🇺🇸',
-  'BALI':               '🌴',
-  'CANADA':             '🇨🇦',
-  'CENTRAL ASIA':       '🗺️',
-  'CHINA':              '🇨🇳',
-  'CRUISE':             '🚢',
-  'DUBAI':              '🇦🇪',
-  'EUROPE':             '🇪🇺',
-  'FAM TOUR':           '✈️',
-  'HOLY LAND':          '✡️',
-  'HONGKONG':           '🇭🇰',
-  'INDIA':              '🇮🇳',
-  'JAPAN':              '🇯🇵',
-  'KOREA':              '🇰🇷',
-  'MONGOLIA':           '🏕️',
-  'NEW ZEALAND':        '🇳🇿',
-  'PREMIUM PACKAGES':   '⭐',
-  'SINGAPORE':          '🇸🇬',
-  'SOUTH ASIA':         '🌏',
-  'TAIWAN':             '🇹🇼',
-  'THAILAND':           '🇹🇭',
-  'TRI-CITY':           '🏙️',
-  'UNITED KINGDOM':     '🇬🇧',
-  'VIETNAM':            '🇻🇳',
-};
+const ROW_COLORS = [
+  { bg: 'bg-purple-600',  hover: 'hover:bg-purple-700',  count: 'text-purple-200'  },
+  { bg: 'bg-pink-500',    hover: 'hover:bg-pink-600',    count: 'text-pink-200'    },
+  { bg: 'bg-sky-500',     hover: 'hover:bg-sky-600',     count: 'text-sky-200'     },
+  { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', count: 'text-emerald-200' },
+  { bg: 'bg-amber-500',   hover: 'hover:bg-amber-600',   count: 'text-amber-200'   },
+  { bg: 'bg-rose-500',    hover: 'hover:bg-rose-600',    count: 'text-rose-200'    },
+  { bg: 'bg-indigo-600',  hover: 'hover:bg-indigo-700',  count: 'text-indigo-200'  },
+  { bg: 'bg-teal-600',    hover: 'hover:bg-teal-700',    count: 'text-teal-200'    },
+];
 
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
@@ -246,31 +229,31 @@ export default function TariffBrowser() {
       {/* Folders grid */}
       {currentFolders.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
-          {currentFolders.map(folder => {
-            const count = childCount(folder);
+          {currentFolders.map((folder, idx) => {
+            const count  = childCount(folder);
+            const color  = ROW_COLORS[Math.floor(idx / 6) % ROW_COLORS.length];
             return (
               <div
                 key={folder}
                 onClick={() => navigate(folder)}
-                className="group relative bg-card border border-border hover:border-amber-400 hover:shadow-md rounded-xl p-3.5 cursor-pointer transition-all select-none"
+                className={cn(
+                  'group relative rounded-xl p-3.5 cursor-pointer transition-all select-none shadow-sm',
+                  color.bg, color.hover,
+                )}
               >
-                {/* Delete button — only for user-created folders (not root) */}
                 {!isRoot && (
                   <button
                     onClick={e => { e.stopPropagation(); deleteFolder(folder); }}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-600 transition-all p-0.5 rounded hover:bg-rose-50"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-white/70 hover:text-white transition-all p-0.5 rounded"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 )}
-                <div className="flex flex-col items-center gap-1.5 text-center">
-                  <span className="text-3xl leading-none">
-                    {isRoot ? (FOLDER_EMOJIS[folder] || '📁') : '📁'}
-                  </span>
-                  <p className="text-[11px] font-semibold text-foreground leading-tight line-clamp-2 break-words w-full">
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <p className="text-xs font-bold text-white leading-tight line-clamp-3 break-words w-full">
                     {folder}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className={cn('text-[10px]', color.count)}>
                     {count === 0 ? 'Empty' : `${count} item${count !== 1 ? 's' : ''}`}
                   </p>
                 </div>
