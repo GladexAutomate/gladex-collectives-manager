@@ -15,6 +15,7 @@ import Workflow from './pages/Workflow';
 import ProductDevelopment from './pages/ProductDevelopment';
 import Marketing from './pages/Marketing';
 import AdminOperations from './pages/AdminOperations';
+import UserManagement from './pages/UserManagement';
 
 import Documents from './pages/Documents';
 import Operations from './pages/Operations';
@@ -64,6 +65,7 @@ const AuthenticatedApp = () => {
         <Route path="/sales" element={<Sales />} />
         <Route path="/accounting" element={<Payments />} />
         <Route path="/admin-operations" element={<AdminOperations />} />
+        <Route path="/user-management" element={<UserManagement />} />
 
         <Route path="/documents" element={<Documents />} />
         <Route path="/operations" element={<Operations />} />

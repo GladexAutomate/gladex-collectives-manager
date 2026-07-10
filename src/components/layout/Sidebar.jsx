@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Globe, CheckSquare, Package, Megaphone,
   FileText, Truck, Star, BarChart3, ClipboardList,
-  Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard, X, StickyNote
+  Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard, X, StickyNote, UserCog
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ const navItems = [
   { icon: Users,           label: 'Sales',             path: '/sales' },
   { icon: CreditCard,      label: 'Accounting',        path: '/accounting' },
   { icon: ClipboardList,   label: 'Admin',             path: '/admin-operations' },
+  { icon: UserCog,         label: 'User Management',   path: '/user-management' },
   { icon: FileText,        label: 'Documents',         path: '/documents' },
   { icon: Truck,           label: 'Operations',        path: '/operations' },
   { icon: Star,            label: 'Feedback',          path: '/feedback' },

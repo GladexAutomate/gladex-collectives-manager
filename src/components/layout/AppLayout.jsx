@@ -21,6 +21,7 @@ const pageTitles = {
   '/notifications': 'Notifications',
   '/settings': 'Settings',
   '/admin-operations': 'Admin',
+  '/user-management': 'User Management',
 };
 
 export default function AppLayout() {
