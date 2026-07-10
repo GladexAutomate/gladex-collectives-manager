@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand } from 'lucide-react';
 import TariffBrowser from './TariffBrowser';
-import CreatePoster from './CreatePoster';
+import DocumentEditor from './DocumentEditor';
 import { broadcastRefresh } from '@/lib/dataSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -473,7 +473,7 @@ export default function Marketing() {
       {activeTab === 'tariff' && <TariffBrowser />}
 
       {/* Create Poster Tab */}
-      {activeTab === 'poster' && <CreatePoster collectives={collectives} />}
+      {activeTab === 'poster' && <DocumentEditor collectives={collectives} />}
 
       {/* Add/Edit Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
