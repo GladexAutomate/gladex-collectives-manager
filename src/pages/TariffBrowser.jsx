@@ -41,15 +41,13 @@ const ROOT_FOLDERS = [
   'VIETNAM',
 ];
 
-const ROW_COLORS = [
-  { bg: 'bg-purple-600',  hover: 'hover:bg-purple-700',  count: 'text-purple-200'  },
-  { bg: 'bg-pink-500',    hover: 'hover:bg-pink-600',    count: 'text-pink-200'    },
-  { bg: 'bg-sky-500',     hover: 'hover:bg-sky-600',     count: 'text-sky-200'     },
-  { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', count: 'text-emerald-200' },
-  { bg: 'bg-amber-500',   hover: 'hover:bg-amber-600',   count: 'text-amber-200'   },
-  { bg: 'bg-rose-500',    hover: 'hover:bg-rose-600',    count: 'text-rose-200'    },
-  { bg: 'bg-indigo-600',  hover: 'hover:bg-indigo-700',  count: 'text-indigo-200'  },
-  { bg: 'bg-teal-600',    hover: 'hover:bg-teal-700',    count: 'text-teal-200'    },
+const CARD_VARIANTS = [
+  { from: '#0a0a0f', to: '#2d1b69', border: 'rgba(139,92,246,0.5)',  glow: 'rgba(139,92,246,0.45)' },
+  { from: '#0d0d0d', to: '#1e0a3c', border: 'rgba(168,85,247,0.4)',  glow: 'rgba(168,85,247,0.4)'  },
+  { from: '#050510', to: '#3b0764', border: 'rgba(192,132,252,0.5)', glow: 'rgba(192,132,252,0.4)' },
+  { from: '#0a0a0a', to: '#1a0533', border: 'rgba(147,51,234,0.5)',  glow: 'rgba(147,51,234,0.45)' },
+  { from: '#08080f', to: '#240d55', border: 'rgba(167,139,250,0.5)', glow: 'rgba(167,139,250,0.4)' },
+  { from: '#0c0c0c', to: '#1b0545', border: 'rgba(216,180,254,0.4)', glow: 'rgba(216,180,254,0.35)'},
 ];
 
 function loadData() {
@@ -230,30 +228,54 @@ export default function TariffBrowser() {
       {currentFolders.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
           {currentFolders.map((folder, idx) => {
-            const count  = childCount(folder);
-            const color  = ROW_COLORS[Math.floor(idx / 6) % ROW_COLORS.length];
+            const count = childCount(folder);
+            const v     = CARD_VARIANTS[idx % CARD_VARIANTS.length];
             return (
               <div
                 key={folder}
                 onClick={() => navigate(folder)}
-                className={cn(
-                  'group relative rounded-xl p-3.5 cursor-pointer transition-all select-none shadow-sm',
-                  color.bg, color.hover,
-                )}
+                className="group relative rounded-xl cursor-pointer select-none overflow-hidden"
+                style={{
+                  background: `linear-gradient(135deg, ${v.from} 0%, ${v.to} 100%)`,
+                  border: `1px solid ${v.border}`,
+                  boxShadow: `0 2px 8px rgba(0,0,0,0.5)`,
+                  transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)';
+                  e.currentTarget.style.boxShadow = `0 8px 24px ${v.glow}, 0 0 0 1px ${v.border}`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+                }}
+                onMouseDown={e  => { e.currentTarget.style.transform = 'scale(0.97)'; }}
+                onMouseUp={e    => { e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)'; }}
               >
-                {!isRoot && (
-                  <button
-                    onClick={e => { e.stopPropagation(); deleteFolder(folder); }}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-white/70 hover:text-white transition-all p-0.5 rounded"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <p className="text-xs font-bold text-white leading-tight line-clamp-3 break-words w-full">
+                {/* Shimmer overlay */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%)' }}
+                />
+
+                {/* Top accent line */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl"
+                  style={{ background: `linear-gradient(90deg, transparent, ${v.border}, transparent)` }}
+                />
+
+                <div className="relative p-3.5">
+                  {!isRoot && (
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteFolder(folder); }}
+                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-purple-300/70 hover:text-white transition-all p-1"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                  <p className="text-xs font-bold text-white leading-tight line-clamp-3 break-words tracking-wide">
                     {folder}
                   </p>
-                  <p className={cn('text-[10px]', color.count)}>
+                  <p className="text-[10px] text-purple-300/60 mt-1.5">
                     {count === 0 ? 'Empty' : `${count} item${count !== 1 ? 's' : ''}`}
                   </p>
                 </div>
