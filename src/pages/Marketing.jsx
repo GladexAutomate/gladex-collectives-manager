@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand } from 'lucide-react';
+import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand, FolderOpen, ExternalLink } from 'lucide-react';
 import { broadcastRefresh } from '@/lib/dataSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -276,6 +276,7 @@ export default function Marketing() {
         {[
           { key: 'packages', label: '📦 Packages + Assets' },
           { key: 'assets', label: '🎨 All Assets' },
+          { key: 'tariff', label: '📋 Tariff' },
         ].map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={cn("px-4 py-2 rounded-lg text-xs font-medium transition-all",
@@ -301,15 +302,17 @@ export default function Marketing() {
       </div>
 
       {/* Search bar (shared) */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder={activeTab === 'packages' ? "Search packages or destination..." : "Search assets..."}
-          className="pl-9"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
+      {activeTab !== 'tariff' && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder={activeTab === 'packages' ? "Search packages or destination..." : "Search assets..."}
+            className="pl-9"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      )}
 
       {/* === PACKAGES + ASSETS TAB === */}
       {activeTab === 'packages' && (
@@ -460,6 +463,84 @@ export default function Marketing() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tariff Tab */}
+      {activeTab === 'tariff' && (
+        <div className="space-y-5">
+          {/* Header banner */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <FolderOpen className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base font-jakarta text-amber-900">POTB Collectives Tariff</h3>
+                <p className="text-xs text-amber-700 mt-0.5">25 destination folders · Rates & pricing documents · Google Drive</p>
+              </div>
+            </div>
+            <a
+              href="https://drive.google.com/drive/folders/1gWPN5UHfC5xcBc2D4GluQZQcd_FRjRe1"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors flex-shrink-0"
+            >
+              <ExternalLink className="w-4 h-4" /> Open Full Drive Folder
+            </a>
+          </div>
+
+          {/* Destination grid */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Browse by Destination</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {[
+                { name: 'Japan',            emoji: '🇯🇵' },
+                { name: 'Korea',            emoji: '🇰🇷' },
+                { name: 'Taiwan',           emoji: '🇹🇼' },
+                { name: 'China',            emoji: '🇨🇳' },
+                { name: 'Hongkong',         emoji: '🇭🇰' },
+                { name: 'Singapore',        emoji: '🇸🇬' },
+                { name: 'Thailand',         emoji: '🇹🇭' },
+                { name: 'Vietnam',          emoji: '🇻🇳' },
+                { name: 'Bali',             emoji: '🌴' },
+                { name: 'India',            emoji: '🇮🇳' },
+                { name: 'South Asia',       emoji: '🌏' },
+                { name: 'Central Asia',     emoji: '🗺️' },
+                { name: 'Mongolia',         emoji: '🏕️' },
+                { name: 'Dubai',            emoji: '🇦🇪' },
+                { name: 'Holy Land',        emoji: '✡️' },
+                { name: 'Europe',           emoji: '🇪🇺' },
+                { name: 'United Kingdom',   emoji: '🇬🇧' },
+                { name: 'America',          emoji: '🇺🇸' },
+                { name: 'Canada',           emoji: '🇨🇦' },
+                { name: 'New Zealand',      emoji: '🇳🇿' },
+                { name: 'Cruise',           emoji: '🚢' },
+                { name: 'Tri-City',         emoji: '🏙️' },
+                { name: 'Fam Tour',         emoji: '✈️' },
+                { name: 'Premium Packages', emoji: '⭐' },
+                { name: 'Land Arrangement', emoji: '🏨' },
+              ].map(dest => (
+                <a
+                  key={dest.name}
+                  href="https://drive.google.com/drive/folders/1gWPN5UHfC5xcBc2D4GluQZQcd_FRjRe1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group bg-card border border-border hover:border-amber-300 hover:shadow-md rounded-xl p-4 flex flex-col items-center gap-2 transition-all text-center"
+                >
+                  <span className="text-3xl">{dest.emoji}</span>
+                  <span className="text-xs font-semibold text-foreground group-hover:text-amber-700 transition-colors leading-tight">{dest.name}</span>
+                  <span className="text-[10px] text-muted-foreground group-hover:text-amber-500 flex items-center gap-0.5 transition-colors">
+                    <ExternalLink className="w-2.5 h-2.5" /> View Tariff
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground text-center">
+            All tariff documents are stored in Google Drive. Click any destination to browse its folder.
+          </p>
         </div>
       )}
 
