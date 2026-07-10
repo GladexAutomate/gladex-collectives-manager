@@ -69,6 +69,7 @@ const BLANK = () => ({
   rate_child_no_bed: '', rate_child_no_bed_age_min: '', rate_child_no_bed_age_max: '',
   rate_child: '', rate_child_age_min: '', rate_child_age_max: '',
   rate_infant: '', rate_infant_age_min: '', rate_infant_age_max: '',
+  drive_link: '',
   inclusions: '', exclusions: '', cancellation_policy: '',
   itinerary: '', terms_conditions: '',
   optional_tours: '', flight_details: '', hotel_details: '', remarks: '',
@@ -291,6 +292,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       itinerary: f.itinerary,
       terms_conditions: f.terms_conditions,
       optional_tours: f.optional_tours,
+      drive_link: f.drive_link || undefined,
       flight_details: f.flight_details,
       hotel_details: f.hotel_details,
       remarks: f.remarks,
@@ -387,6 +389,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       itinerary: c.itinerary || '',
       terms_conditions: c.terms_conditions || '',
       optional_tours: c.optional_tours || '',
+      drive_link: c.drive_link || '',
       flight_details: c.flight_details || '',
       hotel_details: c.hotel_details || '',
       remarks: c.remarks || '',
@@ -846,6 +849,27 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                   </F>
                   <F label="Hotel Details" className="col-span-2 md:col-span-3">
                     <Textarea rows={2} placeholder="Hotel names, categories, check-in/out..." value={form.hotel_details} onChange={e => setF('hotel_details', e.target.value)} className="text-xs resize-none" />
+                  </F>
+                  <F label="📁 Drive Link" className="col-span-2 md:col-span-3">
+                    <div className="relative">
+                      <Input
+                        placeholder="Paste Google Drive / Dropbox / OneDrive link…"
+                        value={form.drive_link || ''}
+                        onChange={e => setF('drive_link', e.target.value)}
+                        className="h-9 pr-20 text-sm"
+                      />
+                      {form.drive_link && (
+                        <a
+                          href={form.drive_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-sky-600 hover:text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded"
+                        >
+                          Open ↗
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">This link will be visible to the Marketing team</p>
                   </F>
                 </div>
               )}

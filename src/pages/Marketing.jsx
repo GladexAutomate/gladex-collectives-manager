@@ -378,6 +378,27 @@ export default function Marketing() {
                 {/* Expanded assets */}
                 {isExpanded && (
                   <div className="border-t border-border bg-muted/20">
+                    {pkg.drive_link && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 border-b border-sky-100">
+                        <span className="text-[11px] text-sky-700 font-medium">📁 Drive Folder:</span>
+                        <a
+                          href={pkg.drive_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-sky-600 hover:text-sky-800 hover:underline truncate flex-1"
+                        >
+                          {pkg.drive_link}
+                        </a>
+                        <a
+                          href={pkg.drive_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-semibold text-white bg-sky-500 hover:bg-sky-600 px-2 py-0.5 rounded flex-shrink-0"
+                        >
+                          Open ↗
+                        </a>
+                      </div>
+                    )}
                     {pkgAssets.length === 0 ? (
                       <div className="py-8 text-center">
                         <Image className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
