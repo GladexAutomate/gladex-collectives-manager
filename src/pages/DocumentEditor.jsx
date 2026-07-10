@@ -130,8 +130,10 @@ function Divider() {
 
 /* ─── Main component ─────────────────────────────────────────── */
 export default function DocumentEditor({ collectives = [] }) {
-  const editorRef    = useRef(null);
-  const imgInputRef  = useRef(null);
+  const editorRef       = useRef(null);
+  const imgInputRef     = useRef(null);
+  const footerImgRef    = useRef(null);
+  const headerImgRef    = useRef(null);
   const [selectedId, setSelectedId] = useState('');
   const [uploading,  setUploading]  = useState(false);
   const [printing,   setPrinting]   = useState(false);
@@ -167,6 +169,26 @@ export default function DocumentEditor({ collectives = [] }) {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       editorRef.current?.focus();
       exec('insertHTML', `<img src="${file_url}" style="max-width:100%;height:auto;display:block;margin:8px 0;" />`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function insertPositioned(file, position) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const ed = editorRef.current;
+      if (!ed) return;
+      const html = `<div contenteditable="false" style="width:100%;margin:${position==='header'?'0 0 16px 0':'16px 0 0 0'};line-height:0;">
+        <img src="${file_url}" style="width:100%;height:auto;display:block;" />
+      </div>`;
+      if (position === 'header') {
+        ed.innerHTML = html + ed.innerHTML;
+      } else {
+        ed.innerHTML = ed.innerHTML + html;
+      }
     } finally {
       setUploading(false);
     }
@@ -243,6 +265,27 @@ export default function DocumentEditor({ collectives = [] }) {
         >
           <Wand2 className="w-3.5 h-3.5 text-amber-500" /> Auto-fill from Package
         </Button>
+
+        <div className="w-px h-5 bg-border flex-shrink-0" />
+
+        {/* Header image */}
+        <input ref={headerImgRef} type="file" accept="image/*" className="hidden"
+          onChange={e => insertPositioned(e.target.files[0], 'header')} />
+        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 flex-shrink-0"
+          onClick={() => headerImgRef.current?.click()} disabled={uploading}>
+          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+          + Header Image
+        </Button>
+
+        {/* Footer image */}
+        <input ref={footerImgRef} type="file" accept="image/*" className="hidden"
+          onChange={e => insertPositioned(e.target.files[0], 'footer')} />
+        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 flex-shrink-0"
+          onClick={() => footerImgRef.current?.click()} disabled={uploading}>
+          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+          + Footer Image
+        </Button>
+
         <div className="flex-1" />
         <Button
           size="sm" className="h-8 text-xs gap-1.5 gradient-gold text-white border-0 flex-shrink-0"
