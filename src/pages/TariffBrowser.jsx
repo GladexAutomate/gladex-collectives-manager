@@ -4,11 +4,15 @@ import { base44 } from '@/api/base44Client';
 import {
   FolderPlus, Upload, ChevronRight, Home,
   File, Download, Trash2, Loader2, FileText, Image as ImageIcon,
-  Film, X, FolderX
+  Film, FolderX, MoreVertical, FolderOpen, Pencil, UploadCloud, Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 const STORAGE_KEY = 'gladex_tariff_v1';
@@ -115,11 +119,15 @@ function formatSize(bytes) {
 export default function TariffBrowser() {
   const [path, setPath]                   = useState([]);
   const [data, setData]                   = useState(loadData);
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [uploading, setUploading]         = useState(false);
+  const [showNewFolder, setShowNewFolder]   = useState(false);
+  const [newFolderName, setNewFolderName]   = useState('');
+  const [showRename, setShowRename]         = useState(false);
+  const [renamingFolder, setRenamingFolder] = useState('');
+  const [renameValue, setRenameValue]       = useState('');
+  const [uploading, setUploading]           = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
-  const fileInputRef = useRef(null);
+  const fileInputRef     = useRef(null);
+  const folderUploadRefs = useRef({});
 
   const key      = pathKey(path);
   const isRoot   = path.length === 0;
@@ -154,8 +162,57 @@ export default function TariffBrowser() {
   }
 
   function deleteFolder(name) {
-    if (isRoot && ROOT_FOLDERS.includes(name)) return; // can't delete built-in root folders
+    if (isRoot && ROOT_FOLDERS.includes(name)) return;
     mutate(d => { if (d[key]) d[key].folders = (d[key].folders || []).filter(f => f !== name); });
+  }
+
+  function openRename(name) {
+    setRenamingFolder(name);
+    setRenameValue(name);
+    setShowRename(true);
+  }
+
+  function doRename() {
+    const next = renameValue.trim();
+    if (!next || next === renamingFolder) { setShowRename(false); return; }
+    mutate(d => {
+      // rename in parent folder list
+      if (!d[key]) d[key] = { folders: [], files: [] };
+      d[key].folders = (d[key].folders || []).map(f => f === renamingFolder ? next : f);
+      // move child data to new key
+      const oldChildKey = pathKey([...path, renamingFolder]);
+      const newChildKey = pathKey([...path, next]);
+      if (d[oldChildKey]) { d[newChildKey] = d[oldChildKey]; delete d[oldChildKey]; }
+    });
+    setShowRename(false);
+  }
+
+  async function uploadToFolder(folderName, e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    const folderKey = pathKey([...path, folderName]);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgress(`Uploading ${i + 1}/${files.length}: ${file.name}`);
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        setData(prev => {
+          const next = { ...prev };
+          if (!next[folderKey]) next[folderKey] = { folders: [], files: [] };
+          next[folderKey].files = [...(next[folderKey].files || []), {
+            name: file.name, url: file_url, type: file.type,
+            size: file.size, uploadedAt: new Date().toISOString(),
+          }];
+          saveData(next);
+          return next;
+        });
+      }
+    } finally {
+      setUploading(false);
+      setUploadProgress('');
+      e.target.value = '';
+    }
   }
 
   function deleteFile(idx) {
@@ -260,17 +317,18 @@ export default function TariffBrowser() {
       {currentFolders.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
           {currentFolders.map((folder, idx) => {
-            const count = childCount(folder);
-            const v     = CARD_VARIANTS[idx % CARD_VARIANTS.length];
+            const count      = childCount(folder);
+            const v          = CARD_VARIANTS[idx % CARD_VARIANTS.length];
+            const isBuiltIn  = isRoot && ROOT_FOLDERS.includes(folder);
+            const folderKey  = pathKey([...path, folder]);
             return (
               <div
                 key={folder}
-                onClick={() => navigate(folder)}
-                className="group relative rounded-xl cursor-pointer select-none overflow-hidden"
+                className="group relative rounded-xl select-none overflow-hidden"
                 style={{
                   background: `linear-gradient(135deg, ${v.from} 0%, ${v.to} 100%)`,
                   border: `1px solid ${v.border}`,
-                  boxShadow: `0 2px 8px rgba(0,0,0,0.5)`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
                   transition: 'transform 0.18s ease, box-shadow 0.18s ease',
                 }}
                 onMouseEnter={e => {
@@ -281,35 +339,70 @@ export default function TariffBrowser() {
                   e.currentTarget.style.transform = 'translateY(0) scale(1)';
                   e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
                 }}
-                onMouseDown={e  => { e.currentTarget.style.transform = 'scale(0.97)'; }}
-                onMouseUp={e    => { e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)'; }}
               >
                 {/* Shimmer overlay */}
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                  style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%)' }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%)' }} />
 
                 {/* Top accent line */}
                 <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl"
-                  style={{ background: `linear-gradient(90deg, transparent, ${v.border}, transparent)` }}
+                  style={{ background: `linear-gradient(90deg, transparent, ${v.border}, transparent)` }} />
+
+                {/* Hidden file input per folder */}
+                <input
+                  type="file" multiple className="hidden"
+                  ref={el => { folderUploadRefs.current[folder] = el; }}
+                  onChange={e => uploadToFolder(folder, e)}
                 />
 
-                <div className="relative p-3.5">
-                  {(!isRoot || !ROOT_FOLDERS.includes(folder)) && (
-                    <button
-                      onClick={e => { e.stopPropagation(); deleteFolder(folder); }}
-                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-purple-300/70 hover:text-white transition-all p-1"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+                {/* Card body — clickable area */}
+                <div
+                  className="relative p-3.5 pr-8 cursor-pointer"
+                  onClick={() => navigate(folder)}
+                >
                   <p className="text-xs font-bold text-white leading-tight line-clamp-3 break-words tracking-wide">
                     {folder}
                   </p>
                   <p className="text-[10px] text-purple-300/60 mt-1.5">
                     {count === 0 ? 'Empty' : `${count} item${count !== 1 ? 's' : ''}`}
                   </p>
+                </div>
+
+                {/* Three-dot menu button */}
+                <div className="absolute top-2 right-1.5" onClick={e => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/10">
+                        <MoreVertical className="w-3.5 h-3.5 text-white/80" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44 text-xs">
+                      <DropdownMenuItem onClick={() => navigate(folder)} className="gap-2 text-xs cursor-pointer">
+                        <FolderOpen className="w-3.5 h-3.5" /> Open
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => folderUploadRefs.current[folder]?.click()}
+                        className="gap-2 text-xs cursor-pointer"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" /> Upload Files
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => openRename(folder)}
+                        className="gap-2 text-xs cursor-pointer"
+                        disabled={isBuiltIn}
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => deleteFolder(folder)}
+                        className="gap-2 text-xs cursor-pointer text-rose-500 focus:text-rose-500"
+                        disabled={isBuiltIn}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             );
@@ -399,6 +492,31 @@ export default function TariffBrowser() {
               <Button variant="outline" size="sm" onClick={() => setShowNewFolder(false)}>Cancel</Button>
               <Button size="sm" onClick={createFolder} disabled={!newFolderName.trim()} className="gradient-gold text-white border-0">
                 Create
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Dialog */}
+      <Dialog open={showRename} onOpenChange={setShowRename}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-jakarta flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-purple-500" /> Rename Folder
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-1">
+            <Input
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && doRename()}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowRename(false)}>Cancel</Button>
+              <Button size="sm" onClick={doRename} disabled={!renameValue.trim()} className="gradient-gold text-white border-0">
+                Rename
               </Button>
             </div>
           </div>
