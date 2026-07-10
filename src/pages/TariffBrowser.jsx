@@ -55,6 +55,10 @@ const CARD_VARIANTS = [
 ];
 
 const SEED_DATA = {
+  '': {
+    folders: ROOT_FOLDERS.slice(), // store root folders in localStorage so rename/delete works
+    files: [],
+  },
   '.LAND ARRANGEMENT.': {
     folders: [
       '[AFSO1B1] 4D3N',
@@ -82,9 +86,9 @@ function loadData() {
       return SEED_DATA;
     }
     const parsed = JSON.parse(raw);
-    // Seed Land Arrangement if not yet seeded
-    if (!parsed['.LAND ARRANGEMENT.']) {
-      const merged = { ...SEED_DATA, ...parsed };
+    // First-time migration: seed root folders into data[''] if missing
+    if (!parsed[''] || !parsed[''].folders?.length) {
+      const merged = { ...parsed, '': SEED_DATA[''], '.LAND ARRANGEMENT.': parsed['.LAND ARRANGEMENT.'] || SEED_DATA['.LAND ARRANGEMENT.'] };
       saveData(merged);
       return merged;
     }
@@ -133,8 +137,7 @@ export default function TariffBrowser() {
   const isRoot   = path.length === 0;
   const entry    = data[key] || { folders: [], files: [] };
 
-  const extraRootFolders = (data['']?.folders || []).filter(f => !ROOT_FOLDERS.includes(f));
-  const currentFolders   = isRoot ? [...ROOT_FOLDERS, ...extraRootFolders] : (entry.folders || []);
+  const currentFolders = entry.folders || [];
   const currentFiles   = entry.files || [];
 
   function navigate(folder) { setPath(p => [...p, folder]); }
@@ -162,7 +165,6 @@ export default function TariffBrowser() {
   }
 
   function deleteFolder(name) {
-    if (isRoot && ROOT_FOLDERS.includes(name)) return;
     mutate(d => { if (d[key]) d[key].folders = (d[key].folders || []).filter(f => f !== name); });
   }
 
@@ -317,10 +319,9 @@ export default function TariffBrowser() {
       {currentFolders.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
           {currentFolders.map((folder, idx) => {
-            const count      = childCount(folder);
-            const v          = CARD_VARIANTS[idx % CARD_VARIANTS.length];
-            const isBuiltIn  = isRoot && ROOT_FOLDERS.includes(folder);
-            const folderKey  = pathKey([...path, folder]);
+            const count     = childCount(folder);
+            const v         = CARD_VARIANTS[idx % CARD_VARIANTS.length];
+            const folderKey = pathKey([...path, folder]);
             return (
               <div
                 key={folder}
@@ -389,7 +390,6 @@ export default function TariffBrowser() {
                       <DropdownMenuItem
                         onClick={() => openRename(folder)}
                         className="gap-2 text-xs cursor-pointer"
-                        disabled={isBuiltIn}
                       >
                         <Pencil className="w-3.5 h-3.5" /> Rename
                       </DropdownMenuItem>
@@ -397,7 +397,6 @@ export default function TariffBrowser() {
                       <DropdownMenuItem
                         onClick={() => deleteFolder(folder)}
                         className="gap-2 text-xs cursor-pointer text-rose-500 focus:text-rose-500"
-                        disabled={isBuiltIn}
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Remove
                       </DropdownMenuItem>
