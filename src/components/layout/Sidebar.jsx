@@ -3,24 +3,28 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Globe, CheckSquare, Package, Megaphone,
   FileText, Truck, Star, BarChart3, ClipboardList,
-  Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard, X, StickyNote, UserCog
+  Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard, X, StickyNote,
+  UserCog, Stamp, BriefcaseBusiness
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard',        path: '/' },
-  { icon: Globe,           label: 'Collectives',       path: '/collectives' },
-  { icon: CheckSquare,     label: 'Workflow',          path: '/workflow' },
-  { icon: Package,         label: 'Product Dev',       path: '/product-development' },
-  { icon: Megaphone,       label: 'Marketing',         path: '/marketing' },
-  { icon: Users,           label: 'Sales',             path: '/sales' },
-  { icon: CreditCard,      label: 'Accounting',        path: '/accounting' },
-  { icon: ClipboardList,   label: 'Admin',             path: '/admin-operations' },
-  { icon: UserCog,         label: 'User Management',   path: '/user-management' },
-  { icon: FileText,        label: 'Documents',         path: '/documents' },
-  { icon: Truck,           label: 'Operations',        path: '/operations' },
-  { icon: Star,            label: 'Feedback',          path: '/feedback' },
-  { icon: BarChart3,       label: 'Reports',           path: '/reports' },
+  { icon: LayoutDashboard,   label: 'Dashboard',        path: '/' },
+  { icon: Globe,             label: 'Collectives',       path: '/collectives' },
+  { icon: CheckSquare,       label: 'Workflow',          path: '/workflow' },
+  // ── Workflow flow ──────────────────────────────
+  { icon: Package,           label: 'Product Dev',       path: '/product-development' },
+  { icon: Megaphone,         label: 'Marketing',         path: '/marketing' },
+  { icon: Users,             label: 'Sales',             path: '/sales' },
+  { icon: CreditCard,        label: 'Accounting',        path: '/accounting' },
+  { icon: ClipboardList,     label: 'Admin',             path: '/admin-operations' },
+  { icon: Truck,             label: 'Operations',        path: '/operations' },
+  { icon: Stamp,             label: 'Visa',              path: '/visa' },
+  { icon: BriefcaseBusiness, label: 'Management',        path: '/management' },
+  // ── Support ────────────────────────────────────
+  { icon: FileText,          label: 'Documents',         path: '/documents' },
+  { icon: Star,              label: 'Feedback',          path: '/feedback' },
+  { icon: BarChart3,         label: 'Reports',           path: '/reports' },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, onNotepadToggle, notepadOpen }) {
@@ -91,8 +95,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </nav>
 
         <div className="px-2 pb-4 space-y-1 border-t border-[hsl(var(--sidebar-border))] pt-4">
-          <NavLink icon={Bell}     label="Notifications" path="/notifications" />
-          <NavLink icon={Settings} label="Settings"      path="/settings" />
+          <NavLink icon={UserCog}  label="User Management" path="/user-management" />
+          <NavLink icon={Bell}     label="Notifications"   path="/notifications" />
+          <NavLink icon={Settings} label="Settings"        path="/settings" />
           <button
             onClick={onNotepadToggle}
             className={cn(
@@ -141,8 +146,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </nav>
 
         <div className="px-2 pb-4 space-y-1 border-t border-[hsl(var(--sidebar-border))] pt-4">
-          <NavLink icon={Bell}     label="Notifications" path="/notifications" />
-          <NavLink icon={Settings} label="Settings"      path="/settings" />
+          <NavLink icon={UserCog}  label="User Management" path="/user-management" />
+          <NavLink icon={Bell}     label="Notifications"   path="/notifications" />
+          <NavLink icon={Settings} label="Settings"        path="/settings" />
           <button
             onClick={() => { onNotepadToggle(); onMobileClose(); }}
             className={cn(

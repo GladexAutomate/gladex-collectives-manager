@@ -22,6 +22,8 @@ const pageTitles = {
   '/settings': 'Settings',
   '/admin-operations': 'Admin',
   '/user-management': 'User Management',
+  '/visa': 'Visa & Documentation',
+  '/management': 'Management',
 };
 
 export default function AppLayout() {
