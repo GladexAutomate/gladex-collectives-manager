@@ -29,7 +29,10 @@ const pageTitles = {
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('gladex_dark_mode');
+    return saved !== null ? saved === 'true' : true; // default dark
+  });
   const [notepadOpen, setNotepadOpen] = useState(false);
   const location = useLocation();
 
@@ -47,6 +50,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('gladex_dark_mode', String(darkMode));
   }, [darkMode]);
 
   return (

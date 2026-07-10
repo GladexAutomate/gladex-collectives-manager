@@ -50,9 +50,42 @@ const CARD_VARIANTS = [
   { from: '#0c0c0c', to: '#1b0545', border: 'rgba(216,180,254,0.4)', glow: 'rgba(216,180,254,0.35)'},
 ];
 
+const SEED_DATA = {
+  '.LAND ARRANGEMENT.': {
+    folders: [
+      '[AFSO1B1] 4D3N',
+      '[GJT1B1] REYKJAVIK',
+      '[KPS1B1] 9D8N BEST OF',
+      'CANADA',
+      'CHINA',
+      '[EOJP1B1] TOKYO JAPAN',
+      'HONGKONG',
+      'KOREA',
+      'SINGAPORE',
+      'TAIWAN',
+      'THAILAND',
+      'VIETNAM',
+    ],
+    files: [],
+  },
+};
+
 function loadData() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
-  catch { return {}; }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      saveData(SEED_DATA);
+      return SEED_DATA;
+    }
+    const parsed = JSON.parse(raw);
+    // Seed Land Arrangement if not yet seeded
+    if (!parsed['.LAND ARRANGEMENT.']) {
+      const merged = { ...SEED_DATA, ...parsed };
+      saveData(merged);
+      return merged;
+    }
+    return parsed;
+  } catch { return SEED_DATA; }
 }
 
 function saveData(data) {
@@ -92,7 +125,8 @@ export default function TariffBrowser() {
   const isRoot   = path.length === 0;
   const entry    = data[key] || { folders: [], files: [] };
 
-  const currentFolders = isRoot ? ROOT_FOLDERS : (entry.folders || []);
+  const extraRootFolders = (data['']?.folders || []).filter(f => !ROOT_FOLDERS.includes(f));
+  const currentFolders   = isRoot ? [...ROOT_FOLDERS, ...extraRootFolders] : (entry.folders || []);
   const currentFiles   = entry.files || [];
 
   function navigate(folder) { setPath(p => [...p, folder]); }
@@ -120,8 +154,8 @@ export default function TariffBrowser() {
   }
 
   function deleteFolder(name) {
-    if (isRoot) return;
-    mutate(d => { d[key].folders = d[key].folders.filter(f => f !== name); });
+    if (isRoot && ROOT_FOLDERS.includes(name)) return; // can't delete built-in root folders
+    mutate(d => { if (d[key]) d[key].folders = (d[key].folders || []).filter(f => f !== name); });
   }
 
   function deleteFile(idx) {
@@ -196,16 +230,14 @@ export default function TariffBrowser() {
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
-        {!isRoot && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 text-xs h-8"
-            onClick={() => { setNewFolderName(''); setShowNewFolder(true); }}
-          >
-            <FolderPlus className="w-3.5 h-3.5" /> New Folder
-          </Button>
-        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 text-xs h-8"
+          onClick={() => { setNewFolderName(''); setShowNewFolder(true); }}
+        >
+          <FolderPlus className="w-3.5 h-3.5" /> New Folder
+        </Button>
         <Button
           size="sm"
           variant="outline"
@@ -264,7 +296,7 @@ export default function TariffBrowser() {
                 />
 
                 <div className="relative p-3.5">
-                  {!isRoot && (
+                  {(!isRoot || !ROOT_FOLDERS.includes(folder)) && (
                     <button
                       onClick={e => { e.stopPropagation(); deleteFolder(folder); }}
                       className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-purple-300/70 hover:text-white transition-all p-1"
