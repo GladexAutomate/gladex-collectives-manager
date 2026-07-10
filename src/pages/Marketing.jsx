@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand } from 'lucide-react';
 import TariffBrowser from './TariffBrowser';
+import CreatePoster from './CreatePoster';
 import { broadcastRefresh } from '@/lib/dataSync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -278,6 +279,7 @@ export default function Marketing() {
           { key: 'packages', label: '📦 Packages + Assets' },
           { key: 'assets', label: '🎨 All Assets' },
           { key: 'tariff', label: '📋 Tariff' },
+          { key: 'poster', label: '🖨️ Create Poster' },
         ].map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={cn("px-4 py-2 rounded-lg text-xs font-medium transition-all",
@@ -303,7 +305,7 @@ export default function Marketing() {
       </div>
 
       {/* Search bar (shared) */}
-      {activeTab !== 'tariff' && (
+      {activeTab !== 'tariff' && activeTab !== 'poster' && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -469,6 +471,9 @@ export default function Marketing() {
 
       {/* Tariff Tab */}
       {activeTab === 'tariff' && <TariffBrowser />}
+
+      {/* Create Poster Tab */}
+      {activeTab === 'poster' && <CreatePoster collectives={collectives} />}
 
       {/* Add/Edit Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
