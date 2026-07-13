@@ -60,7 +60,6 @@ export default function ProductDevelopment() {
   }, []);
 
   const filtered = collectives.filter(c => {
-    if (!pdCollectiveIds.has(c.id)) return false;
     const matchSearch = !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.destination?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || c.status === statusFilter;
     return matchSearch && matchStatus;

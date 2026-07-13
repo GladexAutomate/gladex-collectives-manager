@@ -248,10 +248,7 @@ export default function Marketing() {
   const togglePkg = (id) => setExpandedPkg(prev => ({ ...prev, [id]: !prev[id] }));
 
   // --- Filtered data ---
-  // Show only packages with marketing workflow tasks, excluding completed/cancelled
-  const activePkgs = collectives.filter(c =>
-    mkCollectiveIds.has(c.id) && !['completed', 'cancelled'].includes(c.status)
-  );
+  const activePkgs = collectives.filter(c => !['completed', 'cancelled'].includes(c.status));
   const filteredCollectives = activePkgs.filter(c =>
     !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.destination?.toLowerCase().includes(search.toLowerCase())
   );
