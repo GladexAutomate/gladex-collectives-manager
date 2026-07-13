@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { cn } from '@/lib/utils';
 import { pkgCodeStore } from '@/lib/packageCodeStore';
+import { driveLinkStore } from '@/lib/driveLinkStore';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const SALES_READY_STATUSES = ['active', 'open_booking', 'confirmed_departure', 'ongoing'];
@@ -156,6 +157,7 @@ export default function Sales() {
 
         const PackageCard = ({ c }) => {
           const pkgAssets = marketingAssets.filter(a => a.collective_id === c.id && a.file_url);
+          const tariffLink = marketingAssets.find(a => a.collective_id === c.id && a.asset_type === 'tariff_link')?.file_url || driveLinkStore.get(c.id) || '';
           // Collect all poster URLs for gallery (same as Marketing page)
           const posterUrls = pkgAssets.flatMap(a => (a.file_url || '').split('\n').filter(Boolean));
           const coverUrls = c.cover_image ? [c.cover_image] : c.image_url ? [c.image_url] : [];
@@ -207,6 +209,19 @@ export default function Sales() {
                   </div>
                   <span className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-semibold text-white shadow" style={{background:'linear-gradient(135deg,#6d28d9,#8b5cf6)'}}>For Sale</span>
                 </div>
+              )}
+              {tariffLink && (
+                <a
+                  href={tariffLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="flex items-center gap-2 px-3 py-2 bg-violet-50 dark:bg-violet-950/30 border-b border-violet-100 dark:border-violet-900/40 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
+                >
+                  <span className="text-[10px] font-bold text-violet-700 dark:text-violet-300 whitespace-nowrap">🔗 Tariff</span>
+                  <span className="text-[10px] text-violet-600 dark:text-violet-400 truncate flex-1">{tariffLink}</span>
+                  <span className="text-[9px] font-semibold text-white bg-violet-500 hover:bg-violet-600 px-1.5 py-0.5 rounded flex-shrink-0">Open ↗</span>
+                </a>
               )}
               <div className="p-3">
                 <p className="text-sm font-bold text-foreground group-hover:text-violet-500 transition-colors line-clamp-2 leading-snug">{c.name}</p>
