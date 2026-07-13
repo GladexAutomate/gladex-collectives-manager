@@ -38,6 +38,8 @@ export default function UserManagement() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
   const [updating, setUpdating] = useState(new Set());
   const [page, setPage] = useState(1);
 
@@ -75,24 +77,38 @@ export default function UserManagement() {
     setUpdating(prev => { const s = new Set(prev); s.delete(record.id); return s; });
   };
 
+  const uniqueDepts = useMemo(() => {
+    const s = new Set(employees.map(r => r.data?.department_name).filter(Boolean));
+    return [...s].sort();
+  }, [employees]);
+
+  const uniqueRoles = useMemo(() => {
+    const s = new Set(employees.map(r => r.data?.position || r.data?.role_title).filter(Boolean));
+    return [...s].sort();
+  }, [employees]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return employees.filter(r => {
       const d = r.data || {};
       const name = `${d.first_name || ''} ${d.middle_name || ''} ${d.last_name || ''} ${d.employee_id || ''}`.toLowerCase();
-      const matchSearch = !q || name.includes(q) || (d.email || '').toLowerCase().includes(q);
+      const role = (d.position || d.role_title || '').toLowerCase();
+      const dept = (d.department_name || '').toLowerCase();
+      const matchSearch = !q || name.includes(q) || (d.email || '').toLowerCase().includes(q) || role.includes(q) || dept.includes(q);
       const matchStatus = statusFilter === 'all' || (d.status || 'active') === statusFilter;
       const matchType = typeFilter === 'all' || d.employment_type === typeFilter;
-      return matchSearch && matchStatus && matchType;
+      const matchRole = roleFilter === 'all' || (d.position || d.role_title) === roleFilter;
+      const matchDept = deptFilter === 'all' || d.department_name === deptFilter;
+      return matchSearch && matchStatus && matchType && matchRole && matchDept;
     });
-  }, [employees, search, statusFilter, typeFilter]);
+  }, [employees, search, statusFilter, typeFilter, roleFilter, deptFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, roleFilter, deptFilter]);
 
   const activeCount = employees.filter(e => (e.data?.status || 'active') === 'active').length;
   const inactiveCount = employees.length - activeCount;
@@ -142,11 +158,25 @@ export default function UserManagement() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             className="pl-9 h-9 text-sm"
-            placeholder="Search name, ID, email…"
+            placeholder="Search name, ID, email, role, dept…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        <Select value={deptFilter} onValueChange={setDeptFilter}>
+          <SelectTrigger className="w-44 h-9 text-sm"><SelectValue placeholder="Department" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Departments</SelectItem>
+            {uniqueDepts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger className="w-44 h-9 text-sm"><SelectValue placeholder="Role" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            {uniqueRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-36 h-9 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
@@ -191,7 +221,8 @@ export default function UserManagement() {
                 <thead className="bg-muted/50 border-b">
                   <tr>
                     <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Employee</th>
-                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Position</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Department</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Role</th>
                     <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Type</th>
                     <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                     <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
@@ -216,7 +247,10 @@ export default function UserManagement() {
                           </div>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
-                          <span className="text-sm text-muted-foreground">{d.position || d.department_name || '—'}</span>
+                          <span className="text-xs font-medium text-foreground">{d.department_name || '—'}</span>
+                        </td>
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          <span className="text-xs text-muted-foreground">{d.position || d.role_title || '—'}</span>
                         </td>
                         <td className="px-4 py-3 hidden lg:table-cell">
                           <span className="text-xs text-muted-foreground capitalize">{d.employment_type?.replace('_', ' ') || '—'}</span>
@@ -262,7 +296,7 @@ export default function UserManagement() {
                   })}
                   {paged.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="text-center py-14 text-muted-foreground text-sm">
+                      <td colSpan={6} className="text-center py-14 text-muted-foreground text-sm">
                         No employees found
                       </td>
                     </tr>
