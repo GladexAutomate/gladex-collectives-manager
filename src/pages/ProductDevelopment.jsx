@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { broadcastRefresh } from '@/lib/dataSync';
-import { Plus, TrendingUp, Search, Edit, FileText, Plane, Calendar, Package, ArrowRight, BarChart3 } from 'lucide-react';
+import { Plus, TrendingUp, Search, Edit, FileText, Plane, Calendar, Package, ArrowRight, BarChart3, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,7 @@ export default function ProductDevelopment() {
   const [collectives, setCollectives] = useState([]);
   const [marketingAssets, setMarketingAssets] = useState([]);
   const [pdCollectiveIds, setPdCollectiveIds] = useState(new Set());
+  const [pdTasks, setPdTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const urlParams = new URLSearchParams(window.location.search);
   const [activeTab, setActiveTab] = useState(urlParams.get('tab') === 'ezquote' ? 'ezquote' : 'packages');
@@ -47,10 +48,10 @@ export default function ProductDevelopment() {
     loadData();
     base44.entities.ChecklistTask.list()
       .then(tasks => {
-        const pdIds = new Set(
-          (Array.isArray(tasks) ? tasks : []).filter(t => t.department === 'product_development').map(t => t.collective_id).filter(Boolean)
-        );
-        setPdCollectiveIds(pdIds);
+        const arr = Array.isArray(tasks) ? tasks : [];
+        const pdFiltered = arr.filter(t => t.department === 'product_development');
+        setPdCollectiveIds(new Set(pdFiltered.map(t => t.collective_id).filter(Boolean)));
+        setPdTasks(pdFiltered);
       })
       .catch(() => {});
     const onRefresh = () => loadData();
@@ -167,6 +168,77 @@ export default function ProductDevelopment() {
           onCollectivesChange={() => base44.entities.Collective.list('-created_date').then(data => setCollectives(Array.isArray(data) ? data : []))}
         />
       )}
+
+      {/* Product Dev Checklist Progress */}
+      {pdTasks.length > 0 && (() => {
+        const byCollective = {};
+        pdTasks.forEach(t => {
+          if (!t.collective_id) return;
+          if (!byCollective[t.collective_id]) byCollective[t.collective_id] = [];
+          byCollective[t.collective_id].push(t);
+        });
+        const entries = Object.entries(byCollective).map(([cid, tasks]) => {
+          const collective = collectives.find(c => c.id === cid);
+          const done  = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+          const total = tasks.length;
+          const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+          return { cid, collective, tasks, done, total, pct };
+        }).filter(e => e.collective).sort((a, b) => a.pct - b.pct);
+        if (entries.length === 0) return null;
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-4 h-4" style={{ color: '#a78bfa' }} />
+              <h3 className="text-base font-bold text-foreground">Product Dev Checklist Progress</h3>
+              <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded-full">{entries.length} collective{entries.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {entries.map(({ cid, collective, tasks, done, total, pct }) => {
+                const stageGroups = {};
+                tasks.forEach(t => {
+                  const key = t.stage_name || (t.stage_number ? `Stage ${t.stage_number}` : 'Task');
+                  if (!stageGroups[key]) stageGroups[key] = { done: 0, total: 0 };
+                  stageGroups[key].total++;
+                  if (t.status === 'done' || t.status === 'completed') stageGroups[key].done++;
+                });
+                const allDone = pct === 100;
+                return (
+                  <div key={cid} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-foreground truncate">{collective.name}</p>
+                        <p className="text-xs text-muted-foreground">{collective.destination || '—'} · {collective.status?.replace(/_/g, ' ') || '—'}</p>
+                      </div>
+                      <span className="text-sm font-black flex-shrink-0" style={{ color: allDone ? '#10b981' : '#a78bfa' }}>{pct}%</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(stageGroups).map(([stage, sg]) => (
+                        <span key={stage} className={cn(
+                          "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                          sg.done === sg.total
+                            ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                            : "bg-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400"
+                        )}>
+                          {stage} · {sg.done}/{sg.total}
+                        </span>
+                      ))}
+                    </div>
+                    <div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden mb-1.5">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: allDone ? 'linear-gradient(90deg,#10b981,#34d399)' : 'linear-gradient(90deg,#6d28d9,#a78bfa)' }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>{done} done</span>
+                        <span>{total - done} remaining</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

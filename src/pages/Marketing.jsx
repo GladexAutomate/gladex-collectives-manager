@@ -51,6 +51,7 @@ export default function Marketing() {
   const [assets, setAssets] = useState([]);
   const [collectives, setCollectives] = useState([]);
   const [mkCollectiveIds, setMkCollectiveIds] = useState(new Set());
+  const [mkTasks, setMkTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('packages');
   const [search, setSearch] = useState('');
@@ -81,10 +82,10 @@ export default function Marketing() {
     }).catch(() => setLoading(false));
     base44.entities.ChecklistTask.list()
       .then(tasks => {
-        const mkIds = new Set(
-          (Array.isArray(tasks) ? tasks : []).filter(t => t.department === 'marketing').map(t => t.collective_id).filter(Boolean)
-        );
-        setMkCollectiveIds(mkIds);
+        const arr = Array.isArray(tasks) ? tasks : [];
+        const mkFiltered = arr.filter(t => t.department === 'marketing');
+        setMkCollectiveIds(new Set(mkFiltered.map(t => t.collective_id).filter(Boolean)));
+        setMkTasks(mkFiltered);
       })
       .catch(() => {});
     // Listen for data changes from other pages — but skip if reloadAll triggered it (avoid loop)
