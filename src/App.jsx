@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
+import { useVersionCheck } from '@/hooks/useVersionCheck';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -82,6 +83,20 @@ const AuthenticatedApp = () => {
   );
 };
 
+function UpdateBanner() {
+  const updateAvailable = useVersionCheck();
+  if (!updateAvailable) return null;
+  return (
+    <div
+      style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, background: '#6d28d9', color: '#fff', textAlign: 'center', padding: '10px 16px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}
+      onClick={() => window.location.reload()}
+    >
+      <span>🔄 New version available</span>
+      <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '6px', padding: '2px 12px', fontSize: '12px' }}>Click to refresh</span>
+    </div>
+  );
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -90,6 +105,7 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <Toaster />
+        <UpdateBanner />
       </QueryClientProvider>
     </AuthProvider>
   );
