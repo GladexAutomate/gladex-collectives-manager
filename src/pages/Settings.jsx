@@ -22,7 +22,7 @@ const TABS = [
 
 function SaveIndicator({ saving, saved }) {
   if (saving) return <span className="text-xs text-muted-foreground flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin" /> Saving…</span>;
-  if (saved) return <span className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Saved!</span>;
+  if (saved) return <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Saved!</span>;
   return null;
 }
 
@@ -148,7 +148,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       <div>
         <h2 className="text-xl font-bold font-jakarta text-foreground">Settings</h2>
         <p className="text-sm text-muted-foreground">Manage your account, preferences, and system configuration</p>
@@ -178,7 +178,7 @@ export default function Settings() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+          <div className="bg-card rounded-2xl border border-border p-6 space-y-6">
 
             {/* PROFILE TAB */}
             {activeTab === 'profile' && (
@@ -322,7 +322,7 @@ export default function Settings() {
                 <div className="space-y-4 max-w-md">
                   <div className="p-4 bg-muted/30 rounded-lg border border-border space-y-1">
                     <p className="text-sm font-medium text-foreground">Account Role</p>
-                    <p className="text-xs text-muted-foreground">Your current role: <span className="font-semibold text-amber-600 capitalize">{user?.role || 'admin'}</span></p>
+                    <p className="text-xs text-muted-foreground">Your current role: <span className="font-semibold text-amber-600 dark:text-amber-400 capitalize">{user?.role || 'admin'}</span></p>
                     <p className="text-xs text-muted-foreground">Role changes are managed by the system administrator.</p>
                   </div>
 
@@ -366,7 +366,7 @@ export default function Settings() {
                     <p className="text-sm font-medium text-foreground">Active Session</p>
                     <p className="text-xs text-muted-foreground">Last login: <span className="font-medium text-foreground">{new Date().toLocaleDateString('en-PH', { dateStyle: 'medium' })}</span></p>
                     <p className="text-xs text-muted-foreground">Session is active. Use logout to end your session.</p>
-                    <Button size="sm" variant="outline" className="text-xs text-rose-500 border-rose-200 hover:bg-rose-50 mt-1" onClick={() => base44.auth.logout()}>
+                    <Button size="sm" variant="outline" className="text-xs text-rose-500 border-rose-200 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/25 mt-1" onClick={() => base44.auth.logout()}>
                       Logout
                     </Button>
                   </div>

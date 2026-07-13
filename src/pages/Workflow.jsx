@@ -59,14 +59,14 @@ const phaseColors = {
 };
 
 const DEPT_CONFIG = {
-  product_development: { label: 'Product Dev', short: 'PD', bg: 'bg-amber-500',   badge: 'bg-amber-100 text-amber-700',   text: 'text-amber-700' },
-  marketing:           { label: 'Marketing',   short: 'MK', bg: 'bg-pink-500',    badge: 'bg-pink-100 text-pink-700',     text: 'text-pink-700' },
-  sales:               { label: 'Sales',       short: 'SL', bg: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-700' },
-  accounting:          { label: 'Accounting',  short: 'AC', bg: 'bg-purple-500',  badge: 'bg-purple-100 text-purple-700', text: 'text-purple-700' },
-  admin:               { label: 'Admin',       short: 'AD', bg: 'bg-sky-500',     badge: 'bg-sky-100 text-sky-700',       text: 'text-sky-700' },
-  operations:          { label: 'Operations',  short: 'OP', bg: 'bg-orange-500',  badge: 'bg-orange-100 text-orange-700', text: 'text-orange-700' },
-  visa:                { label: 'Visa',        short: 'VS', bg: 'bg-rose-500',    badge: 'bg-rose-100 text-rose-700',     text: 'text-rose-700' },
-  management:          { label: 'Management',  short: 'MG', bg: 'bg-slate-500',   badge: 'bg-slate-100 text-slate-700',   text: 'text-slate-700' },
+  product_development: { label: 'Product Dev', short: 'PD', bg: 'bg-amber-500',   badge: 'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300',   text: 'text-amber-700' },
+  marketing:           { label: 'Marketing',   short: 'MK', bg: 'bg-pink-500',    badge: 'bg-pink-100 dark:bg-pink-950/30 text-pink-700 dark:text-pink-300',     text: 'text-pink-700' },
+  sales:               { label: 'Sales',       short: 'SL', bg: 'bg-emerald-500', badge: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300', text: 'text-emerald-700' },
+  accounting:          { label: 'Accounting',  short: 'AC', bg: 'bg-purple-500',  badge: 'bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300', text: 'text-purple-700' },
+  admin:               { label: 'Admin',       short: 'AD', bg: 'bg-sky-500',     badge: 'bg-sky-100 dark:bg-sky-950/30 text-sky-700 dark:text-sky-300',       text: 'text-sky-700' },
+  operations:          { label: 'Operations',  short: 'OP', bg: 'bg-orange-500',  badge: 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300', text: 'text-orange-700' },
+  visa:                { label: 'Visa',        short: 'VS', bg: 'bg-rose-500',    badge: 'bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300',     text: 'text-rose-700' },
+  management:          { label: 'Management',  short: 'MG', bg: 'bg-slate-500',   badge: 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300',   text: 'text-slate-700' },
 };
 
 const TASK_STATUS = {
@@ -82,13 +82,13 @@ const LIFECYCLE_LABELS = {
   ongoing: 'Ongoing', completed: 'Completed', cancelled: 'Cancelled',
 };
 const LIFECYCLE_COLORS = {
-  draft:               'bg-slate-100 text-slate-600 border-slate-300',
-  active:              'bg-emerald-100 text-emerald-700 border-emerald-300',
-  open_booking:        'bg-teal-100 text-teal-700 border-teal-300',
-  confirmed_departure: 'bg-sky-100 text-sky-700 border-sky-300',
-  ongoing:             'bg-amber-100 text-amber-700 border-amber-300',
-  completed:           'bg-emerald-100 text-emerald-700 border-emerald-300',
-  cancelled:           'bg-rose-100 text-rose-700 border-rose-300',
+  draft:               'bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+  active:              'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+  open_booking:        'bg-teal-100 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300 border-teal-300 dark:border-teal-800',
+  confirmed_departure: 'bg-sky-100 dark:bg-sky-950/30 text-sky-700 dark:text-sky-300 border-sky-300 dark:border-sky-800',
+  ongoing:             'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800',
+  completed:           'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800',
+  cancelled:           'bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800',
 };
 
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
@@ -268,7 +268,7 @@ export default function Workflow() {
   });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-6">
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
@@ -351,7 +351,7 @@ export default function Workflow() {
               })()}
 
               <Button size="sm" variant="outline" onClick={reloadTasks} disabled={regenerating}
-                className="h-9 gap-1.5 text-xs text-slate-600 border-slate-200 hover:bg-slate-50">
+                className="h-9 gap-1.5 text-xs border border-border hover:bg-muted text-muted-foreground">
                 {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                 Refresh
               </Button>
@@ -384,7 +384,7 @@ export default function Workflow() {
 
       {/* ── No collective selected ── */}
       {!selectedCollective && (
-        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
           <ListChecks className="w-12 h-12 text-primary mx-auto mb-4 opacity-40" />
           <h3 className="font-bold font-jakarta text-lg text-foreground mb-2">Select a Package to View Workflow</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
@@ -398,13 +398,13 @@ export default function Workflow() {
 
       {/* ── Tasks loading / error states ── */}
       {selectedCollective && tasksLoading && (
-        <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-6">
+        <div className="flex items-center gap-3 bg-card border border-border rounded-2xl p-6">
           <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
           <p className="text-sm text-muted-foreground">Loading checklist...</p>
         </div>
       )}
       {selectedCollective && tasksError && !tasksLoading && (
-        <div className="flex flex-col items-center gap-3 bg-card border border-rose-200 rounded-xl p-8 text-center">
+        <div className="flex flex-col items-center gap-3 bg-card border border-rose-200 rounded-2xl p-8 text-center">
           <AlertTriangle className="w-8 h-8 text-rose-500" />
           <p className="text-sm font-medium text-foreground">{tasksError}</p>
           <Button size="sm" variant="outline" onClick={() => {
@@ -417,7 +417,7 @@ export default function Workflow() {
       )}
       {/* No tasks found for this package */}
       {selectedCollective && !tasksLoading && !tasksError && tasks.length === 0 && (
-        <div className="bg-card rounded-xl border border-border p-10 text-center">
+        <div className="bg-card rounded-2xl border border-border p-10 text-center">
           <ListChecks className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
           <h3 className="font-semibold text-foreground mb-1">No checklist tasks found</h3>
           <p className="text-sm text-muted-foreground">This package has no workflow tasks yet. Tasks need to be created first before the workflow can be used.</p>
@@ -428,7 +428,7 @@ export default function Workflow() {
       {selectedCollective && !tasksLoading && !tasksError && tasks.length > 0 && (
         <>
           {/* ── Collective status bar ── */}
-          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
             <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4 min-w-0">
                 <div>
@@ -459,7 +459,7 @@ export default function Workflow() {
                   <p className="text-[10px] text-muted-foreground">In Progress</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold font-jakarta text-slate-500">{pendingCount}</p>
+                  <p className="text-xl font-bold font-jakarta text-muted-foreground">{pendingCount}</p>
                   <p className="text-[10px] text-muted-foreground">Pending</p>
                 </div>
                 {blockedCount > 0 && (
@@ -614,7 +614,7 @@ export default function Workflow() {
                             <div key={stageNum}>
                               {/* Stage header */}
                               <div className={cn("flex items-center justify-between px-4 py-2.5",
-                                stageComplete ? "bg-emerald-800" : "bg-slate-800 dark:bg-slate-900")}>
+                                stageComplete ? "bg-emerald-950/40 dark:bg-emerald-950/40" : "bg-card border-b border-border")}>
                                 <div className="flex items-center gap-3">
                                   <span className="text-[10px] bg-white/10 text-white rounded px-2 py-0.5 font-mono font-bold">S{stageNum}</span>
                                   <div>
@@ -630,7 +630,7 @@ export default function Workflow() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {stageComplete && <CheckCircle className="w-4 h-4 text-emerald-300" />}
-                                  <span className="text-[10px] text-slate-300 font-mono">{stageDone}/{allStageTasks.length}</span>
+                                  <span className="text-[10px] text-muted-foreground font-mono">{stageDone}/{allStageTasks.length}</span>
                                 </div>
                               </div>
 

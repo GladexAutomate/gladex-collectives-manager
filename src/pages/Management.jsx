@@ -1,203 +1,196 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import {
-  Globe, Users, CreditCard, TrendingUp, CalendarCheck,
-  AlertTriangle, CheckCircle, Loader2, BarChart3, RefreshCw
-} from 'lucide-react';
+import { RefreshCw, CheckCircle2, Package, TrendingUp, BriefcaseBusiness } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-function StatCard({ label, value, sub, color, icon: Icon }) {
-  return (
-    <div className="bg-card border rounded-xl p-5 space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
-        <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', color)}>
-          <Icon className="w-4 h-4" />
-        </div>
-      </div>
-      <p className="text-3xl font-bold text-foreground">{value}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}
+const STAGE_LABELS = {
+  2: 'Stage 2 — Product Evaluation & Approval',
+};
 
-const COLLECTIVE_STATUS = {
-  draft:                { label: 'Draft',               class: 'bg-slate-100 text-slate-600' },
-  open_booking:         { label: 'Open Booking',        class: 'bg-sky-100 text-sky-700' },
-  confirmed_departure:  { label: 'Confirmed',           class: 'bg-emerald-100 text-emerald-700' },
-  ongoing:              { label: 'Ongoing',             class: 'bg-amber-100 text-amber-700' },
-  completed:            { label: 'Completed',           class: 'bg-purple-100 text-purple-700' },
-  cancelled:            { label: 'Cancelled',           class: 'bg-rose-100 text-rose-700' },
+const COLLECTIVE_STATUS_COLOR = {
+  draft:                '#94a3b8',
+  active:               '#10b981',
+  open_booking:         '#0ea5e9',
+  confirmed_departure:  '#6d28d9',
+  ongoing:              '#f59e0b',
+  completed:            '#10b981',
+  cancelled:            '#ef4444',
 };
 
 export default function Management() {
   const [collectives, setCollectives] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [payments, setPayments] = useState([]);
+  const [managementTasks, setManagementTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
-    setLoading(true);
-    Promise.all([
-      base44.entities.Collective.list(),
-      base44.entities.Booking.list(),
-      base44.entities.Payment.list(),
-    ]).then(([c, b, p]) => {
-      setCollectives(Array.isArray(c) ? c : []);
-      setBookings(Array.isArray(b) ? b : []);
-      setPayments(Array.isArray(p) ? p : []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+  const loadData = async () => {
+    try {
+      const [cols, tasks] = await Promise.all([
+        base44.entities.Collective.list(),
+        base44.entities.ChecklistTask.list(),
+      ]);
+      setCollectives(Array.isArray(cols) ? cols : []);
+      const tasksArr = Array.isArray(tasks) ? tasks : [];
+      setManagementTasks(tasksArr.filter(t => t.department === 'management'));
+    } catch (e) {
+      console.error('Management loadData error:', e);
+    }
+    setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    loadData();
+    const onRefresh = () => loadData();
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => window.removeEventListener('gladex:refresh', onRefresh);
+  }, []);
 
-  const active = collectives.filter(c => ['open_booking', 'confirmed_departure', 'ongoing'].includes(c.status));
-  const confirmed = bookings.filter(b => ['confirmed', 'paid'].includes(b.status));
-  const totalRevenue = payments.filter(p => p.status === 'verified').reduce((s, p) => s + (Number(p.amount) || 0), 0);
-  const pendingPayments = payments.filter(p => p.status === 'pending').length;
+  const byCollective = {};
+  managementTasks.forEach(t => {
+    if (!t.collective_id) return;
+    if (!byCollective[t.collective_id]) byCollective[t.collective_id] = [];
+    byCollective[t.collective_id].push(t);
+  });
 
-  // Group collectives by status
-  const byStatus = Object.keys(COLLECTIVE_STATUS).reduce((acc, k) => {
-    acc[k] = collectives.filter(c => c.status === k);
-    return acc;
-  }, {});
+  const entries = Object.entries(byCollective).map(([cid, tasks]) => {
+    const collective = collectives.find(c => c.id === cid);
+    const done  = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+    const total = tasks.length;
+    const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { cid, collective, tasks, done, total, pct };
+  }).filter(e => e.collective).sort((a, b) => a.pct - b.pct);
 
-  // Recent collectives (top 8)
-  const recent = [...collectives]
-    .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0))
-    .slice(0, 8);
+  const totalTasks = managementTasks.length;
+  const doneTasks  = managementTasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+  const overallPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+  // Portfolio overview
+  const statusCounts = {};
+  collectives.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold font-jakarta text-foreground">Management</h2>
-          <p className="text-sm text-muted-foreground">Executive overview of all operations and performance</p>
+          <p className="text-sm text-muted-foreground">Checklist progress · Product Evaluation & Approval (Stage 2)</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', loading && 'animate-spin')} />
-          Refresh
+        <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5 text-xs w-fit">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </Button>
       </div>
 
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Packages',   value: collectives.length, icon: Package,          color: '#a78bfa' },
+          { label: 'Total Tasks',       value: totalTasks,         icon: BriefcaseBusiness, color: '#a78bfa' },
+          { label: 'Completed',         value: doneTasks,          icon: CheckCircle2,      color: '#10b981' },
+          { label: 'Overall Progress',  value: `${overallPct}%`,  icon: TrendingUp,        color: overallPct === 100 ? '#10b981' : '#a78bfa' },
+        ].map((s, i) => {
+          const Icon = s.icon;
+          return (
+            <div key={i} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.15)' }}>
+                <Icon className="w-5 h-5" style={{ color: s.color }} />
+              </div>
+              <div>
+                <p className="text-xl font-bold font-jakarta leading-tight text-foreground">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Portfolio breakdown */}
+      {collectives.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <BriefcaseBusiness className="w-4 h-4" style={{ color: '#a78bfa' }} /> Package Portfolio
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(statusCounts).map(([status, count]) => (
+              <div key={status} className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: COLLECTIVE_STATUS_COLOR[status] || '#94a3b8' }} />
+                <span className="text-xs font-medium text-foreground capitalize">{status.replace(/_/g, ' ')}</span>
+                <span className="text-xs font-bold text-muted-foreground">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Checklist Progress */}
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className="h-36 bg-card rounded-xl border animate-pulse" />)}
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="text-center py-16 bg-card rounded-2xl border border-border">
+          <BriefcaseBusiness className="w-12 h-12 mx-auto mb-4" style={{ color: 'rgba(139,92,246,0.3)' }} />
+          <h3 className="font-semibold text-foreground mb-1">No management tasks yet</h3>
+          <p className="text-sm text-muted-foreground">Management checklist tasks will appear here once created in the Workflow module.</p>
         </div>
       ) : (
-        <>
-          {/* KPI cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              label="Total Packages"
-              value={collectives.length}
-              sub={`${active.length} currently active`}
-              color="bg-amber-100 text-amber-700"
-              icon={Globe}
-            />
-            <StatCard
-              label="Total Bookings"
-              value={bookings.length}
-              sub={`${confirmed.length} confirmed / paid`}
-              color="bg-sky-100 text-sky-700"
-              icon={Users}
-            />
-            <StatCard
-              label="Verified Revenue"
-              value={`₱${totalRevenue.toLocaleString()}`}
-              sub={`${pendingPayments} payments pending`}
-              color="bg-emerald-100 text-emerald-700"
-              icon={CreditCard}
-            />
-            <StatCard
-              label="Completion Rate"
-              value={collectives.length ? `${Math.round((byStatus.completed?.length || 0) / collectives.length * 100)}%` : '0%'}
-              sub={`${byStatus.completed?.length || 0} completed packages`}
-              color="bg-purple-100 text-purple-700"
-              icon={CheckCircle}
-            />
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <BriefcaseBusiness className="w-4 h-4" style={{ color: '#a78bfa' }} />
+            <h3 className="text-base font-bold text-foreground">Management Checklist Progress</h3>
+            <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded-full">
+              {entries.length} collective{entries.length !== 1 ? 's' : ''}
+            </span>
           </div>
-
-          {/* Status breakdown + Recent packages */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Package status breakdown */}
-            <div className="bg-card border rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">Package Status Breakdown</h3>
-              </div>
-              <div className="space-y-3">
-                {Object.entries(COLLECTIVE_STATUS).map(([key, cfg]) => {
-                  const count = byStatus[key]?.length || 0;
-                  const pct = collectives.length ? Math.round(count / collectives.length * 100) : 0;
-                  return (
-                    <div key={key} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-medium text-foreground">{cfg.label}</span>
-                        <span className="text-muted-foreground">{count} ({pct}%)</span>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-500 rounded-full" style={{ width: `${pct}%` }} />
-                      </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {entries.map(({ cid, collective, tasks, done, total, pct }) => {
+              const stageGroups = {};
+              tasks.forEach(t => {
+                const key = t.stage_code || STAGE_LABELS[t.stage] || (t.stage ? `Stage ${t.stage}` : 'Task');
+                if (!stageGroups[key]) stageGroups[key] = { done: 0, total: 0 };
+                stageGroups[key].total++;
+                if (t.status === 'done' || t.status === 'completed') stageGroups[key].done++;
+              });
+              const allDone = pct === 100;
+              return (
+                <div key={cid} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{collective.name}</p>
+                      <p className="text-xs text-muted-foreground">{collective.destination || '—'} · {collective.status?.replace(/_/g, ' ') || '—'}</p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Recent packages */}
-            <div className="bg-card border rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <CalendarCheck className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">Recent Packages</h3>
-              </div>
-              <div className="space-y-2">
-                {recent.map(c => {
-                  const cfg = COLLECTIVE_STATUS[c.status] || COLLECTIVE_STATUS.draft;
-                  return (
-                    <div key={c.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{c.name || c.destination || 'Unnamed'}</p>
-                        <p className="text-[11px] text-muted-foreground">{c.destination || '—'} · ₱{Number(c.selling_price || 0).toLocaleString()}/pax</p>
-                      </div>
-                      <span className={cn('ml-3 flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold', cfg.class)}>
-                        {cfg.label}
+                    <span className="text-sm font-black flex-shrink-0" style={{ color: allDone ? '#10b981' : '#a78bfa' }}>{pct}%</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(stageGroups).map(([stage, sg]) => (
+                      <span key={stage} className={cn(
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                        sg.done === sg.total
+                          ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                          : "bg-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400"
+                      )}>
+                        {stage} · {sg.done}/{sg.total}
                       </span>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden mb-1.5">
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: `${pct}%`,
+                        background: allDone ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #6d28d9, #a78bfa)',
+                      }} />
                     </div>
-                  );
-                })}
-                {recent.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No packages yet</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Booking status summary */}
-          <div className="bg-card border rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground">Booking Overview</h3>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {[
-                ['inquiry', 'Inquiry', 'bg-slate-100 text-slate-600'],
-                ['slot_held', 'Slot Held', 'bg-amber-100 text-amber-700'],
-                ['confirmed', 'Confirmed', 'bg-sky-100 text-sky-700'],
-                ['paid', 'Paid', 'bg-emerald-100 text-emerald-700'],
-                ['cancelled', 'Cancelled', 'bg-rose-100 text-rose-700'],
-                ['completed', 'Completed', 'bg-purple-100 text-purple-700'],
-              ].map(([key, label, cls]) => (
-                <div key={key} className="text-center p-3 border rounded-lg">
-                  <p className="text-2xl font-bold text-foreground">{bookings.filter(b => b.status === key).length}</p>
-                  <span className={cn('mt-1 inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold', cls)}>{label}</span>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{done} done</span>
+                      <span>{total - done} remaining</span>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

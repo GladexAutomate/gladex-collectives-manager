@@ -1,215 +1,165 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import {
-  Search, Loader2, CheckCircle, Clock, XCircle, AlertTriangle,
-  FileText, RefreshCw, Filter
-} from 'lucide-react';
+import { RefreshCw, CheckCircle2, Package, TrendingUp, Stamp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
-const VISA_STATUS = {
-  not_required: { label: 'Not Required', class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300', icon: FileText },
-  pending:      { label: 'Pending',      class: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400', icon: Clock },
-  submitted:    { label: 'Submitted',    class: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400', icon: FileText },
-  approved:     { label: 'Approved',     class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400', icon: CheckCircle },
-  rejected:     { label: 'Rejected',     class: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400', icon: XCircle },
+const STAGE_LABELS = {
+  11: 'Stage 11 — Documentation',
 };
 
 export default function Visa() {
-  const [bookings, setBookings] = useState([]);
   const [collectives, setCollectives] = useState([]);
+  const [visaTasks, setVisaTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [visaFilter, setVisaFilter] = useState('all');
-  const [editingBooking, setEditingBooking] = useState(null);
-  const [editStatus, setEditStatus] = useState('pending');
-  const [saving, setSaving] = useState(false);
 
-  const load = () => {
-    setLoading(true);
-    Promise.all([
-      base44.entities.Booking.list('-created_date'),
-      base44.entities.Collective.list(),
-    ]).then(([b, c]) => {
-      setBookings(Array.isArray(b) ? b : []);
-      setCollectives(Array.isArray(c) ? c : []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+  const loadData = async () => {
+    try {
+      const [cols, tasks] = await Promise.all([
+        base44.entities.Collective.list(),
+        base44.entities.ChecklistTask.list(),
+      ]);
+      setCollectives(Array.isArray(cols) ? cols : []);
+      const tasksArr = Array.isArray(tasks) ? tasks : [];
+      setVisaTasks(tasksArr.filter(t => t.department === 'visa'));
+    } catch (e) {
+      console.error('Visa loadData error:', e);
+    }
+    setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    loadData();
+    const onRefresh = () => loadData();
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => window.removeEventListener('gladex:refresh', onRefresh);
+  }, []);
 
-  const getCollectiveName = (id) => collectives.find(c => c.id === id)?.name || '—';
-
-  const filtered = bookings.filter(b => {
-    const q = search.toLowerCase();
-    const matchSearch = !q ||
-      b.client_name?.toLowerCase().includes(q) ||
-      b.booking_reference?.toLowerCase().includes(q) ||
-      getCollectiveName(b.collective_id).toLowerCase().includes(q);
-    const matchVisa = visaFilter === 'all' || (b.visa_status || 'not_required') === visaFilter;
-    return matchSearch && matchVisa;
+  const byCollective = {};
+  visaTasks.forEach(t => {
+    if (!t.collective_id) return;
+    if (!byCollective[t.collective_id]) byCollective[t.collective_id] = [];
+    byCollective[t.collective_id].push(t);
   });
 
-  const counts = Object.fromEntries(
-    Object.keys(VISA_STATUS).map(k => [k, bookings.filter(b => (b.visa_status || 'not_required') === k).length])
-  );
+  const entries = Object.entries(byCollective).map(([cid, tasks]) => {
+    const collective = collectives.find(c => c.id === cid);
+    const done  = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+    const total = tasks.length;
+    const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { cid, collective, tasks, done, total, pct };
+  }).filter(e => e.collective).sort((a, b) => a.pct - b.pct);
 
-  const openEdit = (b) => { setEditingBooking(b); setEditStatus(b.visa_status || 'not_required'); };
-
-  const saveStatus = async () => {
-    setSaving(true);
-    await base44.entities.Booking.update(editingBooking.id, { visa_status: editStatus });
-    setBookings(prev => prev.map(b => b.id === editingBooking.id ? { ...b, visa_status: editStatus } : b));
-    toast.success('Visa status updated');
-    setSaving(false);
-    setEditingBooking(null);
-  };
+  const totalTasks = visaTasks.length;
+  const doneTasks  = visaTasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+  const overallPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold font-jakarta text-foreground">Visa & Documentation</h2>
-          <p className="text-sm text-muted-foreground">Track visa application status per passenger booking</p>
+          <h2 className="text-xl font-bold font-jakarta text-foreground">Visa</h2>
+          <p className="text-sm text-muted-foreground">Checklist progress · Documentation (Stage 11)</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={cn('w-3.5 h-3.5 mr-1.5', loading && 'animate-spin')} />
-          Refresh
+        <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5 text-xs w-fit">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </Button>
       </div>
 
-      {/* Status summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {Object.entries(VISA_STATUS).map(([key, cfg]) => {
-          const Icon = cfg.icon;
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Collectives',     value: entries.length, icon: Package,     color: '#a78bfa' },
+          { label: 'Total Tasks',      value: totalTasks,     icon: Stamp,        color: '#a78bfa' },
+          { label: 'Completed',        value: doneTasks,      icon: CheckCircle2, color: '#10b981' },
+          { label: 'Overall Progress', value: `${overallPct}%`, icon: TrendingUp, color: overallPct === 100 ? '#10b981' : '#a78bfa' },
+        ].map((s, i) => {
+          const Icon = s.icon;
           return (
-            <div
-              key={key}
-              onClick={() => setVisaFilter(visaFilter === key ? 'all' : key)}
-              className={cn(
-                'border rounded-xl p-3 cursor-pointer transition-all text-center',
-                visaFilter === key ? 'ring-2 ring-amber-400 bg-amber-50 dark:bg-amber-950/20' : 'bg-card hover:bg-muted/40'
-              )}
-            >
-              <p className="text-xl font-bold text-foreground">{counts[key] || 0}</p>
-              <span className={cn('inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold', cfg.class)}>
-                <Icon className="w-2.5 h-2.5" />{cfg.label}
-              </span>
+            <div key={i} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.15)' }}>
+                <Icon className="w-5 h-5" style={{ color: s.color }} />
+              </div>
+              <div>
+                <p className="text-xl font-bold font-jakarta leading-tight text-foreground">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input className="pl-9 h-9 text-sm" placeholder="Search client, booking ref, package…" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Select value={visaFilter} onValueChange={setVisaFilter}>
-          <SelectTrigger className="w-40 h-9 text-sm"><SelectValue placeholder="Visa Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {Object.entries(VISA_STATUS).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <p className="text-xs text-muted-foreground">Showing {filtered.length} of {bookings.length} bookings</p>
-
-      {/* Table */}
+      {/* Checklist Progress */}
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className="h-36 bg-card rounded-xl border animate-pulse" />)}
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="text-center py-16 bg-card rounded-2xl border border-border">
+          <Stamp className="w-12 h-12 mx-auto mb-4" style={{ color: 'rgba(139,92,246,0.3)' }} />
+          <h3 className="font-semibold text-foreground mb-1">No visa tasks yet</h3>
+          <p className="text-sm text-muted-foreground">Visa checklist tasks will appear here once created in the Workflow module.</p>
         </div>
       ) : (
-        <div className="border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Client</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Package</th>
-                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Departure</th>
-                  <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Visa Status</th>
-                  <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map(b => {
-                  const vs = b.visa_status || 'not_required';
-                  const cfg = VISA_STATUS[vs] || VISA_STATUS.not_required;
-                  const Icon = cfg.icon;
-                  return (
-                    <tr key={b.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-foreground text-sm">{b.client_name || '—'}</p>
-                        <p className="text-[11px] text-muted-foreground">{b.booking_reference || '—'} · {b.pax_count || 1} pax</p>
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <span className="text-sm text-muted-foreground">{getCollectiveName(b.collective_id)}</span>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="text-sm text-muted-foreground">{b.departure_date_option || '—'}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold', cfg.class)}>
-                          <Icon className="w-3 h-3" />{cfg.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <Button size="sm" variant="outline" className="h-7 text-xs px-3" onClick={() => openEdit(b)}>
-                          Update
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-14 text-muted-foreground text-sm">No bookings found</td></tr>
-                )}
-              </tbody>
-            </table>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Stamp className="w-4 h-4" style={{ color: '#a78bfa' }} />
+            <h3 className="text-base font-bold text-foreground">Visa Checklist Progress</h3>
+            <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded-full">
+              {entries.length} collective{entries.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {entries.map(({ cid, collective, tasks, done, total, pct }) => {
+              const stageGroups = {};
+              tasks.forEach(t => {
+                const key = t.stage_code || STAGE_LABELS[t.stage] || (t.stage ? `Stage ${t.stage}` : 'Task');
+                if (!stageGroups[key]) stageGroups[key] = { done: 0, total: 0 };
+                stageGroups[key].total++;
+                if (t.status === 'done' || t.status === 'completed') stageGroups[key].done++;
+              });
+              const allDone = pct === 100;
+              return (
+                <div key={cid} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{collective.name}</p>
+                      <p className="text-xs text-muted-foreground">{collective.destination || '—'} · {collective.status?.replace(/_/g, ' ') || '—'}</p>
+                    </div>
+                    <span className="text-sm font-black flex-shrink-0" style={{ color: allDone ? '#10b981' : '#a78bfa' }}>{pct}%</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(stageGroups).map(([stage, sg]) => (
+                      <span key={stage} className={cn(
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                        sg.done === sg.total
+                          ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                          : "bg-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400"
+                      )}>
+                        {stage} · {sg.done}/{sg.total}
+                      </span>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden mb-1.5">
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: `${pct}%`,
+                        background: allDone ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #6d28d9, #a78bfa)',
+                      }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{done} done</span>
+                      <span>{total - done} remaining</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
-
-      {/* Edit dialog */}
-      <Dialog open={!!editingBooking} onOpenChange={() => setEditingBooking(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Update Visa Status</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div>
-              <p className="text-sm font-semibold">{editingBooking?.client_name}</p>
-              <p className="text-xs text-muted-foreground">{editingBooking?.booking_reference}</p>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Visa Status</Label>
-              <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(VISA_STATUS).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setEditingBooking(null)}>Cancel</Button>
-              <Button size="sm" onClick={saveStatus} disabled={saving}>
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -6,13 +6,13 @@ import { cn } from '@/lib/utils';
 import CollectiveWorkspace from '@/components/collectives/CollectiveWorkspace';
 
 const statusConfig = {
-  draft:               { label: 'Draft',               color: 'text-slate-600' },
-  active:              { label: 'Active',               color: 'text-emerald-600' },
-  open_booking:        { label: 'Open Booking',         color: 'text-teal-600' },
-  confirmed_departure: { label: 'Confirmed Departure',  color: 'text-sky-600' },
-  ongoing:             { label: 'Ongoing Travel',       color: 'text-amber-600' },
-  completed:           { label: 'Completed',            color: 'text-emerald-600' },
-  cancelled:           { label: 'Cancelled',            color: 'text-rose-600' },
+  draft:               { label: 'Draft',               color: 'text-slate-600 dark:text-slate-400' },
+  active:              { label: 'Active',               color: 'text-emerald-600 dark:text-emerald-400' },
+  open_booking:        { label: 'Open Booking',         color: 'text-teal-600 dark:text-teal-400' },
+  confirmed_departure: { label: 'Confirmed Departure',  color: 'text-sky-600 dark:text-sky-300' },
+  ongoing:             { label: 'Ongoing Travel',       color: 'text-amber-600 dark:text-amber-400' },
+  completed:           { label: 'Completed',            color: 'text-emerald-600 dark:text-emerald-400' },
+  cancelled:           { label: 'Cancelled',            color: 'text-rose-600 dark:text-rose-400' },
 };
 
 export default function Collectives() {
@@ -53,7 +53,7 @@ export default function Collectives() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 pb-6">
       {/* Header Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-card rounded-xl border border-border p-4 text-center md:col-span-1">
@@ -61,19 +61,19 @@ export default function Collectives() {
           <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1"><Globe className="w-3 h-3" /> Total</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold font-jakarta text-teal-600">{activeCount}</p>
+          <p className="text-2xl font-bold font-jakarta text-teal-600 dark:text-teal-400">{activeCount}</p>
           <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1"><CheckCircle2 className="w-3 h-3" /> Active</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold font-jakarta text-slate-600">{collectives.filter(c => c.status === 'draft').length}</p>
+          <p className="text-2xl font-bold font-jakarta text-muted-foreground">{collectives.filter(c => c.status === 'draft').length}</p>
           <p className="text-xs text-muted-foreground mt-1">Draft</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-2xl font-bold font-jakarta text-amber-600">{totalPax.toLocaleString()}</p>
+          <p className="text-2xl font-bold font-jakarta text-amber-600 dark:text-amber-400">{totalPax.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1"><Users className="w-3 h-3" /> Booked Pax</p>
         </div>
         <div className="bg-card rounded-xl border border-border p-4 text-center">
-          <p className="text-lg font-bold font-jakarta text-emerald-600">₱{(totalRevenue / 1000000).toFixed(1)}M</p>
+          <p className="text-lg font-bold font-jakarta text-emerald-600 dark:text-emerald-400">₱{(totalRevenue / 1000000).toFixed(1)}M</p>
           <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1"><TrendingUp className="w-3 h-3" /> Est. Revenue</p>
         </div>
       </div>

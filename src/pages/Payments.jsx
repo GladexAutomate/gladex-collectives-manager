@@ -1,260 +1,175 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, CreditCard, CheckCircle, Clock, DollarSign, Filter, Upload, AlertTriangle } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Package, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-const statusConfig = {
-  pending: { label: 'Pending Verification', class: 'bg-amber-100 text-amber-700', icon: Clock },
-  verified: { label: 'Verified', class: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  rejected: { label: 'Rejected', class: 'bg-rose-100 text-rose-700', icon: AlertTriangle },
-};
-
-const paymentMethodLabels = {
-  cash: 'Cash',
-  bank_transfer: 'Bank Transfer',
-  gcash: 'GCash',
-  credit_card: 'Credit Card',
-  check: 'Check',
-  online: 'Online',
+const STAGE_LABELS = {
+  9: 'Stage 9 — Payment Coordination',
+  14: 'Stage 14 — Post-Travel Evaluation',
 };
 
 export default function Payments() {
-  const [payments, setPayments] = useState([]);
-  const [bookings, setBookings] = useState([]);
   const [collectives, setCollectives] = useState([]);
+  const [accountingTasks, setAccountingTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({});
-  const [saving, setSaving] = useState(false);
 
-  const loadData = () => {
-    Promise.all([
-      base44.entities.Payment.list('-created_date'),
-      base44.entities.Booking.list(),
-      base44.entities.Collective.list(),
-    ]).then(([p, b, c]) => {
-      setPayments(Array.isArray(p) ? p : []);
-      setBookings(Array.isArray(b) ? b : []);
-      setCollectives(Array.isArray(c) ? c : []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+  const loadData = async () => {
+    try {
+      const [cols, tasks] = await Promise.all([
+        base44.entities.Collective.list(),
+        base44.entities.ChecklistTask.list(),
+      ]);
+      setCollectives(Array.isArray(cols) ? cols : []);
+      const tasksArr = Array.isArray(tasks) ? tasks : [];
+      setAccountingTasks(tasksArr.filter(t => t.department === 'accounting'));
+    } catch (e) {
+      console.error('Accounting loadData error:', e);
+    }
+    setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
-
-  const handleSave = async () => {
-    setSaving(true);
-    await base44.entities.Payment.create(formData);
-    setSaving(false);
-    setShowModal(false);
+  useEffect(() => {
     loadData();
-  };
+    const onRefresh = () => loadData();
+    window.addEventListener('gladex:refresh', onRefresh);
+    return () => window.removeEventListener('gladex:refresh', onRefresh);
+  }, []);
 
-  const verifyPayment = async (payment) => {
-    await base44.entities.Payment.update(payment.id, {
-      status: 'verified',
-      verified_at: new Date().toISOString(),
-    });
-    loadData();
-  };
+  // Group tasks by collective
+  const byCollective = {};
+  accountingTasks.forEach(t => {
+    if (!t.collective_id) return;
+    if (!byCollective[t.collective_id]) byCollective[t.collective_id] = [];
+    byCollective[t.collective_id].push(t);
+  });
 
-  const filtered = payments.filter(p => statusFilter === 'all' || p.status === statusFilter);
+  const entries = Object.entries(byCollective).map(([cid, tasks]) => {
+    const collective = collectives.find(c => c.id === cid);
+    const done = tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+    const total = tasks.length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { cid, collective, tasks, done, total, pct };
+  }).filter(e => e.collective).sort((a, b) => a.pct - b.pct);
 
-  const totalVerified = payments.filter(p => p.status === 'verified').reduce((sum, p) => sum + (p.amount || 0), 0);
-  const totalPending = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + (p.amount || 0), 0);
-  const formatCurrency = (val) => val ? `₱${Number(val).toLocaleString()}` : '₱0';
-
-  const getCollectiveName = (id) => collectives.find(c => c.id === id)?.name || '—';
+  const totalTasks = accountingTasks.length;
+  const doneTasks = accountingTasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+  const overallPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold font-jakarta text-foreground">Payments & Accounting</h2>
-          <p className="text-sm text-muted-foreground">Track all payments and accounting approvals</p>
+          <h2 className="text-xl font-bold font-jakarta text-foreground">Accounting</h2>
+          <p className="text-sm text-muted-foreground">Checklist progress · Payment Coordination · Post-Travel Evaluation</p>
         </div>
-        <Button onClick={() => { setFormData({ status: 'pending', payment_method: 'bank_transfer', payment_type: 'downpayment' }); setShowModal(true); }} className="gradient-gold text-white border-0 gap-2">
-          <Plus className="w-4 h-4" /> Record Payment
+        <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5 text-xs w-fit">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </Button>
       </div>
 
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Total Verified Revenue</p>
-          <p className="text-xl font-bold font-jakarta text-emerald-600">{formatCurrency(totalVerified)}</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Pending Verification</p>
-          <p className="text-xl font-bold font-jakarta text-amber-600">{formatCurrency(totalPending)}</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Total Transactions</p>
-          <p className="text-xl font-bold font-jakarta text-foreground">{payments.length}</p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Est. Commission</p>
-          <p className="text-xl font-bold font-jakarta text-primary">{formatCurrency(totalVerified * 0.12)}</p>
-        </div>
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Collectives', value: entries.length, icon: Package, color: '#a78bfa' },
+          { label: 'Total Tasks', value: totalTasks, icon: CheckCircle2, color: '#a78bfa' },
+          { label: 'Completed', value: doneTasks, icon: CheckCircle2, color: '#10b981' },
+          { label: 'Overall Progress', value: `${overallPct}%`, icon: TrendingUp, color: overallPct === 100 ? '#10b981' : '#a78bfa' },
+        ].map((s, i) => {
+          const Icon = s.icon;
+          return (
+            <div key={i} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.15)' }}>
+                <Icon className="w-5 h-5" style={{ color: s.color }} />
+              </div>
+              <div>
+                <p className="text-xl font-bold font-jakarta leading-tight text-foreground">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-3">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            {Object.entries(statusConfig).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Payments Table */}
+      {/* Checklist Progress */}
       {loading ? (
-        <div className="space-y-2">
-          {[1,2,3,4].map(i => <div key={i} className="h-16 bg-card rounded-lg border animate-pulse" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className="h-36 bg-card rounded-xl border animate-pulse" />)}
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="text-center py-16 bg-card rounded-2xl border border-border">
+          <CheckCircle2 className="w-12 h-12 mx-auto mb-4" style={{ color: 'rgba(139,92,246,0.3)' }} />
+          <h3 className="font-semibold text-foreground mb-1">No accounting tasks yet</h3>
+          <p className="text-sm text-muted-foreground">Accounting checklist tasks will appear here once created in the Workflow module.</p>
         </div>
       ) : (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Client</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Type</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Amount</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Method</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Date</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Reference</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Status</th>
-                  <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="text-center py-10 text-muted-foreground text-sm">No payments recorded yet</td>
-                  </tr>
-                ) : filtered.map(p => {
-                  const StatusIcon = statusConfig[p.status]?.icon || Clock;
-                  return (
-                    <tr key={p.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-foreground">{p.client_name}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded capitalize">
-                          {p.payment_type?.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm font-semibold text-foreground">{formatCurrency(p.amount)}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-muted-foreground">{paymentMethodLabels[p.payment_method] || p.payment_method}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-muted-foreground">
-                          {p.payment_date ? new Date(p.payment_date).toLocaleDateString() : '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-muted-foreground font-mono">{p.reference_number || '—'}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge className={cn("text-[10px] gap-1", statusConfig[p.status]?.class)}>
-                          <StatusIcon className="w-3 h-3" />
-                          {statusConfig[p.status]?.label}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        {p.status === 'pending' && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => verifyPayment(p)}>
-                            <CheckCircle className="w-3 h-3" /> Verify
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-4 h-4" style={{ color: '#a78bfa' }} />
+            <h3 className="text-base font-bold text-foreground">Accounting Checklist Progress</h3>
+            <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded-full">
+              {entries.length} collective{entries.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {entries.map(({ cid, collective, tasks, done, total, pct }) => {
+              // Group tasks by stage
+              const stageGroups = {};
+              tasks.forEach(t => {
+                const key = t.stage_code || (t.stage ? `Stage ${t.stage}` : 'Task');
+                const label = STAGE_LABELS[t.stage] || key;
+                if (!stageGroups[label]) stageGroups[label] = { done: 0, total: 0 };
+                stageGroups[label].total++;
+                if (t.status === 'done' || t.status === 'completed') stageGroups[label].done++;
+              });
+              const allDone = pct === 100;
+              return (
+                <div key={cid} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{collective.name}</p>
+                      <p className="text-xs text-muted-foreground">{collective.destination || '—'} · {collective.status?.replace('_', ' ') || '—'}</p>
+                    </div>
+                    <span className="text-sm font-black flex-shrink-0" style={{ color: allDone ? '#10b981' : '#a78bfa' }}>{pct}%</span>
+                  </div>
+
+                  {/* Stage badges */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(stageGroups).map(([stage, sg]) => (
+                      <span key={stage} className={cn(
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                        sg.done === sg.total
+                          ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                          : "bg-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400"
+                      )}>
+                        {stage} · {sg.done}/{sg.total}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Progress bar */}
+                  <div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden mb-1.5">
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: `${pct}%`,
+                        background: allDone
+                          ? 'linear-gradient(90deg, #10b981, #34d399)'
+                          : 'linear-gradient(90deg, #6d28d9, #a78bfa)',
+                      }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{done} done</span>
+                      <span>{total - done} remaining</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
-
-      {/* Add Payment Modal */}
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-jakarta">Record Payment</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div className="space-y-1.5">
-              <Label>Client Name *</Label>
-              <Input value={formData.client_name || ''} onChange={e => setFormData({...formData, client_name: e.target.value})} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Payment Type</Label>
-                <Select value={formData.payment_type} onValueChange={v => setFormData({...formData, payment_type: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="downpayment">Downpayment</SelectItem>
-                    <SelectItem value="partial">Partial</SelectItem>
-                    <SelectItem value="full_payment">Full Payment</SelectItem>
-                    <SelectItem value="balance">Balance</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Amount (₱) *</Label>
-                <Input type="number" value={formData.amount || ''} onChange={e => setFormData({...formData, amount: Number(e.target.value)})} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Payment Method</Label>
-                <Select value={formData.payment_method} onValueChange={v => setFormData({...formData, payment_method: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(paymentMethodLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Payment Date</Label>
-                <Input type="date" value={formData.payment_date || ''} onChange={e => setFormData({...formData, payment_date: e.target.value})} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Reference Number</Label>
-              <Input placeholder="Bank ref, GCash ref, etc." value={formData.reference_number || ''} onChange={e => setFormData({...formData, reference_number: e.target.value})} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea rows={2} value={formData.notes || ''} onChange={e => setFormData({...formData, notes: e.target.value})} />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving} className="gradient-gold text-white border-0">
-              {saving ? 'Saving...' : 'Record Payment'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

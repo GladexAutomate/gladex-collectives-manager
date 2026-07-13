@@ -31,15 +31,15 @@ const CURRENCIES = [
 ];
 
 const STATUS_CONFIG = {
-  draft:               { label: 'Draft',         class: 'bg-slate-100 text-slate-600' },
-  for_approval:        { label: 'For Approval',  class: 'bg-purple-100 text-purple-700' },
-  product_development: { label: 'In Dev',        class: 'bg-amber-100 text-amber-700' },
-  marketing_prep:      { label: 'Mktg Prep',     class: 'bg-pink-100 text-pink-700' },
-  active:              { label: 'Active',         class: 'bg-emerald-100 text-emerald-700' },
-  launched:            { label: 'Launched',       class: 'bg-sky-100 text-sky-700' },
-  open_booking:        { label: 'Open Booking',  class: 'bg-teal-100 text-teal-700' },
-  completed:           { label: 'Completed',      class: 'bg-purple-100 text-purple-700' },
-  cancelled:           { label: 'Cancelled',      class: 'bg-rose-100 text-rose-700' },
+  draft:               { label: 'Draft',         class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' },
+  for_approval:        { label: 'For Approval',  class: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' },
+  product_development: { label: 'In Dev',        class: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' },
+  marketing_prep:      { label: 'Mktg Prep',     class: 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300' },
+  active:              { label: 'Active',         class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' },
+  launched:            { label: 'Launched',       class: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' },
+  open_booking:        { label: 'Open Booking',  class: 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300' },
+  completed:           { label: 'Completed',      class: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' },
+  cancelled:           { label: 'Cancelled',      class: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' },
 };
 
 const BLANK_QUOTE = () => ({
@@ -570,7 +570,7 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                     <>
                       <span className="text-xs text-muted-foreground">{currSymbol}{baseForeign.toLocaleString()} × {exRate}</span>
                       <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-sky-700">₱{basePHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                      <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">₱{basePHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                       {markupPHP > 0 && <><ArrowRight className="w-3.5 h-3.5 text-muted-foreground" /><span className="text-xs text-emerald-600">+₱{markupPHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></>}
                       <ArrowRight className="w-3.5 h-3.5 text-amber-500" />
                     </>
@@ -586,7 +586,7 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                   <span>Est. Rev: <strong className="text-emerald-600">₱{(estRevenue / 1000).toFixed(0)}K</strong></span>
                   <span>Pax: <strong className="text-foreground">{quote.pax_estimate}</strong></span>
                   {quote.rate_twin && <span>Twin: <strong className="text-amber-600">₱{Number(quote.rate_twin).toLocaleString()}</strong></span>}
-                  {quote.rate_single && <span>Solo: <strong className="text-purple-600">₱{Number(quote.rate_single).toLocaleString()}</strong></span>}
+                  {quote.rate_single && <span>Solo: <strong className="text-purple-600 dark:text-purple-400">₱{Number(quote.rate_single).toLocaleString()}</strong></span>}
                 </div>
               </div>
             )}
@@ -601,8 +601,8 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                   className={cn(
                     "flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors",
                     item.done
-                      ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800"
-                      : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 hover:bg-amber-200"
+                      ? "bg-emerald-100 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800"
+                      : "bg-amber-100 text-amber-700 dark:text-amber-300 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800 hover:bg-amber-200"
                   )}
                 >
                   <span>{item.done ? '✓' : '⚠'}</span> {item.label}
@@ -620,6 +620,27 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
               {/* ── INFO TAB ── */}
               {activeEditorTab === 'info' && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <F label="🔗 Package / Tariff Link" className="col-span-2 md:col-span-3">
+                    <div className="relative">
+                      <Input
+                        placeholder="Paste link to tariff file, Google Drive, OneDrive…"
+                        value={quote.drive_link || ''}
+                        onChange={e => setQ('drive_link', e.target.value)}
+                        className="h-9 pr-20 text-sm"
+                      />
+                      {quote.drive_link && (
+                        <a
+                          href={quote.drive_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-700/40 px-2 py-0.5 rounded"
+                        >
+                          Open ↗
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Visible to the Marketing team — link opens automatically when clicked</p>
+                  </F>
                   <F label="Package Name *" className="col-span-2">
                     <Input
                       placeholder="e.g. Japan Cherry Blossom 2026"
@@ -723,9 +744,9 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                       <p className="text-xs text-muted-foreground mt-0.5">Required before package publication. Describe each day's activities.</p>
                     </div>
                     {quote.itinerary ? (
-                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">✓ Filled</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-1 rounded-full font-semibold">✓ Filled</span>
                     ) : (
-                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold">⚠ Required</span>
+                      <span className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-1 rounded-full font-semibold">⚠ Required</span>
                     )}
                   </div>
                   <Textarea
@@ -747,9 +768,9 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
                       <p className="text-xs text-muted-foreground mt-0.5">Required before package publication. Include booking, payment, and cancellation policies.</p>
                     </div>
                     {quote.terms_conditions ? (
-                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">✓ Filled</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-1 rounded-full font-semibold">✓ Filled</span>
                     ) : (
-                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold">⚠ Required</span>
+                      <span className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-1 rounded-full font-semibold">⚠ Required</span>
                     )}
                   </div>
                   <Textarea

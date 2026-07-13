@@ -88,7 +88,7 @@ export default function Feedback() {
   const getCollectiveName = (id) => collectives.find(c => c.id === id)?.name || '—';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold font-jakarta text-foreground">Client Feedback</h2>
@@ -101,24 +101,24 @@ export default function Feedback() {
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground mb-1">Total Surveys</p>
           <p className="text-2xl font-bold font-jakarta text-foreground">{surveys.length}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground mb-1">Avg Overall Rating</p>
           <div className="flex items-center gap-2">
             <p className="text-2xl font-bold font-jakarta text-amber-500">{avgRating('overall_rating')}</p>
             <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
           </div>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground mb-1">NPS Score</p>
           <p className={cn("text-2xl font-bold font-jakarta", npsScore >= 50 ? 'text-emerald-600' : npsScore >= 0 ? 'text-amber-600' : 'text-rose-600')}>
             {npsScore}
           </p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <p className="text-xs text-muted-foreground mb-1">Would Recommend</p>
           <p className="text-2xl font-bold font-jakarta text-emerald-600">
             {surveys.length ? Math.round((surveys.filter(s => s.would_recommend).length / surveys.length) * 100) : 0}%
@@ -128,7 +128,7 @@ export default function Feedback() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <h3 className="font-semibold font-jakarta text-foreground mb-4">Satisfaction by Category</h3>
           <ResponsiveContainer width="100%" height={240}>
             <RadarChart data={radarData}>
@@ -139,7 +139,7 @@ export default function Feedback() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <h3 className="font-semibold font-jakarta text-foreground mb-4">Category Averages</h3>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={radarData} layout="vertical">
@@ -167,7 +167,7 @@ export default function Feedback() {
       ) : (
         <div className="space-y-3">
           {surveys.map(s => (
-            <div key={s.id} className="bg-card rounded-xl border border-border p-4 shadow-sm">
+            <div key={s.id} className="bg-card rounded-2xl border border-border p-4 shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-foreground">{s.client_name}</p>

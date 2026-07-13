@@ -21,6 +21,7 @@ import WorkflowProgressBadge from '@/components/workflow/WorkflowProgressBadge';
 import { useNavigate } from 'react-router-dom';
 import { generateRefCode } from '@/components/product/SmartImportSidebar';
 import { pkgCodeStore } from '@/lib/packageCodeStore';
+import { driveLinkStore } from '@/lib/driveLinkStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -36,13 +37,13 @@ const CURRENCIES = [
 ];
 
 const STATUS_CONFIG = {
-  draft:                { label: 'Draft',              class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-  active:               { label: '🟢 Active',           class: 'bg-emerald-100 text-emerald-700 font-semibold' },
-  open_booking:         { label: '🟢 Open Booking',   class: 'bg-teal-100 text-teal-700 font-semibold' },
-  confirmed_departure:  { label: '✈ Confirmed',       class: 'bg-sky-100 text-sky-700 font-semibold' },
-  ongoing:              { label: '🌍 Ongoing',         class: 'bg-amber-100 text-amber-700 font-semibold' },
-  completed:            { label: '✓ Completed',        class: 'bg-emerald-100 text-emerald-700 font-semibold' },
-  cancelled:            { label: 'Cancelled',          class: 'bg-rose-100 text-rose-700' },
+  draft:                { label: 'Draft',              class: 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300' },
+  active:               { label: '🟢 Active',           class: 'bg-emerald-100 text-emerald-700 font-semibold dark:bg-emerald-900/50 dark:text-emerald-300' },
+  open_booking:         { label: '🟢 Open Booking',   class: 'bg-teal-100 text-teal-700 font-semibold dark:bg-teal-900/50 dark:text-teal-300' },
+  confirmed_departure:  { label: '✈ Confirmed',       class: 'bg-sky-100 text-sky-700 font-semibold dark:bg-sky-900/50 dark:text-sky-300' },
+  ongoing:              { label: '🌍 Ongoing',         class: 'bg-amber-100 text-amber-700 font-semibold dark:bg-amber-900/40 dark:text-amber-300' },
+  completed:            { label: '✓ Completed',        class: 'bg-emerald-100 text-emerald-700 font-semibold dark:bg-emerald-900/50 dark:text-emerald-300' },
+  cancelled:            { label: 'Cancelled',          class: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300' },
 };
 
 const BLANK = () => ({
@@ -129,7 +130,7 @@ function CollectiveListItem({ c, isSelected, onSelect, onDelete, coverImage }) {
   return (
     <div className={cn(
       "relative group border-b border-border transition-all",
-      isSelected ? "bg-amber-50 dark:bg-amber-950/20 border-l-2 border-l-amber-500" : "hover:bg-muted/40"
+      isSelected ? "bg-amber-50 dark:bg-purple-950/50 border-l-2 border-l-amber-500 dark:border-l-violet-500" : "hover:bg-muted/40 dark:hover:bg-purple-950/20"
     )}>
       <button onClick={() => onSelect(c)} className="w-full text-left">
         {coverImage && (
@@ -204,6 +205,10 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       // Persist package_code immediately to localStorage (API schema doesn't include it)
       if (key === 'package_code' && selectedCollective?.id) {
         pkgCodeStore.set(selectedCollective.id, val);
+      }
+      // Persist drive_link immediately to localStorage (API schema doesn't include it)
+      if (key === 'drive_link' && selectedCollective?.id) {
+        driveLinkStore.set(selectedCollective.id, val);
       }
       // Auto-save for existing collectives
       if (selectedCollective?.id) {
@@ -389,7 +394,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       itinerary: c.itinerary || '',
       terms_conditions: c.terms_conditions || '',
       optional_tours: c.optional_tours || '',
-      drive_link: c.drive_link || '',
+      drive_link: c.drive_link || driveLinkStore.get(c.id) || '',
       flight_details: c.flight_details || '',
       hotel_details: c.hotel_details || '',
       remarks: c.remarks || '',
@@ -414,10 +419,18 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     let saved_c;
     if (selectedCollective?.id) {
       saved_c = await base44.entities.Collective.update(selectedCollective.id, payload);
+      // Persist fields not in API schema
+      pkgCodeStore.set(selectedCollective.id, form.package_code || '');
+      driveLinkStore.set(selectedCollective.id, form.drive_link || '');
     } else {
       saved_c = await base44.entities.Collective.create(payload);
       setSelectedCollective(saved_c);
       setIsNew(false);
+      // Persist fields not in API schema for newly created collective
+      if (saved_c?.id) {
+        pkgCodeStore.set(saved_c.id, form.package_code || '');
+        driveLinkStore.set(saved_c.id, form.drive_link || '');
+      }
     }
     setSaving(false);
     setSaved(true);
@@ -427,8 +440,23 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
   };
 
   const handleDelete = async (c) => {
-    await base44.entities.Collective.delete(c.id);
-    if (selectedCollective?.id === c.id) {
+    const id = c.id;
+    // Cascade: fetch related records independently so one failure doesn't block others
+    const [assetRes, bookingRes, taskRes] = await Promise.allSettled([
+      base44.entities.MarketingAsset.list().then(list => (list || []).filter(a => a.collective_id === id)),
+      base44.entities.Booking.list().then(list => (list || []).filter(b => b.collective_id === id)),
+      base44.entities.ChecklistTask.list().then(list => (list || []).filter(t => t.collective_id === id)),
+    ]);
+    const assets  = assetRes.status   === 'fulfilled' ? assetRes.value   : [];
+    const bookings = bookingRes.status === 'fulfilled' ? bookingRes.value : [];
+    const tasks   = taskRes.status    === 'fulfilled' ? taskRes.value    : [];
+    await Promise.allSettled([
+      ...assets.map(a => base44.entities.MarketingAsset.delete(a.id)),
+      ...bookings.map(b => base44.entities.Booking.delete(b.id)),
+      ...tasks.map(t => base44.entities.ChecklistTask.delete(t.id)),
+    ]);
+    await base44.entities.Collective.delete(id);
+    if (selectedCollective?.id === id) {
       setSelectedCollective(null);
       setIsNew(false);
       setForm(BLANK());
@@ -627,7 +655,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       <div className="flex-1 flex flex-col min-w-0">
         {!isEditorVisible ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8">
-            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/20 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-purple-950/50 dark:ring-1 dark:ring-purple-700/40 flex items-center justify-center">
               <Globe className="w-8 h-8 text-amber-500" />
             </div>
             <div>
@@ -697,7 +725,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
 
             {/* Pricing Banner */}
             {sellingPrice > 0 && (
-              <div className="px-5 py-2 bg-gradient-to-r from-amber-500/10 to-orange-500/5 border-b border-amber-200/50 dark:border-amber-700/30 flex flex-wrap items-center gap-4 flex-shrink-0">
+              <div className="px-5 py-2 bg-gradient-to-r from-amber-500/10 to-orange-500/5 dark:from-purple-900/40 dark:to-violet-900/20 border-b border-amber-200/50 dark:border-purple-700/30 flex flex-wrap items-center gap-4 flex-shrink-0">
                 <div className="flex items-center gap-3">
                   {form.currency !== 'PHP' && baseForeign > 0 && (
                     <>
@@ -721,18 +749,24 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
             )}
 
             {/* Completion Checklist */}
-            <div className={cn("px-5 py-2 border-b border-border flex flex-wrap items-center gap-3 flex-shrink-0", completionPct === 100 ? "bg-emerald-50 dark:bg-emerald-950/20" : "bg-amber-50/60 dark:bg-amber-950/10")}>
+            <div className={cn("px-5 py-2 border-b border-border flex flex-wrap items-center gap-3 flex-shrink-0",
+              completionPct === 100
+                ? "bg-emerald-50 dark:bg-emerald-950/25"
+                : "bg-amber-50/60 dark:bg-purple-950/30"
+            )}>
               <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">Publication Checklist:</span>
               {completionItems.map(item => (
                 <button key={item.key} onClick={() => setActiveTab(item.tab)}
                   className={cn("flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors",
-                    item.done ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                    item.done
+                      ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700/50"
+                      : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 dark:bg-purple-900/40 dark:text-amber-300 dark:border-purple-600/40 dark:hover:bg-purple-800/50"
                   )}
                 >
                   <span>{item.done ? '✓' : '⚠'}</span> {item.label}
                 </button>
               ))}
-              <span className={cn("ml-auto text-[10px] font-bold", completionPct === 100 ? "text-emerald-600" : "text-amber-600")}>{completionPct}% Ready</span>
+              <span className={cn("ml-auto text-[10px] font-bold", completionPct === 100 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>{completionPct}% Ready</span>
             </div>
 
             {/* Tabs */}
@@ -754,6 +788,27 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
               {/* ── PACKAGE INFO ── */}
               {activeTab === 'info' && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <F label="🔗 Package / Tariff Link" className="col-span-2 md:col-span-3">
+                    <div className="relative">
+                      <Input
+                        placeholder="Paste link to tariff file, Google Drive, OneDrive…"
+                        value={form.drive_link || ''}
+                        onChange={e => setF('drive_link', e.target.value)}
+                        className="h-9 pr-20 text-sm"
+                      />
+                      {form.drive_link && (
+                        <a
+                          href={form.drive_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-700/40 px-2 py-0.5 rounded"
+                        >
+                          Open ↗
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Visible to the Marketing team — link opens automatically when clicked</p>
+                  </F>
                   <F label="Collective Name *">
                     <Input placeholder="e.g. Japan Cherry Blossom 2026" value={form.name} onChange={e => setF('name', e.target.value)} className={cn("h-9 text-sm", !form.name && 'border-amber-300')} />
                   </F>
@@ -792,9 +847,9 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                   <F label="Slot Allocation">
                     {hasTravelDates ? (
                       <div className="space-y-1.5">
-                        <div className="h-9 flex items-center px-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-md gap-2">
-                          <span className="text-sm font-bold text-sky-700">{derivedTotalSlots}</span>
-                          <span className="text-[10px] text-sky-500">auto from {(form.travel_dates||[]).length} date{(form.travel_dates||[]).length !== 1 ? 's' : ''}</span>
+                        <div className="h-9 flex items-center px-3 bg-sky-50 dark:bg-violet-950/40 border border-sky-200 dark:border-violet-700/50 rounded-md gap-2">
+                          <span className="text-sm font-bold text-sky-700 dark:text-violet-300">{derivedTotalSlots}</span>
+                          <span className="text-[10px] text-sky-500 dark:text-violet-400">auto from {(form.travel_dates||[]).length} date{(form.travel_dates||[]).length !== 1 ? 's' : ''}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-1 text-[10px]">
                           {(form.travel_dates||[]).map((d, i) => (
@@ -823,9 +878,9 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                   <F label={hasTravelDates ? 'Available Slots' : 'Booked Pax'}>
                     {hasTravelDates ? (
                       <div className="space-y-1">
-                        <div className="h-9 flex items-center px-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-md gap-2">
-                          <span className="text-sm font-bold text-emerald-700">{derivedAvailableSlots}</span>
-                          <span className="text-[10px] text-emerald-500">of {derivedTotalSlots} available</span>
+                        <div className="h-9 flex items-center px-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-700/50 rounded-md gap-2">
+                          <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{derivedAvailableSlots}</span>
+                          <span className="text-[10px] text-emerald-500 dark:text-emerald-400">of {derivedTotalSlots} available</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground">{derivedBookedSlots} booked across all dates</p>
                       </div>
@@ -849,27 +904,6 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                   </F>
                   <F label="Hotel Details" className="col-span-2 md:col-span-3">
                     <Textarea rows={2} placeholder="Hotel names, categories, check-in/out..." value={form.hotel_details} onChange={e => setF('hotel_details', e.target.value)} className="text-xs resize-none" />
-                  </F>
-                  <F label="📁 Drive Link" className="col-span-2 md:col-span-3">
-                    <div className="relative">
-                      <Input
-                        placeholder="Paste Google Drive / Dropbox / OneDrive link…"
-                        value={form.drive_link || ''}
-                        onChange={e => setF('drive_link', e.target.value)}
-                        className="h-9 pr-20 text-sm"
-                      />
-                      {form.drive_link && (
-                        <a
-                          href={form.drive_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-sky-600 hover:text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded"
-                        >
-                          Open ↗
-                        </a>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">This link will be visible to the Marketing team</p>
                   </F>
                 </div>
               )}

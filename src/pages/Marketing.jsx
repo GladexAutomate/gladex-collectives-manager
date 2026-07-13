@@ -3,8 +3,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand } from 'lucide-react';
 import TariffBrowser from './TariffBrowser';
-import DocumentEditor from './DocumentEditor';
 import { broadcastRefresh } from '@/lib/dataSync';
+import { pkgCodeStore } from '@/lib/packageCodeStore';
+import { driveLinkStore } from '@/lib/driveLinkStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,35 +16,35 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 const statusColors = {
-  draft:            'bg-slate-100 text-slate-600',
-  pending_approval: 'bg-amber-100 text-amber-700',
-  approved:         'bg-sky-100 text-sky-700',
-  published:        'bg-emerald-100 text-emerald-700',
-  archived:         'bg-purple-100 text-purple-700',
+  draft:            'bg-slate-100 text-slate-600 dark:bg-slate-800/40 dark:text-slate-400',
+  pending_approval: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
+  approved:         'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400',
+  published:        'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
+  archived:         'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400',
 };
 
 const typeConfig = {
-  poster:   { icon: Image, color: 'text-amber-600', bg: 'bg-amber-50', label: 'Poster' },
-  reel:     { icon: Film,  color: 'text-rose-600',  bg: 'bg-rose-50',  label: 'Reel' },
-  caption:  { icon: Globe, color: 'text-sky-600',   bg: 'bg-sky-50',   label: 'Caption' },
-  e_blast:  { icon: Mail,  color: 'text-purple-600',bg: 'bg-purple-50',label: 'E-Blast' },
-  video:    { icon: Film,  color: 'text-emerald-600',bg:'bg-emerald-50',label: 'Video' },
-  photo:    { icon: Image, color: 'text-blue-600',  bg: 'bg-blue-50',  label: 'Photo' },
-  brochure: { icon: Globe, color: 'text-orange-600',bg: 'bg-orange-50',label: 'Brochure' },
+  poster:   { icon: Image, color: 'text-amber-600', label: 'Poster' },
+  reel:     { icon: Film,  color: 'text-rose-600',  label: 'Reel' },
+  caption:  { icon: Globe, color: 'text-sky-600',   label: 'Caption' },
+  e_blast:  { icon: Mail,  color: 'text-purple-600',label: 'E-Blast' },
+  video:    { icon: Film,  color: 'text-emerald-600',label: 'Video' },
+  photo:    { icon: Image, color: 'text-blue-600',  label: 'Photo' },
+  brochure: { icon: Globe, color: 'text-orange-600',label: 'Brochure' },
 };
 
 const pkgStatusConfig = {
-  draft:               { label: 'Draft',             class: 'bg-slate-100 text-slate-600' },
-  for_approval:        { label: 'For Approval',      class: 'bg-purple-100 text-purple-700' },
-  product_development: { label: 'Product Dev',       class: 'bg-amber-100 text-amber-700' },
-  marketing_prep:      { label: 'Marketing Prep',    class: 'bg-pink-100 text-pink-700' },
-  active:              { label: 'Active',             class: 'bg-emerald-100 text-emerald-700' },
-  launched:            { label: 'Launched',           class: 'bg-sky-100 text-sky-700' },
-  open_booking:        { label: 'Open Booking',      class: 'bg-teal-100 text-teal-700' },
-  reservation_ongoing: { label: 'Reservations Open', class: 'bg-blue-100 text-blue-700' },
-  ongoing:             { label: 'Ongoing Travel',    class: 'bg-amber-100 text-amber-700' },
-  completed:           { label: 'Completed',         class: 'bg-purple-100 text-purple-700' },
-  cancelled:           { label: 'Cancelled',         class: 'bg-rose-100 text-rose-700' },
+  draft:               { label: 'Draft',             class: 'bg-slate-100 text-slate-600 dark:bg-slate-800/40 dark:text-slate-400' },
+  for_approval:        { label: 'For Approval',      class: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400' },
+  product_development: { label: 'Product Dev',       class: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' },
+  marketing_prep:      { label: 'Marketing Prep',    class: 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-400' },
+  active:              { label: 'Active',             class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' },
+  launched:            { label: 'Launched',           class: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400' },
+  open_booking:        { label: 'Open Booking',      class: 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400' },
+  reservation_ongoing: { label: 'Reservations Open', class: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400' },
+  ongoing:             { label: 'Ongoing Travel',    class: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' },
+  completed:           { label: 'Completed',         class: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400' },
+  cancelled:           { label: 'Cancelled',         class: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400' },
 };
 
 export default function Marketing() {
@@ -124,7 +125,10 @@ export default function Marketing() {
   const openEdit = (a) => {
     setEditingAsset(a);
     setPreselectedPkg(null);
-    setFormData({ ...a });
+    // file_url stores newline-separated poster URLs — decode back into attachments for modal UI
+    const urls = (a.file_url || '').split('\n').filter(Boolean);
+    const attachments = urls.map((url, i) => ({ url, name: a.title || `Poster ${i + 1}`, type: 'image/jpeg' }));
+    setFormData({ ...a, attachments, file_url: '' });
     setShowModal(true);
   };
 
@@ -175,10 +179,14 @@ export default function Marketing() {
     }
     setSaving(true);
     try {
+      // Encode attachments array → newline-separated file_url for reliable persistence
+      const atts = formData.attachments || [];
+      const file_url = atts.map(a => a.url).filter(Boolean).join('\n');
+      const payload = { ...formData, file_url };
       if (editingAsset) {
-        await base44.entities.MarketingAsset.update(editingAsset.id, formData);
+        await base44.entities.MarketingAsset.update(editingAsset.id, payload);
       } else {
-        await base44.entities.MarketingAsset.create(formData);
+        await base44.entities.MarketingAsset.create(payload);
       }
       setShowModal(false);
       await reloadAll();
@@ -211,10 +219,12 @@ export default function Marketing() {
   const handlePublish = async (asset) => {
     try {
       await base44.entities.MarketingAsset.update(asset.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] });
-      if (asset.collective_id && asset.file_url) {
+      // file_url is newline-separated; use first URL for the collective image
+      const firstUrl = (asset.file_url || '').split('\n').filter(Boolean)[0] || '';
+      if (asset.collective_id && firstUrl) {
         const collective = collectives.find(c => c.id === asset.collective_id);
         if (collective && !collective.image_url) {
-          await base44.entities.Collective.update(asset.collective_id, { image_url: asset.file_url });
+          await base44.entities.Collective.update(asset.collective_id, { image_url: firstUrl });
         }
       }
       await reloadAll();
@@ -245,7 +255,11 @@ export default function Marketing() {
     !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.destination?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredAssets = assets.filter(a => {
+  // Hide assets whose package was deleted (orphaned assets)
+  const existingCollectiveIds = new Set(collectives.map(c => c.id));
+  const nonOrphanAssets = assets.filter(a => !a.collective_id || existingCollectiveIds.has(a.collective_id));
+
+  const filteredAssets = nonOrphanAssets.filter(a => {
     const matchSearch = !search || a.title?.toLowerCase().includes(search.toLowerCase());
     const matchType = typeFilter === 'all' || a.asset_type === typeFilter;
     const matchStatus = statusFilter === 'all' || a.status === statusFilter;
@@ -256,12 +270,12 @@ export default function Marketing() {
 
   // Stats
   const pkgsReadyForMarketing = activePkgs.length;
-  const pkgsWithAssets = activePkgs.filter(c => assets.some(a => a.collective_id === c.id)).length;
-  const publishedAssets = assets.filter(a => a.status === 'published').length;
-  const pendingAssets = assets.filter(a => a.status === 'pending_approval').length;
+  const pkgsWithAssets = activePkgs.filter(c => nonOrphanAssets.some(a => a.collective_id === c.id)).length;
+  const publishedAssets = nonOrphanAssets.filter(a => a.status === 'published').length;
+  const pendingAssets = nonOrphanAssets.filter(a => a.status === 'pending_approval').length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -279,7 +293,6 @@ export default function Marketing() {
           { key: 'packages', label: '📦 Packages + Assets' },
           { key: 'assets', label: '🎨 All Assets' },
           { key: 'tariff', label: '📋 Tariff' },
-          { key: 'poster', label: '🖨️ Create Poster' },
         ].map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={cn("px-4 py-2 rounded-lg text-xs font-medium transition-all",
@@ -297,7 +310,7 @@ export default function Marketing() {
           { label: 'Published Assets', value: publishedAssets, color: 'text-emerald-600' },
           { label: 'Pending Approval', value: pendingAssets, color: 'text-amber-600' },
         ].map((s, i) => (
-          <div key={i} className="bg-card rounded-xl border border-border p-4 text-center">
+          <div key={i} className="bg-card rounded-2xl border border-border p-4 text-center">
             <p className={cn("text-2xl font-bold font-jakarta", s.color)}>{s.value}</p>
             <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
           </div>
@@ -305,7 +318,7 @@ export default function Marketing() {
       </div>
 
       {/* Search bar (shared) */}
-      {activeTab !== 'tariff' && activeTab !== 'poster' && (
+      {activeTab !== 'tariff' && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -335,7 +348,7 @@ export default function Marketing() {
             const pct = pkg.total_slots > 0 ? Math.min(100, ((pkg.booked_pax || 0) / pkg.total_slots) * 100) : 0;
 
             return (
-              <div key={pkg.id} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+              <div key={pkg.id} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 {/* Package header row */}
                 <div
                   className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/30 transition-colors"
@@ -346,6 +359,11 @@ export default function Marketing() {
                     : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   }
                   <div className="flex-1 min-w-0">
+                    {(pkg.package_code || pkgCodeStore.get(pkg.id)) && (
+                      <p className="text-[10px] font-mono font-semibold text-muted-foreground mb-0.5 tracking-wide">
+                        {pkg.package_code || pkgCodeStore.get(pkg.id)}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-foreground font-jakarta truncate">{pkg.name}</span>
                       <Badge className={cn("text-[10px]", cfg.class)}>{cfg.label}</Badge>
@@ -384,27 +402,27 @@ export default function Marketing() {
                 {/* Expanded assets */}
                 {isExpanded && (
                   <div className="border-t border-border bg-muted/20">
-                    {pkg.drive_link && (
-                      <div className="flex items-center gap-2 px-4 py-2.5 bg-sky-50 border-b border-sky-100">
-                        <span className="text-[11px] text-sky-700 font-medium">📁 Drive Folder:</span>
+                    {(() => { const dl = pkg.drive_link || driveLinkStore.get(pkg.id); return dl && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 dark:bg-violet-950/25 border-b border-violet-100 dark:border-violet-900/40">
+                        <span className="text-[11px] text-violet-700 dark:text-violet-300 font-semibold">🔗 Tariff / Package Link:</span>
                         <a
-                          href={pkg.drive_link}
+                          href={dl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] text-sky-600 hover:text-sky-800 hover:underline truncate flex-1"
+                          className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline truncate flex-1"
                         >
-                          {pkg.drive_link}
+                          {dl}
                         </a>
                         <a
-                          href={pkg.drive_link}
+                          href={dl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] font-semibold text-white bg-sky-500 hover:bg-sky-600 px-2 py-0.5 rounded flex-shrink-0"
+                          className="text-[10px] font-semibold text-white bg-violet-500 hover:bg-violet-600 px-2 py-0.5 rounded flex-shrink-0"
                         >
                           Open ↗
                         </a>
                       </div>
-                    )}
+                    ); })()}
                     {pkgAssets.length === 0 ? (
                       <div className="py-8 text-center">
                         <Image className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
@@ -471,9 +489,6 @@ export default function Marketing() {
 
       {/* Tariff Tab */}
       {activeTab === 'tariff' && <TariffBrowser />}
-
-      {/* Create Poster Tab */}
-      {activeTab === 'poster' && <DocumentEditor collectives={collectives} />}
 
       {/* Add/Edit Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
@@ -642,38 +657,85 @@ function AssetCard({ asset, pkgName, onEdit, onDelete, onPublish, onSubmit, onVi
   const [confirmDel, setConfirmDel] = useState(false);
   const cfg = typeConfig[asset.asset_type] || typeConfig.poster;
   const Icon = cfg.icon;
+
+  // file_url stores newline-separated poster URLs — parse into gallery list
+  const allImages = (asset.file_url || '').split('\n').filter(Boolean)
+    .map((url, i) => ({ url, name: asset.title || `Poster ${i + 1}` }));
+  const nonImageAtts = [];
+
+  const SHOW = 4; // max visible in grid before "+N more"
+
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      {asset.file_url ? (
-        <div
-          className="min-h-[160px] max-h-[280px] overflow-hidden bg-muted/30 relative group/thumb cursor-zoom-in flex items-center justify-center"
-          onClick={() => onView?.(asset.file_url)}
-        >
-          <img src={asset.file_url} alt={asset.title} className="w-full h-auto object-contain" onError={e => e.target.style.display='none'} />
+    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+      {/* ── Image gallery ── */}
+      {allImages.length === 0 ? (
+        <div className="h-20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.18)' }}>
+            <Icon className="w-5 h-5" style={{ color: '#a78bfa' }} />
+          </div>
+        </div>
+      ) : allImages.length === 1 ? (
+        <div className="relative group/thumb cursor-zoom-in overflow-hidden bg-muted/30"
+          style={{ minHeight: 160, maxHeight: 280 }}
+          onClick={() => onView?.(allImages[0].url)}>
+          <img src={allImages[0].url} alt={allImages[0].name || 'poster'}
+            className="w-full h-auto object-contain"
+            onError={e => {
+              e.target.style.display = 'none';
+              // show fallback link when image fails
+              const fb = e.target.parentElement?.querySelector('.img-fallback');
+              if (fb) fb.style.display = 'flex';
+            }} />
+          {/* fallback shown when img fails */}
+          <div className="img-fallback hidden absolute inset-0 flex-col items-center justify-center gap-2 bg-muted/40 p-4">
+            <Paperclip className="w-8 h-8 text-muted-foreground" />
+            <a href={allImages[0].url} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="text-xs text-sky-600 hover:underline text-center break-all px-2">
+              View / Download file
+            </a>
+          </div>
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center gap-3 transition-opacity">
             <Expand className="w-7 h-7 text-white drop-shadow" />
-            <a
-              href={asset.file_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white hover:text-white/80"
-              onClick={e => e.stopPropagation()}
-              title="Download original"
-            >
+            <a href={allImages[0].url} target="_blank" rel="noopener noreferrer"
+              className="text-white hover:text-white/80" onClick={e => e.stopPropagation()} title="Download">
               <Download className="w-6 h-6 drop-shadow" />
             </a>
           </div>
         </div>
       ) : (
-        <div className={cn("h-20 flex items-center justify-center", cfg.bg)}>
-          <Icon className={cn("w-10 h-10 opacity-30", cfg.color)} />
+        <div className={cn("grid gap-0.5", allImages.length === 2 ? "grid-cols-2" : "grid-cols-3")}>
+          {allImages.slice(0, SHOW).map((img, i) => (
+            <div key={i}
+              className={cn("relative overflow-hidden cursor-zoom-in group/g bg-muted/30",
+                allImages.length === 2 ? "aspect-square" : i === 0 && allImages.length === 3 ? "col-span-2 aspect-video" : "aspect-square"
+              )}
+              onClick={() => onView?.(img.url)}>
+              <img src={img.url} alt={img.name}
+                className="w-full h-full object-cover transition-transform group-hover/g:scale-105"
+                onError={e => { e.target.style.display = 'none'; }} />
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/g:opacity-100 transition-opacity flex items-center justify-center">
+                <Expand className="w-5 h-5 text-white drop-shadow" />
+              </div>
+              {/* +N overlay on last visible cell if there are more */}
+              {i === SHOW - 1 && allImages.length > SHOW && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <span className="text-white font-bold text-xl">+{allImages.length - SHOW}</span>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
+
       <div className="p-3">
         <div className="flex items-start justify-between mb-1.5">
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-foreground text-xs truncate">{asset.title}</p>
             {pkgName && <p className="text-[10px] text-muted-foreground truncate">{pkgName}</p>}
+            {allImages.length > 1 && (
+              <p className="text-[10px] text-muted-foreground">{allImages.length} posters</p>
+            )}
           </div>
           <Badge className={cn("text-[10px] ml-2 flex-shrink-0 capitalize", statusColors[asset.status])}>
             {asset.status?.replace('_', ' ')}
@@ -686,26 +748,16 @@ function AssetCard({ asset, pkgName, onEdit, onDelete, onPublish, onSubmit, onVi
             <Download className="w-2.5 h-2.5 flex-shrink-0 ml-auto" />
           </a>
         )}
-        {/* Attachments strip */}
-        {asset.attachments?.length > 0 && (
-          <div className="mb-2 space-y-1">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{asset.attachments.length} Attachment{asset.attachments.length !== 1 ? 's' : ''}</p>
-            <div className="flex gap-1.5 flex-wrap">
-              {asset.attachments.map((att, idx) => {
-                const isImage = att.type?.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg)$/i.test(att.name || '');
-                return isImage ? (
-                  <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" title={att.name}>
-                    <img src={att.url} alt={att.name} className="w-10 h-10 object-cover rounded border border-border hover:opacity-80 transition-opacity" />
-                  </a>
-                ) : (
-                  <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" title={att.name}
-                    className="flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted/40 hover:bg-muted text-[10px] text-muted-foreground max-w-[80px] truncate">
-                    <Paperclip className="w-2.5 h-2.5 flex-shrink-0" />
-                    <span className="truncate">{att.name || 'File'}</span>
-                  </a>
-                );
-              })}
-            </div>
+        {/* Non-image file attachments */}
+        {nonImageAtts.length > 0 && (
+          <div className="mb-2 flex gap-1 flex-wrap">
+            {nonImageAtts.map((att, idx) => (
+              <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" title={att.name}
+                className="flex items-center gap-1 px-2 py-1 rounded border border-border bg-muted/40 hover:bg-muted text-[10px] text-muted-foreground max-w-[90px] truncate">
+                <Paperclip className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{att.name || 'File'}</span>
+              </a>
+            ))}
           </div>
         )}
         {asset.caption && <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{asset.caption}</p>}
@@ -727,7 +779,7 @@ function AssetCard({ asset, pkgName, onEdit, onDelete, onPublish, onSubmit, onVi
             {asset.status === 'draft' && (
               <Button size="sm" variant="outline" className="flex-1 text-[10px] h-6 px-2 text-amber-600 border-amber-200" onClick={() => onSubmit(asset)}>Submit</Button>
             )}
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-rose-400 hover:text-rose-600 hover:bg-rose-50" onClick={() => setConfirmDel(true)}>
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/25" onClick={() => setConfirmDel(true)}>
               <Trash2 className="w-3 h-3" />
             </Button>
           </div>

@@ -51,17 +51,17 @@ const BLANK_DATE = () => ({
 
 // ── Rate rows config ──────────────────────────────────────────────────────────
 const ROOM_RATES = [
-  { key: 'rate_twin',   label: 'Twin Sharing',       color: 'text-amber-700',   bg: 'bg-amber-50 dark:bg-amber-950/20',   border: 'border-amber-200' },
-  { key: 'rate_triple', label: 'Triple Sharing',     color: 'text-sky-700',     bg: 'bg-sky-50 dark:bg-sky-950/20',       border: 'border-sky-200' },
-  { key: 'rate_quad',   label: 'Quad Sharing',       color: 'text-emerald-700', bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-200' },
-  { key: 'rate_single', label: 'Single Occupancy',   color: 'text-purple-700',  bg: 'bg-purple-50 dark:bg-purple-950/20', border: 'border-purple-200' },
-  { key: 'rate_solo',   label: 'Solo Rate',          color: 'text-indigo-700',  bg: 'bg-indigo-50 dark:bg-indigo-950/20', border: 'border-indigo-200' },
-  { key: 'rate_single_supplement', label: 'Single Supplement', color: 'text-orange-700', bg: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-200', noAge: true },
+  { key: 'rate_twin',   label: 'Twin Sharing',       color: 'text-amber-700 dark:text-amber-300',   bg: 'bg-amber-50 dark:bg-amber-950/25',   border: 'border-amber-200 dark:border-amber-700/40' },
+  { key: 'rate_triple', label: 'Triple Sharing',     color: 'text-sky-700 dark:text-sky-300',     bg: 'bg-sky-50 dark:bg-sky-950/25',       border: 'border-sky-200 dark:border-sky-700/40' },
+  { key: 'rate_quad',   label: 'Quad Sharing',       color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-950/25', border: 'border-emerald-200 dark:border-emerald-700/40' },
+  { key: 'rate_single', label: 'Single Occupancy',   color: 'text-purple-700 dark:text-purple-300',  bg: 'bg-purple-50 dark:bg-purple-950/25', border: 'border-purple-200 dark:border-purple-700/40' },
+  { key: 'rate_solo',   label: 'Solo Rate',          color: 'text-indigo-700 dark:text-indigo-300',  bg: 'bg-indigo-50 dark:bg-indigo-950/25', border: 'border-indigo-200 dark:border-indigo-700/40' },
+  { key: 'rate_single_supplement', label: 'Single Supplement', color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-50 dark:bg-orange-950/25', border: 'border-orange-200 dark:border-orange-700/40', noAge: true },
 ];
 const CHILD_RATES = [
-  { key: 'rate_child_no_bed', label: 'Child No Bed',  color: 'text-rose-700',  bg: 'bg-rose-50 dark:bg-rose-950/20',   border: 'border-rose-200' },
-  { key: 'rate_child',        label: 'Child w/ Bed',  color: 'text-pink-700',  bg: 'bg-pink-50 dark:bg-pink-950/20',   border: 'border-pink-200' },
-  { key: 'rate_infant',       label: 'Infant Fee',    color: 'text-fuchsia-700', bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/20', border: 'border-fuchsia-200' },
+  { key: 'rate_child_no_bed', label: 'Child No Bed',  color: 'text-rose-700 dark:text-rose-300',  bg: 'bg-rose-50 dark:bg-rose-950/25',   border: 'border-rose-200 dark:border-rose-700/40' },
+  { key: 'rate_child',        label: 'Child w/ Bed',  color: 'text-pink-700 dark:text-pink-300',  bg: 'bg-pink-50 dark:bg-pink-950/25',   border: 'border-pink-200 dark:border-pink-700/40' },
+  { key: 'rate_infant',       label: 'Infant Fee',    color: 'text-fuchsia-700 dark:text-fuchsia-300', bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/25', border: 'border-fuchsia-200 dark:border-fuchsia-700/40' },
 ];
 
 // ── F helper ──────────────────────────────────────────────────────────────────
@@ -668,10 +668,10 @@ Extract ALL rows. Do not skip any row that has a date.`,
     <div className="space-y-5">
       {/* ── SECTION: Package Base Pricing ── */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <div className="bg-slate-900 px-4 py-3 flex items-center gap-2 flex-wrap">
+        <div className="bg-slate-900 dark:bg-[hsl(236,30%,8%)] px-4 py-3 flex items-center gap-2 flex-wrap border-b border-border">
           <DollarSign className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-bold text-white">Package Base Pricing</span>
-          <span className="text-[10px] text-slate-400 ml-auto">Currency, markup & commission</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-400 ml-auto">Currency, markup & commission</span>
         </div>
         <div className="p-5 space-y-4">
           {/* Row 1: Currency / Base Cost / Exchange / Base PHP */}
@@ -691,8 +691,8 @@ Extract ALL rows. Do not skip any row that has a date.`,
               <F label="Exchange Rate (→ PHP)"><Input type="number" className="h-9 text-sm" value={exRate || ''} onChange={e => pkgSet('exchange_rate', Number(e.target.value))} /></F>
             )}
             <F label="Base Cost PHP">
-              <div className="h-9 flex items-center px-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 rounded-md">
-                <span className="text-sm font-bold text-sky-700">₱{bpPHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <div className="h-9 flex items-center px-3 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-700/40 rounded-md">
+                <span className="text-sm font-bold text-sky-700 dark:text-sky-300">₱{bpPHP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
               </div>
             </F>
           </div>
@@ -711,20 +711,20 @@ Extract ALL rows. Do not skip any row that has a date.`,
               </div>
             </F>
             <F label="Gross Margin">
-              <div className="h-9 flex items-center px-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 rounded-md">
-                <span className="text-sm font-bold text-emerald-700">{gMargin}%</span>
+              <div className="h-9 flex items-center px-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-700/40 rounded-md">
+                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{gMargin}%</span>
               </div>
             </F>
             <F label="Selling Price / Pax">
-              <div className="h-9 flex items-center px-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 rounded-md">
-                <span className="text-sm font-black text-amber-700">₱{sp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+              <div className="h-9 flex items-center px-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-600/40 rounded-md">
+                <span className="text-sm font-black text-amber-700 dark:text-amber-300">₱{sp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
               </div>
             </F>
           </div>
           {/* Row 3: Commission — inline currency + amount */}
-          <div className="rounded-lg border border-sky-200 bg-sky-50/40 p-3">
+          <div className="rounded-lg border border-sky-200 dark:border-sky-700/40 bg-sky-50/40 dark:bg-sky-950/25 p-3">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-bold text-sky-700 w-full">Commission / Pax</span>
+              <span className="text-xs font-bold text-sky-700 dark:text-sky-300 w-full">Commission / Pax</span>
               <Select value={commCurr} onValueChange={v => {
                 const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
                 pkgSet('commission_currency', v);
@@ -760,14 +760,14 @@ Extract ALL rows. Do not skip any row that has a date.`,
           </div>
 
           {/* Row 4: Downpayment */}
-          <div className="rounded-lg border border-purple-200 bg-purple-50/40 p-3 space-y-3">
-            <span className="text-xs font-bold text-purple-700">Required Downpayment</span>
+          <div className="rounded-lg border border-purple-200 dark:border-purple-700/40 bg-purple-50/40 dark:bg-purple-950/25 p-3 space-y-3">
+            <span className="text-xs font-bold text-purple-700 dark:text-purple-300">Required Downpayment</span>
 
             {/* Ops + PD side by side, each with inline currency */}
             <div className="grid grid-cols-2 gap-3">
               {/* Ops */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-purple-600">Operations (Ops)</span>
+                <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">Operations (Ops)</span>
                 <div className="flex gap-1.5">
                   <Select value={dpOpsCurr} onValueChange={v => {
                     const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
@@ -804,7 +804,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
 
               {/* PD */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-purple-600">Product Dev (PD)</span>
+                <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">Product Dev (PD)</span>
                 <div className="flex gap-1.5">
                   <Select value={dpPdCurr} onValueChange={v => {
                     const rate = CURRENCIES.find(c => c.value === v)?.defaultRate || 1;
@@ -851,7 +851,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     "flex-1 px-3 py-2 text-xs font-semibold border rounded-l-lg transition-all",
                     dpType === 'fixed'
                       ? "bg-purple-600 text-white border-purple-600"
-                      : "bg-white dark:bg-card text-purple-600 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+                      : "bg-white dark:bg-[hsl(236,22%,18%)] text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/30"
                   )}
                 >
                   Per Pax
@@ -865,7 +865,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     "flex-1 px-3 py-2 text-xs font-semibold border-y transition-all",
                     (dpType === '50pct' || dpType === '30pct')
                       ? "bg-purple-600 text-white border-purple-600"
-                      : "bg-white dark:bg-card text-purple-600 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+                      : "bg-white dark:bg-[hsl(236,22%,18%)] text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/30"
                   )}
                 >
                   Fare Type
@@ -877,7 +877,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                     "flex-1 px-3 py-2 text-xs font-semibold border rounded-r-lg transition-all",
                     dpType === 'book_buy'
                       ? "bg-purple-600 text-white border-purple-600"
-                      : "bg-white dark:bg-card text-purple-600 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+                      : "bg-white dark:bg-[hsl(236,22%,18%)] text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/30"
                   )}
                 >
                   Book & Buy
@@ -887,10 +887,10 @@ Extract ALL rows. Do not skip any row that has a date.`,
               {/* Per Pax: editable amount */}
               {dpType === 'fixed' && (
                 <div className="relative w-44">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600">₱</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600 dark:text-purple-300">₱</span>
                   <Input
                     type="number"
-                    className="pl-7 h-9 text-sm font-bold border-purple-300 bg-purple-50 text-purple-700"
+                    className="pl-7 h-9 text-sm font-bold border-purple-300 dark:border-purple-700/50 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-200"
                     value={(dpBase > 0 ? dpPHP : dp) || ''}
                     onChange={e => pkgSet('downpayment_required', Number(e.target.value))}
                   />
@@ -901,11 +901,11 @@ Extract ALL rows. Do not skip any row that has a date.`,
               {(dpType === '50pct' || dpType === '30pct') && (
                 <div className="flex gap-2 items-center flex-wrap">
                   <div className="relative w-44">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600">₱</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-purple-600 dark:text-purple-300">₱</span>
                     <Input
                       type="number"
                       readOnly
-                      className="pl-7 h-9 text-sm font-bold border-purple-300 bg-purple-50/60 text-purple-700 cursor-default"
+                      className="pl-7 h-9 text-sm font-bold border-purple-300 dark:border-purple-700/50 bg-purple-50/60 dark:bg-purple-950/30 text-purple-700 dark:text-purple-200 cursor-default"
                       value={dp || ''}
                     />
                   </div>
@@ -917,7 +917,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                         "px-3 py-1.5 rounded-l-md border text-xs font-semibold transition-all",
                         dpType === '50pct'
                           ? "bg-purple-500 text-white border-purple-500"
-                          : "bg-white dark:bg-card text-purple-600 border-purple-300 hover:bg-purple-50"
+                          : "bg-white dark:bg-[hsl(236,22%,18%)] text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/30"
                       )}
                     >
                       50%
@@ -929,7 +929,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
                         "px-3 py-1.5 rounded-r-md border text-xs font-semibold transition-all",
                         dpType === '30pct'
                           ? "bg-purple-500 text-white border-purple-500"
-                          : "bg-white dark:bg-card text-purple-600 border-purple-300 hover:bg-purple-50"
+                          : "bg-white dark:bg-[hsl(236,22%,18%)] text-purple-600 dark:text-purple-300 border-purple-300 dark:border-purple-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/30"
                       )}
                     >
                       30%
@@ -954,7 +954,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
 
       {/* ── SECTION: Travel Dates ── */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <div className="bg-slate-900 px-4 py-3 flex items-center gap-2 flex-wrap">
+        <div className="bg-slate-900 dark:bg-[hsl(236,30%,8%)] px-4 py-3 flex items-center gap-2 flex-wrap border-b border-border">
           <Calendar className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-bold text-white">Travel Dates & Per-Date Pricing</span>
           {travelDates.length > 0 && (
@@ -1102,7 +1102,7 @@ Extract ALL rows. Do not skip any row that has a date.`,
 
       {/* ── SECTION: Package Room Rates ── */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
+        <div className="bg-slate-800 dark:bg-[hsl(236,30%,8%)] px-4 py-2.5 flex items-center gap-2 border-b border-border">
           <DollarSign className="w-4 h-4 text-amber-400" />
           <span className="text-sm font-bold text-white">Package Room Rates</span>
           <span className="text-[10px] text-slate-400 ml-auto">Set per room type — each date can have its own price above</span>

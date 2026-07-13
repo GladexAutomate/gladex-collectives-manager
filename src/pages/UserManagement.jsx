@@ -16,12 +16,12 @@ const PAGE_SIZE = 30;
 function Avatar({ name, id }) {
   const initials = name?.trim()?.[0]?.toUpperCase() || '?';
   const colors = [
-    'bg-amber-100 text-amber-700',
-    'bg-sky-100 text-sky-700',
-    'bg-emerald-100 text-emerald-700',
-    'bg-purple-100 text-purple-700',
-    'bg-rose-100 text-rose-700',
-    'bg-indigo-100 text-indigo-700',
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
   ];
   const color = colors[(id?.charCodeAt?.(0) || 0) % colors.length];
   return (
@@ -98,7 +98,7 @@ export default function UserManagement() {
   const inactiveCount = employees.length - activeCount;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -115,23 +115,23 @@ export default function UserManagement() {
       <div className="grid grid-cols-3 gap-3">
         <div
           onClick={() => setStatusFilter('all')}
-          className={cn('border rounded-xl p-4 text-center cursor-pointer transition-all', statusFilter === 'all' ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/20' : 'bg-card hover:bg-muted/40')}
+          className={cn('border border-border rounded-2xl p-4 text-center cursor-pointer transition-all', statusFilter === 'all' ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/20' : 'bg-card hover:bg-muted/40')}
         >
           <p className="text-2xl font-bold text-foreground">{employees.length}</p>
           <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1"><Users className="w-3 h-3" />Total</p>
         </div>
         <div
           onClick={() => setStatusFilter('active')}
-          className={cn('border rounded-xl p-4 text-center cursor-pointer transition-all', statusFilter === 'active' ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'bg-card hover:bg-muted/40')}
+          className={cn('border border-border rounded-2xl p-4 text-center cursor-pointer transition-all', statusFilter === 'active' ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'bg-card hover:bg-muted/40')}
         >
-          <p className="text-2xl font-bold text-emerald-600">{activeCount}</p>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{activeCount}</p>
           <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-500" />Active</p>
         </div>
         <div
           onClick={() => setStatusFilter('inactive')}
-          className={cn('border rounded-xl p-4 text-center cursor-pointer transition-all', statusFilter === 'inactive' ? 'border-rose-400 bg-rose-50 dark:bg-rose-950/20' : 'bg-card hover:bg-muted/40')}
+          className={cn('border border-border rounded-2xl p-4 text-center cursor-pointer transition-all', statusFilter === 'inactive' ? 'border-rose-400 bg-rose-50 dark:bg-rose-950/20' : 'bg-card hover:bg-muted/40')}
         >
-          <p className="text-2xl font-bold text-rose-600">{inactiveCount}</p>
+          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{inactiveCount}</p>
           <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1"><XCircle className="w-3 h-3 text-rose-500" />Inactive</p>
         </div>
       </div>
@@ -179,13 +179,13 @@ export default function UserManagement() {
           <p className="text-sm text-muted-foreground">Loading employees from Supabase…</p>
         </div>
       ) : error ? (
-        <div className="text-center py-20 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 rounded-xl">
+        <div className="text-center py-20 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 rounded-2xl">
           <XCircle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
-          <p className="text-sm text-rose-600 font-medium">{error}</p>
+          <p className="text-sm text-rose-600 dark:text-rose-400 font-medium">{error}</p>
         </div>
       ) : (
         <>
-          <div className="border rounded-xl overflow-hidden">
+          <div className="border border-border rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">

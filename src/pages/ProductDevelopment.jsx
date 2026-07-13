@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { broadcastRefresh } from '@/lib/dataSync';
-import { Plus, TrendingUp, Search, Edit, FileText, Users, Plane, Calendar, DollarSign, Package, ArrowRight, BarChart3 } from 'lucide-react';
+import { Plus, TrendingUp, Search, Edit, FileText, Plane, Calendar, Package, ArrowRight, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -14,18 +14,17 @@ import WorkflowProgressBar from '@/components/workflow/WorkflowProgressBar';
 
 const STATUS_CONFIG = {
   draft:                { label: 'Draft',                class: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-  active:               { label: '🟢 Active',             class: 'bg-emerald-100 text-emerald-700 font-semibold' },
-  open_booking:         { label: '🟢 Open Booking',      class: 'bg-teal-100 text-teal-700 font-semibold' },
-  confirmed_departure:  { label: '✈ Confirmed Departure', class: 'bg-sky-100 text-sky-700 font-semibold' },
-  ongoing:              { label: '🌍 Ongoing Travel',     class: 'bg-amber-100 text-amber-700 font-semibold' },
-  completed:            { label: '✓ Completed',           class: 'bg-emerald-100 text-emerald-700 font-semibold' },
-  cancelled:            { label: 'Cancelled',             class: 'bg-rose-100 text-rose-700' },
+  active:               { label: '🟢 Active',             class: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-semibold' },
+  open_booking:         { label: '🟢 Open Booking',      class: 'bg-teal-100 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300 font-semibold' },
+  confirmed_departure:  { label: '✈ Confirmed Departure', class: 'bg-sky-100 dark:bg-sky-950/25 text-sky-700 dark:text-sky-300 font-semibold' },
+  ongoing:              { label: '🌍 Ongoing Travel',     class: 'bg-amber-100 dark:bg-amber-950/25 text-amber-700 dark:text-amber-300 font-semibold' },
+  completed:            { label: '✓ Completed',           class: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-semibold' },
+  cancelled:            { label: 'Cancelled',             class: 'bg-rose-100 dark:bg-rose-950/25 text-rose-700 dark:text-rose-300' },
 };
 
 export default function ProductDevelopment() {
   const [collectives, setCollectives] = useState([]);
   const [marketingAssets, setMarketingAssets] = useState([]);
-  const [bookings, setBookings] = useState([]);
   const [pdCollectiveIds, setPdCollectiveIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const urlParams = new URLSearchParams(window.location.search);
@@ -37,11 +36,9 @@ export default function ProductDevelopment() {
     Promise.all([
       base44.entities.Collective.list('-created_date'),
       base44.entities.MarketingAsset.list(),
-      base44.entities.Booking.list(),
-    ]).then(([cols, assets, bkgs]) => {
+    ]).then(([cols, assets]) => {
       setCollectives(Array.isArray(cols) ? cols : []);
       setMarketingAssets(Array.isArray(assets) ? assets : []);
-      setBookings(Array.isArray(bkgs) ? bkgs : []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
@@ -68,18 +65,13 @@ export default function ProductDevelopment() {
     return matchSearch && matchStatus;
   });
 
-  const totalRevenue = collectives.reduce((acc, c) => acc + (c.total_revenue || 0), 0);
-  const totalPax = collectives.reduce((acc, c) => acc + (c.booked_pax || 0), 0);
-
   const stats = [
     { label: 'Total Packages', value: collectives.length, color: 'text-foreground', icon: Package },
     { label: 'Active', value: collectives.filter(c => c.status === 'active').length, color: 'text-emerald-600', icon: TrendingUp },
-    { label: 'Total Booked Pax', value: totalPax, color: 'text-sky-600', icon: Users },
-    { label: 'Est. Total Revenue', value: `₱${(totalRevenue/1000000).toFixed(1)}M`, color: 'text-amber-600', icon: DollarSign },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -107,12 +99,12 @@ export default function ProductDevelopment() {
         {stats.map((s, i) => {
           const Icon = s.icon;
           return (
-            <div key={i} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <Icon className={cn("w-5 h-5", s.color)} />
+            <div key={i} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.18)' }}>
+                <Icon className="w-5 h-5" style={{ color: '#a78bfa' }} />
               </div>
               <div>
-                <p className={cn("text-xl font-bold font-jakarta leading-tight", s.color)}>{s.value}</p>
+                <p className="text-xl font-bold font-jakarta leading-tight text-foreground">{s.value}</p>
                 <p className="text-xs text-muted-foreground">{s.label}</p>
               </div>
             </div>
@@ -157,7 +149,7 @@ export default function ProductDevelopment() {
                   <PackageCard
                     collective={c}
                     assetCount={marketingAssets.filter(a => a.collective_id === c.id).length}
-                    bookingCount={bookings.filter(b => b.collective_id === c.id).length}
+                    bookingCount={0}
                     statusConfig={STATUS_CONFIG}
                   />
                   <WorkflowProgressBar collectiveId={c.id} compact={true} />

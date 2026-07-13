@@ -5,68 +5,71 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── LIGHT MODE — Clean white ── */
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 25% 10%;
+    --background: 0 0% 98%;
+    --foreground: 224 25% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card-foreground: 224 25% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover-foreground: 224 25% 10%;
     --primary: 38 95% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 199 89% 48%;
+    --secondary: 264 65% 60%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 15% 45%;
-    --accent: 38 95% 50%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 264 65% 60%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
     --ring: 38 95% 50%;
     --radius: 0.75rem;
-    --sidebar-background: 220 30% 12%;
-    --sidebar-foreground: 220 15% 85%;
+    --sidebar-background: 236 30% 10%;
+    --sidebar-foreground: 0 0% 91%;
     --sidebar-primary: 38 95% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 18%;
-    --sidebar-accent-foreground: 220 15% 85%;
-    --sidebar-border: 220 25% 18%;
-    --sidebar-ring: 38 95% 50%;
+    --sidebar-accent: 236 26% 16%;
+    --sidebar-accent-foreground: 0 0% 91%;
+    --sidebar-border: 236 26% 16%;
+    --sidebar-ring: 264 65% 65%;
     --gladex-gold: 38 95% 50%;
     --gladex-sky: 199 89% 48%;
     --gladex-dark: 220 30% 12%;
   }
 
+  /* ── DARK MODE — Purple-black, NO orange ── */
   .dark {
-    --background: 220 30% 8%;
-    --foreground: 220 15% 92%;
-    --card: 220 25% 12%;
-    --card-foreground: 220 15% 92%;
-    --popover: 220 25% 12%;
-    --popover-foreground: 220 15% 92%;
-    --primary: 38 95% 50%;
+    --background: 236 30% 7%;
+    --foreground: 0 0% 96%;
+    --card: 236 26% 11%;
+    --card-foreground: 0 0% 96%;
+    --popover: 236 26% 11%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 264 65% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 199 89% 48%;
+    --secondary: 264 65% 65%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 220 25% 18%;
-    --muted-foreground: 220 15% 55%;
-    --accent: 220 25% 18%;
-    --accent-foreground: 220 15% 92%;
-    --destructive: 0 62% 40%;
+    --muted: 236 22% 17%;
+    --muted-foreground: 236 14% 66%;
+    --accent: 264 65% 62%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 65% 52%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 25% 20%;
-    --input: 220 25% 20%;
-    --ring: 38 95% 50%;
-    --sidebar-background: 220 30% 8%;
-    --sidebar-foreground: 220 15% 80%;
-    --sidebar-primary: 38 95% 50%;
+    --border: 236 22% 21%;
+    --input: 236 22% 14%;
+    --ring: 264 65% 65%;
+    --sidebar-background: 236 34% 6%;
+    --sidebar-foreground: 0 0% 91%;
+    --sidebar-primary: 264 65% 62%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 14%;
-    --sidebar-accent-foreground: 220 15% 80%;
-    --sidebar-border: 220 25% 14%;
-    --sidebar-ring: 38 95% 50%;
+    --sidebar-accent: 236 26% 12%;
+    --sidebar-accent-foreground: 0 0% 91%;
+    --sidebar-border: 236 26% 14%;
+    --sidebar-ring: 264 65% 65%;
+    --gladex-purple: 264 65% 65%;
   }
 }
 
@@ -81,33 +84,89 @@
 
 @layer utilities {
   .font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
-  .font-inter { font-family: 'Inter', sans-serif; }
-  .glassmorphism {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
+  .font-inter   { font-family: 'Inter', sans-serif; }
+
+  /* gradient-gold stays amber in LIGHT mode for the "orange+white" look */
   .gradient-gold {
     background: linear-gradient(135deg, #f59e0b, #f97316);
+  }
+  /* In DARK mode, gradient-gold becomes purple — no orange */
+  .dark .gradient-gold {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+  }
+
+  .gradient-purple {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
   }
   .gradient-sky {
     background: linear-gradient(135deg, #0ea5e9, #06b6d4);
   }
   .gradient-dark {
-    background: linear-gradient(135deg, #1e293b, #0f172a);
+    background: linear-gradient(135deg, #1a1030, #0d0820);
   }
-  .card-hover {
-    transition: all 0.2s ease;
-  }
-  .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.12);
-  }
+
+  /* Sidebar active item — amber in light, purple in dark */
   .sidebar-item-active {
-    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(249,115,22,0.1));
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(249,115,22,0.08));
     border-left: 3px solid #f59e0b;
   }
+  .dark .sidebar-item-active {
+    background: rgba(139,92,246,0.20);
+    border-left: 3px solid #8b5cf6;
+  }
+
+  /* Glassmorphism */
+  .glassmorphism {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .dark .glassmorphism {
+    background: rgba(120,80,200,0.08);
+    border: 1px solid rgba(160,100,255,0.12);
+  }
+
+  /* Card hover */
+  .card-hover { transition: all 0.2s ease; }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.10);
+  }
+  .dark .card-hover:hover {
+    box-shadow: 0 12px 40px rgba(120,60,220,0.18);
+  }
+
+  /* Dark mode: replace amber text with violet */
+  .dark .text-amber-500 { color: #a78bfa !important; }
+  .dark .text-amber-600 { color: #a78bfa !important; }
+  .dark .text-amber-700 { color: #c4b5fd !important; }
+  .dark .text-amber-400 { color: #a78bfa !important; }
+
+  /* Dark mode: replace amber backgrounds */
+  .dark .bg-amber-50  { background-color: rgba(139,92,246,0.08) !important; }
+  .dark .bg-amber-100 { background-color: rgba(139,92,246,0.14) !important; }
+  .dark .border-amber-200 { border-color: rgba(139,92,246,0.25) !important; }
+  .dark .border-amber-300 { border-color: rgba(139,92,246,0.35) !important; }
+  .dark .border-amber-500 { border-color: #7c3aed !important; }
+
+  /* But keep price/selling price numbers distinct (amber → violet-300 in dark) */
+  .dark .text-amber-500\/80 { color: #c4b5fd !important; }
+
+  /* Dark mode: replace orange text with violet */
+  .dark .text-orange-500 { color: #a78bfa !important; }
+  .dark .text-orange-600 { color: #a78bfa !important; }
+  .dark .text-orange-700 { color: #c4b5fd !important; }
+  .dark .text-orange-400 { color: #a78bfa !important; }
+
+  /* Dark mode: replace orange backgrounds */
+  .dark .bg-orange-50  { background-color: rgba(139,92,246,0.08) !important; }
+  .dark .bg-orange-100 { background-color: rgba(139,92,246,0.14) !important; }
+  .dark .border-orange-200 { border-color: rgba(139,92,246,0.25) !important; }
+  .dark .border-orange-300 { border-color: rgba(139,92,246,0.35) !important; }
+
+  /* Inputs */
+  .dark input, .dark textarea, .dark select { color-scheme: dark; }
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }

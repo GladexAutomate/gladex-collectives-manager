@@ -17,7 +17,7 @@ export default function UpcomingDepartures({ collectives }) {
 
   if (!upcoming.length) {
     return (
-      <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+      <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
         <h3 className="font-semibold font-jakarta text-foreground mb-4 flex items-center gap-2">
           <Plane className="w-4 h-4 text-primary" /> Upcoming Departures
         </h3>
@@ -27,15 +27,15 @@ export default function UpcomingDepartures({ collectives }) {
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+    <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
       <h3 className="font-semibold font-jakarta text-foreground mb-4 flex items-center gap-2">
         <Plane className="w-4 h-4 text-primary" /> Upcoming Departures
       </h3>
       <div className="space-y-3">
         {upcoming.map((c) => (
           <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-            <div className="w-10 h-10 rounded-lg gradient-gold flex items-center justify-center flex-shrink-0">
-              <Plane className="w-4 h-4 text-white" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.18)' }}>
+              <Plane className="w-4 h-4" style={{ color: '#a78bfa' }} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>

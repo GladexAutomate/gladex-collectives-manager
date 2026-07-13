@@ -11,11 +11,11 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 const statusConfig = {
-  missing: { label: 'Missing', class: 'bg-rose-100 text-rose-700', icon: AlertTriangle },
-  submitted: { label: 'Submitted', class: 'bg-sky-100 text-sky-700', icon: Clock },
-  verified: { label: 'Verified', class: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-  expired: { label: 'Expired', class: 'bg-amber-100 text-amber-700', icon: AlertTriangle },
-  rejected: { label: 'Rejected', class: 'bg-rose-100 text-rose-700', icon: AlertTriangle },
+  missing: { label: 'Missing', class: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300', icon: AlertTriangle },
+  submitted: { label: 'Submitted', class: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300', icon: Clock },
+  verified: { label: 'Verified', class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300', icon: CheckCircle },
+  expired: { label: 'Expired', class: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', icon: AlertTriangle },
+  rejected: { label: 'Rejected', class: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300', icon: AlertTriangle },
 };
 
 const docTypeLabels = {
@@ -78,7 +78,7 @@ export default function Documents() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold font-jakarta text-foreground">Documentation & Visa</h2>
@@ -92,7 +92,7 @@ export default function Documents() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {statsData.map((s, i) => (
-          <div key={i} className="bg-card rounded-xl border border-border p-4">
+          <div key={i} className="bg-card rounded-2xl border border-border p-4">
             <p className={cn("text-2xl font-bold font-jakarta", s.color)}>{s.value}</p>
             <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
           </div>
@@ -124,7 +124,7 @@ export default function Documents() {
       {/* Document Grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1,2,3,4,5,6].map(i => <div key={i} className="h-32 bg-card rounded-xl border animate-pulse" />)}
+          {[1,2,3,4,5,6].map(i => <div key={i} className="h-32 bg-card rounded-2xl border animate-pulse" />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
@@ -139,7 +139,7 @@ export default function Documents() {
           {filtered.map(doc => {
             const StatusIcon = statusConfig[doc.status]?.icon || FileText;
             return (
-              <div key={doc.id} className="bg-card rounded-xl border border-border p-4 shadow-sm card-hover">
+              <div key={doc.id} className="bg-card rounded-2xl border border-border p-4 shadow-sm card-hover">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground mb-1">{docTypeLabels[doc.document_type] || doc.document_type}</p>
@@ -159,7 +159,7 @@ export default function Documents() {
                 {doc.notes && <p className="text-xs text-muted-foreground italic mb-3 line-clamp-2">{doc.notes}</p>}
                 <div className="flex gap-2 pt-2 border-t border-border">
                   {doc.status !== 'verified' && (
-                    <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 text-emerald-600 border-emerald-200" onClick={() => updateStatus(doc, 'verified')}>
+                    <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 text-emerald-600 border-emerald-200 dark:border-emerald-800 dark:text-emerald-400" onClick={() => updateStatus(doc, 'verified')}>
                       <CheckCircle className="w-3 h-3" /> Verify
                     </Button>
                   )}

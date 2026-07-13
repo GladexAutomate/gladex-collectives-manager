@@ -52,7 +52,7 @@ export default function Reports() {
   const revenueData = Object.entries(paymentMonthly).map(([month, revenue]) => ({ month, revenue })).slice(-6);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold font-jakarta text-foreground">Reports & Analytics</h2>
@@ -65,28 +65,28 @@ export default function Reports() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-4 h-4 text-emerald-500" />
             <span className="text-xs text-muted-foreground">Total Revenue</span>
           </div>
-          <p className="text-xl font-bold font-jakarta text-emerald-600">{formatCurrency(totalRevenue)}</p>
+          <p className="text-xl font-bold font-jakarta text-emerald-600 dark:text-emerald-400">{formatCurrency(totalRevenue)}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Globe className="w-4 h-4 text-primary" />
             <span className="text-xs text-muted-foreground">Total Collectives</span>
           </div>
           <p className="text-xl font-bold font-jakarta text-foreground">{collectives.length}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Users className="w-4 h-4 text-sky-500" />
             <span className="text-xs text-muted-foreground">Total Bookings</span>
           </div>
           <p className="text-xl font-bold font-jakarta text-foreground">{bookings.length}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-4">
+        <div className="bg-card rounded-2xl border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Star className="w-4 h-4 text-amber-500" />
             <span className="text-xs text-muted-foreground">Avg Satisfaction</span>
@@ -98,7 +98,7 @@ export default function Reports() {
       </div>
 
       {/* Revenue Chart */}
-      <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+      <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
         <h3 className="font-semibold font-jakarta text-foreground mb-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-primary" /> Monthly Revenue Trend
         </h3>
@@ -124,7 +124,7 @@ export default function Reports() {
 
       {/* Pie Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <h3 className="font-semibold font-jakarta text-foreground mb-4">Collectives by Status</h3>
           {statusBreakdown.length > 0 ? (
             <>
@@ -152,7 +152,7 @@ export default function Reports() {
           )}
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <h3 className="font-semibold font-jakarta text-foreground mb-4">Bookings by Source</h3>
           {bookingBySource.length > 0 ? (
             <>
@@ -182,7 +182,7 @@ export default function Reports() {
       </div>
 
       {/* Performance Table */}
-      <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+      <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
         <h3 className="font-semibold font-jakarta text-foreground mb-4">Collective Performance Summary</h3>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -201,7 +201,7 @@ export default function Reports() {
                   <td className="py-2 text-sm font-medium text-foreground">{c.name}</td>
                   <td className="py-2 text-xs text-muted-foreground">{c.destination}</td>
                   <td className="py-2 text-xs text-foreground">{c.booked_pax || 0}/{c.total_slots || 0}</td>
-                  <td className="py-2 text-xs font-medium text-emerald-600">{c.total_revenue ? formatCurrency(c.total_revenue) : '—'}</td>
+                  <td className="py-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">{c.total_revenue ? formatCurrency(c.total_revenue) : '—'}</td>
                   <td className="py-2">
                     <span className="text-xs capitalize bg-muted text-muted-foreground px-2 py-0.5 rounded">{c.status}</span>
                   </td>
