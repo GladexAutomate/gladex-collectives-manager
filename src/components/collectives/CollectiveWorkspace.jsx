@@ -394,7 +394,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
       itinerary: c.itinerary || '',
       terms_conditions: c.terms_conditions || '',
       optional_tours: c.optional_tours || '',
-      drive_link: c.drive_link || driveLinkStore.get(c.id) || '',
+      drive_link: c.drive_link || (marketingAssets || []).find(a => a.collective_id === c.id && a.asset_type === 'tariff_link')?.file_url || driveLinkStore.get(c.id) || '',
       flight_details: c.flight_details || '',
       hotel_details: c.hotel_details || '',
       remarks: c.remarks || '',
@@ -412,6 +412,26 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     setActiveTab('ai_import');
   };
 
+  const saveDriveLink = async (collectiveId, url) => {
+    try {
+      const all = await base44.entities.MarketingAsset.list();
+      const existing = (all || []).find(a => a.collective_id === collectiveId && a.asset_type === 'tariff_link');
+      if (url) {
+        if (existing) {
+          await base44.entities.MarketingAsset.update(existing.id, { file_url: url });
+        } else {
+          await base44.entities.MarketingAsset.create({ collective_id: collectiveId, asset_type: 'tariff_link', file_url: url, title: 'Tariff Drive Link', status: 'approved' });
+        }
+      } else if (existing) {
+        await base44.entities.MarketingAsset.delete(existing.id);
+      }
+      driveLinkStore.set(collectiveId, url || '');
+    } catch (e) {
+      // fallback to localStorage only
+      driveLinkStore.set(collectiveId, url || '');
+    }
+  };
+
   const handleSave = async () => {
     if (!form.name || !form.destination) return;
     setSaving(true);
@@ -419,17 +439,15 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     let saved_c;
     if (selectedCollective?.id) {
       saved_c = await base44.entities.Collective.update(selectedCollective.id, payload);
-      // Persist fields not in API schema
       pkgCodeStore.set(selectedCollective.id, form.package_code || '');
-      driveLinkStore.set(selectedCollective.id, form.drive_link || '');
+      await saveDriveLink(selectedCollective.id, form.drive_link || '');
     } else {
       saved_c = await base44.entities.Collective.create(payload);
       setSelectedCollective(saved_c);
       setIsNew(false);
-      // Persist fields not in API schema for newly created collective
       if (saved_c?.id) {
         pkgCodeStore.set(saved_c.id, form.package_code || '');
-        driveLinkStore.set(saved_c.id, form.drive_link || '');
+        await saveDriveLink(saved_c.id, form.drive_link || '');
       }
     }
     setSaving(false);

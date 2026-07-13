@@ -30,7 +30,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('gladex_dark_mode');
+    const saved = localStorage.getItem('gladex_dark_mode_v2');
     return saved !== null ? saved === 'true' : true; // default dark
   });
   const [notepadOpen, setNotepadOpen] = useState(false);
@@ -50,7 +50,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
-    localStorage.setItem('gladex_dark_mode', String(darkMode));
+    localStorage.setItem('gladex_dark_mode_v2', String(darkMode));
   }, [darkMode]);
 
   return (

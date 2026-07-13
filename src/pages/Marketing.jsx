@@ -400,7 +400,7 @@ export default function Marketing() {
                 {/* Expanded assets */}
                 {isExpanded && (
                   <div className="border-t border-border bg-muted/20">
-                    {(() => { const dl = pkg.drive_link || driveLinkStore.get(pkg.id); return dl && (
+                    {(() => { const dl = pkg.drive_link || assets.find(a => a.collective_id === pkg.id && a.asset_type === 'tariff_link')?.file_url || driveLinkStore.get(pkg.id); return dl && (
                       <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 dark:bg-violet-950/25 border-b border-violet-100 dark:border-violet-900/40">
                         <span className="text-[11px] text-violet-700 dark:text-violet-300 font-semibold">🔗 Tariff / Package Link:</span>
                         <a
