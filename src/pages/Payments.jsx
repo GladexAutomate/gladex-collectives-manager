@@ -118,11 +118,10 @@ export default function Payments() {
               // Group tasks by stage
               const stageGroups = {};
               tasks.forEach(t => {
-                const key = t.stage_code || (t.stage ? `Stage ${t.stage}` : 'Task');
-                const label = STAGE_LABELS[t.stage] || key;
-                if (!stageGroups[label]) stageGroups[label] = { done: 0, total: 0 };
-                stageGroups[label].total++;
-                if (t.status === 'done' || t.status === 'completed') stageGroups[label].done++;
+                const key = t.stage_name || (t.stage_number ? `Stage ${t.stage_number}` : 'Task');
+                if (!stageGroups[key]) stageGroups[key] = { done: 0, total: 0 };
+                stageGroups[key].total++;
+                if (t.status === 'done' || t.status === 'completed') stageGroups[key].done++;
               });
               const allDone = pct === 100;
               return (

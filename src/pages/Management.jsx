@@ -147,7 +147,7 @@ export default function Management() {
             {entries.map(({ cid, collective, tasks, done, total, pct }) => {
               const stageGroups = {};
               tasks.forEach(t => {
-                const key = t.stage_code || STAGE_LABELS[t.stage] || (t.stage ? `Stage ${t.stage}` : 'Task');
+                const key = t.stage_name || (t.stage_number ? `Stage ${t.stage_number}` : 'Task');
                 if (!stageGroups[key]) stageGroups[key] = { done: 0, total: 0 };
                 stageGroups[key].total++;
                 if (t.status === 'done' || t.status === 'completed') stageGroups[key].done++;
