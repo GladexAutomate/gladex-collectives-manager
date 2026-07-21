@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import {
   Users, DollarSign, TrendingUp, Plane, Clock, AlertTriangle, Globe,
   Plus, Package, UserPlus, FileText, CreditCard, BarChart2,
@@ -102,9 +102,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.Collective.list('-updated_date', 50),
-      base44.entities.Booking.list('-updated_date', 100),
-      base44.entities.Payment.filter({ status: 'verified' }, '-payment_date', 100),
+      db.Collective.list('-updated_date', 50),
+      Promise.resolve([]),
+      Promise.resolve([]),
     ]).then(([c, b, p]) => {
       setCollectives(Array.isArray(c) ? c : []);
       setBookings(Array.isArray(b) ? b : []);

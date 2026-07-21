@@ -1,12 +1,13 @@
 // @ts-nocheck
 import { useState, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { broadcastRefresh } from '@/lib/dataSync';
 import {
   Save, RefreshCw, CheckCircle, ArrowRight, Plus, Search,
   FileText, Plane, DollarSign, Package,
-  Trash2, Sparkles, Globe, Eye, GitBranch, Menu
+  Trash2, Sparkles, Globe, Eye, GitBranch, Menu, Send
 } from 'lucide-react';
+import { firePipelineNotification } from '@/lib/notificationHelper';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -187,6 +188,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
   const [autoSaveTimer, setAutoSaveTimer] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [sendingPipeline, setSendingPipeline] = useState(false);
   const [generatingWorkflow] = useState(false);
 
   // ── Computed pricing ──
@@ -218,7 +220,7 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
           const eR = Number(next.exchange_rate) || 1;
           const bP = next.currency === 'PHP' ? bF : bF * eR;
           const mP = next._use_markup_pct ? bP * (Number(next.markup_pct) / 100) : Number(next.markup_amount) || 0;
-          await base44.entities.Collective.update(selectedCollective.id, buildPayload(next, bP, mP));
+          await db.Collective.update(selectedCollective.id, buildPayload(next, bP, mP));
           setAutoSaved(true);
           setTimeout(() => setAutoSaved(false), 2000);
         }, 2000);
@@ -414,16 +416,16 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
 
   const saveDriveLink = async (collectiveId, url) => {
     try {
-      const all = await base44.entities.MarketingAsset.list();
+      const all = await db.MarketingAsset.list();
       const existing = (all || []).find(a => a.collective_id === collectiveId && a.asset_type === 'tariff_link');
       if (url) {
         if (existing) {
-          await base44.entities.MarketingAsset.update(existing.id, { file_url: url });
+          await db.MarketingAsset.update(existing.id, { file_url: url });
         } else {
-          await base44.entities.MarketingAsset.create({ collective_id: collectiveId, asset_type: 'tariff_link', file_url: url, title: 'Tariff Drive Link', status: 'approved' });
+          await db.MarketingAsset.create({ collective_id: collectiveId, asset_type: 'tariff_link', file_url: url, title: 'Tariff Drive Link', status: 'approved' });
         }
       } else if (existing) {
-        await base44.entities.MarketingAsset.delete(existing.id);
+        await db.MarketingAsset.delete(existing.id);
       }
       driveLinkStore.set(collectiveId, url || '');
     } catch (e) {
@@ -438,11 +440,11 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     const payload = buildPayload(form);
     let saved_c;
     if (selectedCollective?.id) {
-      saved_c = await base44.entities.Collective.update(selectedCollective.id, payload);
+      saved_c = await db.Collective.update(selectedCollective.id, payload);
       pkgCodeStore.set(selectedCollective.id, form.package_code || '');
       await saveDriveLink(selectedCollective.id, form.drive_link || '');
     } else {
-      saved_c = await base44.entities.Collective.create(payload);
+      saved_c = await db.Collective.create(payload);
       setSelectedCollective(saved_c);
       setIsNew(false);
       if (saved_c?.id) {
@@ -461,19 +463,19 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     const id = c.id;
     // Cascade: fetch related records independently so one failure doesn't block others
     const [assetRes, bookingRes, taskRes] = await Promise.allSettled([
-      base44.entities.MarketingAsset.list().then(list => (list || []).filter(a => a.collective_id === id)),
-      base44.entities.Booking.list().then(list => (list || []).filter(b => b.collective_id === id)),
-      base44.entities.ChecklistTask.list().then(list => (list || []).filter(t => t.collective_id === id)),
+      db.MarketingAsset.list().then(list => (list || []).filter(a => a.collective_id === id)),
+      Promise.resolve([]),
+      db.ChecklistTask.list().then(list => (list || []).filter(t => t.collective_id === id)),
     ]);
     const assets  = assetRes.status   === 'fulfilled' ? assetRes.value   : [];
     const bookings = bookingRes.status === 'fulfilled' ? bookingRes.value : [];
     const tasks   = taskRes.status    === 'fulfilled' ? taskRes.value    : [];
     await Promise.allSettled([
-      ...assets.map(a => base44.entities.MarketingAsset.delete(a.id)),
-      ...bookings.map(b => base44.entities.Booking.delete(b.id)),
-      ...tasks.map(t => base44.entities.ChecklistTask.delete(t.id)),
+      ...assets.map(a => db.MarketingAsset.delete(a.id)),
+      // bookings always [] — no Booking table in Supabase yet
+      ...tasks.map(t => db.ChecklistTask.delete(t.id)),
     ]);
-    await base44.entities.Collective.delete(id);
+    await db.Collective.delete(id);
     if (selectedCollective?.id === id) {
       setSelectedCollective(null);
       setIsNew(false);
@@ -573,6 +575,19 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     if (!selectedCollective?.id) return;
     // Navigate directly to workflow page — task generation via backend functions is no longer used
     navigate(`/workflow?collective=${selectedCollective.id}`);
+  };
+
+  const sendToMarketing = async () => {
+    if (!selectedCollective?.id) return;
+    setSendingPipeline(true);
+    try {
+      await db.Collective.update(selectedCollective.id, { pipeline_stage: 'ready_for_marketing' });
+      await firePipelineNotification(selectedCollective, 'marketing');
+      setSelectedCollective(prev => ({ ...prev, pipeline_stage: 'ready_for_marketing' }));
+      if (onCollectivesChange) onCollectivesChange();
+    } finally {
+      setSendingPipeline(false);
+    }
   };
 
   const getCoverImage = (id) => {
@@ -729,6 +744,27 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
                     <GitBranch className="w-3 h-3" /> {generatingWorkflow ? 'Starting...' : 'Workflow'}
                   </Button>
                 )}
+                {/* Pipeline stage button */}
+                {selectedCollective?.id && (() => {
+                  const stage = selectedCollective.pipeline_stage;
+                  const STAGE_BADGE = {
+                    ready_for_marketing: { label: '📢 Sent to Marketing', cls: 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300' },
+                    marketing_in_progress: { label: '🎨 Marketing Working', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' },
+                    ready_for_sales: { label: '💼 Sent to Sales', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' },
+                    sales_received: { label: '✅ Sales Received', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' },
+                  };
+                  if (STAGE_BADGE[stage]) {
+                    const b = STAGE_BADGE[stage];
+                    return <span className={`text-[10px] px-2 py-1 rounded-full font-medium whitespace-nowrap ${b.cls}`}>{b.label}</span>;
+                  }
+                  return (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 border-pink-300 text-pink-600 hover:bg-pink-50 dark:border-pink-700 dark:text-pink-400"
+                      onClick={sendToMarketing} disabled={sendingPipeline || !form.name}>
+                      <Send className="w-3 h-3" />
+                      {sendingPipeline ? 'Sending…' : 'Send to Marketing'}
+                    </Button>
+                  );
+                })()}
                 <Button
                   size="sm"
                   className={cn("h-7 text-xs gap-1 text-white", saved ? "bg-emerald-600 hover:bg-emerald-700" : "gradient-gold border-0")}

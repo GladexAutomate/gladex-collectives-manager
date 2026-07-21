@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { Plus, Star, TrendingUp, BarChart3, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,8 +43,8 @@ export default function Feedback() {
 
   const loadData = () => {
     Promise.all([
-      base44.entities.Survey.list('-created_date'),
-      base44.entities.Collective.list(),
+      Promise.resolve([]),
+      db.Collective.list(),
     ]).then(([s, c]) => {
       setSurveys(Array.isArray(s) ? s : []);
       setCollectives(Array.isArray(c) ? c : []);
@@ -56,7 +56,7 @@ export default function Feedback() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Survey.create({ ...formData, submitted_at: new Date().toISOString() });
+    // Survey table not yet in Supabase — submission is a no-op for now
     setSaving(false);
     setShowModal(false);
     loadData();

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import {
   Plus, Search, Save, RefreshCw, CheckCircle, ArrowRight,
   Calculator, FileText, Plane, DollarSign,
@@ -190,8 +190,8 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
   const [marketingAssets, setMarketingAssets] = useState([]);
 
   useEffect(() => {
-    base44.entities.Booking.list().then(setBookings).catch(() => {});
-    base44.entities.MarketingAsset.list().then(setMarketingAssets).catch(() => {});
+    Promise.resolve([]).then(setBookings).catch(() => {});
+    db.MarketingAsset.list().then(setMarketingAssets).catch(() => {});
   }, []);
 
   const setQ = useCallback((key, val) => {
@@ -205,7 +205,7 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
           const eRate = Number(next.exchange_rate) || 1;
           const bPHP = next.currency === 'PHP' ? bForeign : bForeign * eRate;
           const mPHP = next.use_markup_pct ? bPHP * (Number(next.markup_pct) / 100) : Number(next.markup_php) || 0;
-          await base44.entities.Collective.update(selectedCollective.id, {
+          await db.Collective.update(selectedCollective.id, {
             name: next.package_name,
             destination: next.destination,
             travel_type: next.travel_type,
@@ -369,9 +369,9 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
 
     let saved_c;
     if (selectedCollective?.id) {
-      saved_c = await base44.entities.Collective.update(selectedCollective.id, payload);
+      saved_c = await db.Collective.update(selectedCollective.id, payload);
     } else {
-      saved_c = await base44.entities.Collective.create(payload);
+      saved_c = await db.Collective.create(payload);
       setSelectedCollective(saved_c);
       setIsNewPackage(false);
     }
@@ -383,7 +383,7 @@ export default function EZQuoteWorkspace({ collectives: externalCollectives, onC
 
   // ── Delete package ──
   const handleDelete = async (collective) => {
-    await base44.entities.Collective.delete(collective.id);
+    await db.Collective.delete(collective.id);
     if (selectedCollective?.id === collective.id) {
       setSelectedCollective(null);
       setIsNewPackage(false);

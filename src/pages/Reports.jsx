@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { BarChart3, TrendingUp, Download, DollarSign, Users, Globe, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,10 +15,10 @@ export default function Reports() {
 
   useEffect(() => {
     Promise.all([
-      base44.entities.Collective.list(),
-      base44.entities.Booking.list(),
-      base44.entities.Payment.list(),
-      base44.entities.Survey.list(),
+      db.Collective.list(),
+      Promise.resolve([]),
+      Promise.resolve([]),
+      Promise.resolve([]),
     ]).then(([c, b, p, s]) => {
       setCollectives(Array.isArray(c) ? c : []);
       setBookings(Array.isArray(b) ? b : []);
