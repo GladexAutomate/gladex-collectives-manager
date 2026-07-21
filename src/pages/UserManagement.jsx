@@ -485,26 +485,22 @@ export default function UserManagement() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-center items-center gap-1.5">
-                            {isSuperAdmin && (
-                              <Button size="sm" variant="outline"
-                                className="h-7 text-xs px-2 gap-1 border-sky-200 text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30"
-                                onClick={() => openEdit(emp)}>
-                                <Pencil className="w-3 h-3" /> Edit
-                              </Button>
-                            )}
-                            {isSuperAdmin && (
-                              <Button size="sm" variant="outline"
-                                className={cn('h-7 text-xs px-2 gap-1', hasPwd
-                                  ? 'border-violet-200 text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30'
-                                  : 'border-amber-200 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                                )}
-                                onClick={() => { setPwdModal(emp); setNewPwd(''); setConfirmPwd(''); setShowPwd(false); }}>
-                                <KeyRound className="w-3 h-3" />
-                                {hasPwd ? 'Pwd' : 'Set Pwd'}
-                              </Button>
-                            )}
+                        <td className="px-4 py-3 min-w-[200px]">
+                          <div className="flex justify-end items-center gap-1.5">
+                            <Button size="sm" variant="outline"
+                              className="h-7 text-xs px-2 gap-1 border-sky-200 text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30"
+                              onClick={() => openEdit(emp)}>
+                              <Pencil className="w-3 h-3" /> Edit
+                            </Button>
+                            <Button size="sm" variant="outline"
+                              className={cn('h-7 text-xs px-2 gap-1', hasPwd
+                                ? 'border-violet-200 text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30'
+                                : 'border-amber-200 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                              )}
+                              onClick={() => { setPwdModal(emp); setNewPwd(''); setConfirmPwd(''); setShowPwd(false); }}>
+                              <KeyRound className="w-3 h-3" />
+                              {hasPwd ? 'Pwd' : 'Set Pwd'}
+                            </Button>
                             <Button size="sm" variant="outline"
                               className={cn('h-7 text-xs px-3 gap-1',
                                 isActive
