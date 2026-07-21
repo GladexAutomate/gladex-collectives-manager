@@ -90,7 +90,7 @@ function FieldRow({ label, children }) {
 
 export default function UserManagement() {
   const empCtx     = useContext(EmployeeSessionContext);
-  const isSuperAdmin = !empCtx || empCtx?.session?.role === 'super_admin';
+  const isSuperAdmin = true; // User Management is already admin-only; show all controls
 
   const [employees, setEmployees]   = useState([]);
   const [loading, setLoading]       = useState(true);
