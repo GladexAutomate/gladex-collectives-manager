@@ -1,6 +1,6 @@
 // @ts-nocheck
-const SUPABASE_URL = 'https://wuymgnqpkgxxxghvgcbq.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_R5jGhsaREPJ427X1bRnpog_Iz7odR95';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY;
 
 const BASE_HEADERS = {
   apikey:            SUPABASE_KEY,
