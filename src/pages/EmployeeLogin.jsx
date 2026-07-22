@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Zap, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { sbFetchEmployeeByEmployeeId } from '@/lib/supabaseClient';
 import { verifyPassword, setSession } from '@/lib/employeeAuth';
@@ -42,6 +43,7 @@ const DEPT_DB_NAME = {
 };
 
 export default function EmployeeLogin({ onLogin, deptSlug }) {
+  const navigate = useNavigate();
   const meta    = deptSlug ? DEPT_META[deptSlug] : null;
   const dbDept  = deptSlug ? DEPT_DB_NAME[deptSlug] : null;
   const accent  = meta?.color || '#8b5cf6';
@@ -93,6 +95,7 @@ export default function EmployeeLogin({ onLogin, deptSlug }) {
       }
       setSession(record);
       onLogin(record);
+      navigate('/', { replace: true });
     } catch (err) {
       setError('Login failed. Please try again.');
     }
