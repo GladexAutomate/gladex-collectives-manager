@@ -581,9 +581,9 @@ export default function CollectiveWorkspace({ collectives, onCollectivesChange, 
     if (!selectedCollective?.id) return;
     setSendingPipeline(true);
     try {
-      await db.Collective.update(selectedCollective.id, { pipeline_stage: 'ready_for_marketing' });
+      await db.Collective.update(selectedCollective.id, { pipeline_stage: 'ready_for_marketing', status: 'marketing_prep' });
       await firePipelineNotification(selectedCollective, 'marketing');
-      setSelectedCollective(prev => ({ ...prev, pipeline_stage: 'ready_for_marketing' }));
+      setSelectedCollective(prev => ({ ...prev, pipeline_stage: 'ready_for_marketing', status: 'marketing_prep' }));
       if (onCollectivesChange) onCollectivesChange();
     } finally {
       setSendingPipeline(false);
