@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand, CheckCircle2 } from 'lucide-react';
-import TariffBrowser from './TariffBrowser';
+import { db } from '@/lib/db';
+import { Plus, Image, Film, Mail, Globe, Search, Edit, Upload, Download, Paperclip, Loader2, Plane, ChevronDown, ChevronRight, AlertTriangle, Package, Trash2, X, Expand, CheckCircle2, Send, Inbox } from 'lucide-react';
+import { firePipelineNotification } from '@/lib/notificationHelper';
 import { broadcastRefresh } from '@/lib/dataSync';
 import { pkgCodeStore } from '@/lib/packageCodeStore';
 import { driveLinkStore } from '@/lib/driveLinkStore';
@@ -70,17 +71,153 @@ export default function Marketing() {
   const imageInputRef = useRef(null);
   const proofInputRef = useRef(null);
   const attachmentsInputRef = useRef(null);
+  const [posterForm, setPosterForm] = useState({
+    packageName: '',
+    destination: '',
+    dateFrom: '',
+    dateTo: '',
+    price: '',
+    inclusions: '',
+    tagline: 'BOOK NOW!',
+    duration: '',
+    tourCode: '',
+    downpayment: '',
+  });
+
+  // Canva OAuth connection state
+  const [canvaConnected, setCanvaConnected] = useState(() =>
+    localStorage.getItem('gladex_canva_connected') === '1'
+  );
+  const [canvaMsg, setCanvaMsg] = useState(null); // 'connected' | 'error'
+
+  // Canva brand templates + generator state
+  const [canvaTemplates, setCanvaTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templateLoadError, setTemplateLoadError] = useState(null);
+  const [selectedTplId, setSelectedTplId] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [generatedResult, setGeneratedResult] = useState(null); // { editUrl, viewUrl }
+  const [generateError, setGenerateError] = useState(null);
+  const [probeResults, setProbeResults] = useState(null);
+  const [probing, setProbing] = useState(false);
+
+  const SUPABASE_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
+  const callCanvaFn = async (body) => {
+    const res = await fetch(`${SUPABASE_FN}/generate-canva-poster`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  };
+
+  const testCanvaToken = async () => {
+    setProbing(true);
+    setProbeResults(null);
+    const data = await callCanvaFn({ action: 'test_token' });
+    setProbeResults(data);
+
+    // Auto-apply: if any brandtemplates variant returned items, use those
+    const btVariants = [data.bt_noVersion, data.bt_version_2024, data.bt_version_2023];
+    for (const v of btVariants) {
+      if (v?.status === 200 && Array.isArray(v?.data?.items) && v.data.items.length > 0) {
+        setCanvaTemplates(v.data.items);
+        setTemplateLoadError(null);
+        break;
+      }
+    }
+
+    // Fallback: if designs endpoint works but brandtemplates don't
+    if (data.designs_endpoint?.status === 200 && Array.isArray(data.designs_endpoint?.data?.items)) {
+      const designs = data.designs_endpoint.data.items;
+      if (designs.length > 0 && canvaTemplates.length === 0) {
+        setCanvaTemplates(designs.map(d => ({ id: d.id, title: d.title ?? d.id, type: 'design' })));
+        setTemplateLoadError(null);
+      }
+    }
+
+    setProbing(false);
+  };
+
+  const loadCanvaTemplates = async () => {
+    setLoadingTemplates(true);
+    setTemplateLoadError(null);
+    try {
+      const data = await callCanvaFn({ action: 'list_templates' });
+      if (data.error) {
+        const rawError = JSON.stringify(data.error);
+        const msg = data.error?.message || data.error?.code || rawError;
+        const statusInfo = data.httpStatus ? ` [HTTP ${data.httpStatus}]` : '';
+        const needsTokenRefresh = msg?.toLowerCase().includes('unknown endpoint') || msg?.toLowerCase().includes('not found') || msg?.toLowerCase().includes('permission') || msg?.toLowerCase().includes('unauthorized') || msg?.toLowerCase().includes('invalid_token');
+        setTemplateLoadError(needsTokenRefresh ? `token_refresh_needed|||${msg}${statusInfo}` : msg);
+      } else {
+        setCanvaTemplates(data.templates || []);
+        if ((data.templates || []).length === 0) setTemplateLoadError('no_templates');
+      }
+    } catch (e) {
+      setTemplateLoadError(e.message);
+    }
+    setLoadingTemplates(false);
+  };
+
+  const generatePoster = async () => {
+    if (!selectedTplId) return alert('Please select a brand template first.');
+    if (!posterForm.packageName) return alert('Package Name is required.');
+    setGenerating(true);
+    setGeneratedResult(null);
+    setGenerateError(null);
+    try {
+      const startData = await callCanvaFn({ action: 'autofill', templateId: selectedTplId, fields: posterForm });
+      if (startData.error) throw new Error(startData.error?.message || JSON.stringify(startData.error));
+      const jobId = startData.jobId;
+      // Poll until complete
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const poll = await callCanvaFn({ action: 'check_job', templateId: jobId });
+        if (poll?.job?.status === 'success') {
+          const design = poll.job.result?.design;
+          setGeneratedResult({ editUrl: design?.urls?.edit_url, viewUrl: design?.urls?.view_url });
+          setGenerating(false);
+          return;
+        }
+        if (poll?.job?.status === 'failed') throw new Error('Canva autofill job failed');
+      }
+      throw new Error('Timed out waiting for Canva to generate the design.');
+    } catch (e) {
+      setGenerateError(e.message);
+      setGenerating(false);
+    }
+  };
+
+
+  // Detect Canva OAuth return (?canva=connected or ?canva=error)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const canva = params.get('canva');
+    if (canva === 'connected') {
+      localStorage.setItem('gladex_canva_connected', '1');
+      setCanvaConnected(true);
+      setCanvaMsg('connected');
+      setActiveTab('poster');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (canva === 'error') {
+      setCanvaMsg('error');
+      setActiveTab('poster');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     Promise.all([
-      base44.entities.MarketingAsset.list('-created_date'),
-      base44.entities.Collective.list('-created_date'),
+      db.MarketingAsset.list('-created_date'),
+      db.Collective.list('-created_date'),
     ]).then(([a, c]) => {
       setAssets(Array.isArray(a) ? a : []);
       setCollectives(Array.isArray(c) ? c : []);
       setLoading(false);
     }).catch(() => setLoading(false));
-    base44.entities.ChecklistTask.list()
+    db.ChecklistTask.list()
       .then(tasks => {
         const arr = Array.isArray(tasks) ? tasks : [];
         const mkFiltered = arr.filter(t => t.department === 'marketing');
@@ -95,8 +232,8 @@ export default function Marketing() {
       refreshing = true;
       try {
         const [a, c] = await Promise.all([
-          base44.entities.MarketingAsset.list('-created_date'),
-          base44.entities.Collective.list('-created_date'),
+          db.MarketingAsset.list('-created_date'),
+          db.Collective.list('-created_date'),
         ]);
         setAssets(Array.isArray(a) ? a : []);
         setCollectives(Array.isArray(c) ? c : []);
@@ -185,9 +322,9 @@ export default function Marketing() {
       const file_url = atts.map(a => a.url).filter(Boolean).join('\n');
       const payload = { ...formData, file_url };
       if (editingAsset) {
-        await base44.entities.MarketingAsset.update(editingAsset.id, payload);
+        await db.MarketingAsset.update(editingAsset.id, payload);
       } else {
-        await base44.entities.MarketingAsset.create(payload);
+        await db.MarketingAsset.create(payload);
       }
       setShowModal(false);
       await reloadAll();
@@ -200,8 +337,8 @@ export default function Marketing() {
 
   const reloadAll = async () => {
     const [a, c] = await Promise.all([
-      base44.entities.MarketingAsset.list('-created_date'),
-      base44.entities.Collective.list('-created_date'),
+      db.MarketingAsset.list('-created_date'),
+      db.Collective.list('-created_date'),
     ]);
     setAssets(Array.isArray(a) ? a : []);
     setCollectives(Array.isArray(c) ? c : []);
@@ -209,7 +346,7 @@ export default function Marketing() {
 
   const handleDelete = async (asset) => {
     try {
-      await base44.entities.MarketingAsset.delete(asset.id);
+      await db.MarketingAsset.delete(asset.id);
       await reloadAll();
       broadcastRefresh();
     } catch (e) {
@@ -219,13 +356,13 @@ export default function Marketing() {
 
   const handlePublish = async (asset) => {
     try {
-      await base44.entities.MarketingAsset.update(asset.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] });
+      await db.MarketingAsset.update(asset.id, { status: 'published', published_date: new Date().toISOString().split('T')[0] });
       // file_url is newline-separated; use first URL for the collective image
       const firstUrl = (asset.file_url || '').split('\n').filter(Boolean)[0] || '';
       if (asset.collective_id && firstUrl) {
         const collective = collectives.find(c => c.id === asset.collective_id);
         if (collective && !collective.image_url) {
-          await base44.entities.Collective.update(asset.collective_id, { image_url: firstUrl });
+          await db.Collective.update(asset.collective_id, { image_url: firstUrl });
         }
       }
       await reloadAll();
@@ -237,7 +374,7 @@ export default function Marketing() {
 
   const handleSubmitForApproval = async (asset) => {
     try {
-      await base44.entities.MarketingAsset.update(asset.id, { status: 'pending_approval' });
+      await db.MarketingAsset.update(asset.id, { status: 'pending_approval' });
       await reloadAll();
       broadcastRefresh();
     } catch (e) {
@@ -246,6 +383,18 @@ export default function Marketing() {
   };
 
   const togglePkg = (id) => setExpandedPkg(prev => ({ ...prev, [id]: !prev[id] }));
+
+  // ── Pipeline handlers ────────────────────────────────────────────────────────
+  const startWorkingOnPackage = async (collective) => {
+    await db.Collective.update(collective.id, { pipeline_stage: 'marketing_in_progress' });
+    await reloadAll();
+  };
+
+  const sendToSales = async (collective) => {
+    await db.Collective.update(collective.id, { pipeline_stage: 'ready_for_sales' });
+    await firePipelineNotification(collective, 'sales');
+    await reloadAll();
+  };
 
   // --- Filtered data ---
   const activePkgs = collectives.filter(c => !['completed', 'cancelled'].includes(c.status));
@@ -265,6 +414,11 @@ export default function Marketing() {
   });
 
   const assetsForPkg = (pkgId) => assets.filter(a => a.collective_id === pkgId);
+
+  // Pipeline inbox: packages sent by Product Dev
+  const pipelineInbox = collectives.filter(c => c.pipeline_stage === 'ready_for_marketing');
+  const pipelineWIP   = collectives.filter(c => c.pipeline_stage === 'marketing_in_progress');
+  const pipelineAll   = [...pipelineInbox, ...pipelineWIP];
 
   // Stats
   const pkgsReadyForMarketing = activePkgs.length;
@@ -289,12 +443,15 @@ export default function Marketing() {
       <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit">
         {[
           { key: 'packages', label: '📦 Packages + Assets' },
-          { key: 'assets', label: '🎨 All Assets' },
-          { key: 'tariff', label: '📋 Tariff' },
+          { key: 'assets',   label: '🎨 All Assets' },
+          { key: 'pipeline', label: `📥 Pipeline Inbox${pipelineInbox.length > 0 ? ` (${pipelineInbox.length})` : ''}` },
+          { key: 'poster',   label: '✨ Poster Generator' },
         ].map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={cn("px-4 py-2 rounded-lg text-xs font-medium transition-all",
-              activeTab === tab.key ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              activeTab === tab.key ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground",
+              tab.key === 'pipeline' && pipelineInbox.length > 0 && activeTab !== 'pipeline' && "text-pink-600"
+            )}>
             {tab.label}
           </button>
         ))}
@@ -315,18 +472,16 @@ export default function Marketing() {
         ))}
       </div>
 
-      {/* Search bar (shared) */}
-      {activeTab !== 'tariff' && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder={activeTab === 'packages' ? "Search packages or destination..." : "Search assets..."}
-            className="pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-      )}
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder={activeTab === 'packages' ? "Search packages or destination..." : "Search assets..."}
+          className="pl-9"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
 
       {/* === PACKAGES + ASSETS TAB === */}
       {activeTab === 'packages' && (
@@ -485,10 +640,7 @@ export default function Marketing() {
         </div>
       )}
 
-      {/* Tariff Tab */}
-      {activeTab === 'tariff' && <TariffBrowser />}
-
-      {/* Marketing Checklist Progress */}
+{/* Marketing Checklist Progress */}
       {mkTasks.length > 0 && (() => {
         const byCollective = {};
         mkTasks.forEach(t => {
@@ -558,6 +710,398 @@ export default function Marketing() {
           </div>
         );
       })()}
+
+      {/* === PIPELINE TAB === */}
+      {activeTab === 'pipeline' && (
+        <div className="space-y-4">
+          {/* Section: Inbox from Product Dev */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Inbox className="w-4 h-4 text-pink-500" />
+              <h3 className="text-sm font-bold text-foreground">From Product Dev</h3>
+              <span className="text-xs text-muted-foreground bg-pink-100 dark:bg-pink-950/30 text-pink-700 dark:text-pink-300 px-2 py-0.5 rounded-full">{pipelineInbox.length} new</span>
+            </div>
+            {pipelineInbox.length === 0 ? (
+              <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                <Inbox className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm font-medium text-muted-foreground">No new packages from Product Dev</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">When Product Dev marks a collective as ready, it will appear here</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {pipelineInbox.map(c => {
+                  const pkgAssets = assetsForPkg(c.id);
+                  return (
+                    <div key={c.id} className="bg-card border-2 border-pink-200 dark:border-pink-800/60 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-foreground truncate">{c.name}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Plane className="w-3 h-3" /> {c.destination || '—'}
+                          </p>
+                        </div>
+                        <span className="text-[10px] bg-pink-100 text-pink-700 dark:bg-pink-950/30 dark:text-pink-300 px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0">📥 New</span>
+                      </div>
+                      {c.selling_price > 0 && (
+                        <p className="text-xs text-amber-600 font-bold">₱{Number(c.selling_price).toLocaleString()}/pax</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground">{pkgAssets.length} asset{pkgAssets.length !== 1 ? 's' : ''} created so far</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1 h-7 text-xs gap-1 bg-violet-600 hover:bg-violet-700 text-white border-0"
+                          onClick={() => { openAdd(c.id); startWorkingOnPackage(c); }}>
+                          <Plus className="w-3 h-3" /> Start + Add Asset
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                          onClick={() => startWorkingOnPackage(c)}>
+                          Mark Working
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Section: In Progress */}
+          {pipelineWIP.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">🎨</span>
+                <h3 className="text-sm font-bold text-foreground">In Progress</h3>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{pipelineWIP.length}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {pipelineWIP.map(c => {
+                  const pkgAssets = assetsForPkg(c.id);
+                  const publishedCount = pkgAssets.filter(a => a.status === 'published').length;
+                  return (
+                    <div key={c.id} className="bg-card border border-purple-200 dark:border-purple-800/40 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-foreground truncate">{c.name}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Plane className="w-3 h-3" /> {c.destination || '—'}
+                          </p>
+                        </div>
+                        <span className="text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium flex-shrink-0">🎨 Working</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{pkgAssets.length} asset{pkgAssets.length !== 1 ? 's' : ''} · {publishedCount} published</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                          onClick={() => openAdd(c.id)}>
+                          <Plus className="w-3 h-3" /> Add Asset
+                        </Button>
+                        <Button size="sm" className="flex-1 h-7 text-xs gap-1 bg-sky-600 hover:bg-sky-700 text-white border-0"
+                          onClick={() => sendToSales(c)}>
+                          <Send className="w-3 h-3" /> Send to Sales
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === POSTER GENERATOR TAB === */}
+      {activeTab === 'poster' && (
+        <div className="space-y-4">
+
+          {/* Canva Connect */}
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                  <span className="text-base">🎨</span> Canva Connect
+                </h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {canvaConnected
+                    ? 'Connected — brand templates from your Canva account are available'
+                    : 'Connect your Canva account to autofill brand templates with package details'}
+                </p>
+              </div>
+              {canvaConnected ? (
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Connected
+                  </span>
+                  <Button size="sm" variant="outline" className="text-xs h-7"
+                    onClick={() => { localStorage.removeItem('gladex_canva_connected'); setCanvaConnected(false); setCanvaMsg(null); }}>
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button size="sm" className="shrink-0 gap-1.5 text-xs h-7 bg-[#7d2ae8] hover:bg-[#6b24c6] text-white border-0"
+                  onClick={() => { window.location.href = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/canva-login`; }}>
+                  Connect Canva
+                </Button>
+              )}
+            </div>
+            {canvaMsg === 'connected' && (
+              <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-lg px-3 py-2">
+                ✓ Successfully connected to Canva!
+              </p>
+            )}
+            {canvaMsg === 'error' && (
+              <p className="mt-2 text-xs text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-lg px-3 py-2">
+                Connection failed. Please try again.
+              </p>
+            )}
+          </div>
+
+          {/* Brand Template — auto-load or manual */}
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="font-semibold text-sm text-foreground">Brand Template</h3>
+                <p className="text-[10px] text-muted-foreground">
+                  {canvaTemplates.length > 0
+                    ? `${canvaTemplates.length} template${canvaTemplates.length > 1 ? 's' : ''} loaded — select one below`
+                    : 'Load your Canva Brand Kit templates or paste an ID manually'}
+                </p>
+              </div>
+              {canvaConnected && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7 shrink-0"
+                  disabled={probing}
+                  onClick={testCanvaToken}
+                >
+                  {probing ? <><Loader2 className="w-3 h-3 animate-spin" /> Probing…</> : 'Load Templates'}
+                </Button>
+              )}
+            </div>
+
+            {/* Template selector — shown when templates loaded */}
+            {canvaTemplates.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Select Template</Label>
+                <Select value={selectedTplId || ''} onValueChange={setSelectedTplId} disabled={!canvaConnected}>
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue placeholder="Choose a brand template…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {canvaTemplates.map(t => (
+                      <SelectItem key={t.id} value={t.id} className="text-xs">
+                        {t.title || t.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Probe results — shown after Load Templates */}
+            {probeResults && (
+              <div className="rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 px-3 py-2.5 space-y-1.5">
+                <p className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">API Probe Results</p>
+                {[
+                  { label: 'No version header', r: probeResults.bt_noVersion },
+                  { label: 'Api-Version 2024-06-18', r: probeResults.bt_version_2024 },
+                  { label: 'Api-Version 2023-12-20', r: probeResults.bt_version_2023 },
+                  { label: 'Designs endpoint', r: probeResults.designs_endpoint },
+                ].map(({ label, r }) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${r?.status === 200 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'}`}>
+                      {r?.status ?? '?'}
+                    </span>
+                    <span className="text-[10px] text-slate-600 dark:text-slate-400">{label}</span>
+                    {r?.status === 200 && <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">✓ works</span>}
+                    {r?.status !== 200 && <span className="text-[10px] text-slate-400 truncate">{r?.data?.message || r?.data?.code || ''}</span>}
+                  </div>
+                ))}
+                {probeResults.profile_team_id && (
+                  <p className="text-[10px] text-slate-500 dark:text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-700">
+                    Team ID: <span className="font-mono">{probeResults.profile_team_id}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Manual fallback — always available */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Or paste Template ID manually</Label>
+              <Input
+                placeholder="e.g. OAGVmtpBBXQ"
+                value={canvaTemplates.length > 0 ? (selectedTplId || '') : (selectedTplId || '')}
+                onChange={e => setSelectedTplId(e.target.value.trim())}
+                disabled={!canvaConnected}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                From Canva Brand Hub → open template → copy ID from URL: <code className="bg-muted px-1 rounded">canva.com/brand/templates/<strong>[ID]</strong>/edit</code>
+              </p>
+            </div>
+
+            {selectedTplId && (
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Template: <span className="font-mono">{selectedTplId}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Form */}
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+              <h3 className="font-semibold text-sm text-foreground">Poster Details</h3>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Package Name *</Label>
+                <Input placeholder="e.g. Boracay 4D3N Package" value={posterForm.packageName}
+                  onChange={e => setPosterForm(p => ({ ...p, packageName: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Destination</Label>
+                <Input placeholder="e.g. Boracay, Aklan" value={posterForm.destination}
+                  onChange={e => setPosterForm(p => ({ ...p, destination: e.target.value }))} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Date From</Label>
+                  <Input type="date" value={posterForm.dateFrom}
+                    onChange={e => setPosterForm(p => ({ ...p, dateFrom: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Date To</Label>
+                  <Input type="date" value={posterForm.dateTo}
+                    onChange={e => setPosterForm(p => ({ ...p, dateTo: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Price (per person)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-bold">₱</span>
+                  <Input className="pl-7" placeholder="e.g. 12,500" value={posterForm.price}
+                    onChange={e => setPosterForm(p => ({ ...p, price: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Inclusions <span className="text-muted-foreground/60">(one per line)</span></Label>
+                <Textarea
+                  placeholder={"Roundtrip Airfare\n3 Nights Accommodation\nBreakfast Daily\nTours & Transfers\nVisa Assistance"}
+                  rows={5} value={posterForm.inclusions} className="text-xs resize-none"
+                  onChange={e => setPosterForm(p => ({ ...p, inclusions: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Promo Tag</Label>
+                <Input placeholder="e.g. BOOK NOW! or LIMITED SLOTS" value={posterForm.tagline}
+                  onChange={e => setPosterForm(p => ({ ...p, tagline: e.target.value }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Duration</Label>
+                <Input placeholder="e.g. 5 DAYS 3 NIGHTS" value={posterForm.duration}
+                  onChange={e => setPosterForm(p => ({ ...p, duration: e.target.value }))} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Tour Code</Label>
+                  <Input placeholder="e.g. UOV15B3" value={posterForm.tourCode}
+                    onChange={e => setPosterForm(p => ({ ...p, tourCode: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Downpayment</Label>
+                  <Input placeholder="e.g. PHP 20,000" value={posterForm.downpayment}
+                    onChange={e => setPosterForm(p => ({ ...p, downpayment: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+
+            {/* Generate Panel */}
+            <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+              <div>
+                <h3 className="font-semibold text-sm text-foreground">Generate in Canva</h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Autofills your selected brand template with the details on the left</p>
+              </div>
+
+              {/* Selected template summary */}
+              <div className={cn('rounded-xl border p-3 text-xs', selectedTplId ? 'border-purple-300 bg-purple-50 dark:bg-purple-950/20' : 'border-dashed border-border')}>
+                {selectedTplId ? (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span className="text-foreground font-medium">
+                      {canvaTemplates.find(t => t.id === selectedTplId)?.title || selectedTplId}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No template selected — load and pick one above</p>
+                )}
+              </div>
+
+              <Button
+                className="w-full gap-2 bg-[#7d2ae8] hover:bg-[#6b24c6] text-white border-0"
+                disabled={!canvaConnected || !selectedTplId || !posterForm.packageName || generating}
+                onClick={generatePoster}>
+                {generating
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+                  : '🎨 Generate Poster in Canva'}
+              </Button>
+
+              {generating && (
+                <p className="text-xs text-center text-muted-foreground animate-pulse">
+                  Canva is creating your poster — this takes 5–20 seconds…
+                </p>
+              )}
+
+              {generateError && (
+                <div className="rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 px-3 py-2">
+                  <p className="text-xs text-rose-700 dark:text-rose-400 font-medium">Generation failed</p>
+                  <p className="text-[10px] text-rose-600 dark:text-rose-500 mt-0.5">{generateError}</p>
+                </div>
+              )}
+
+              {generatedResult && (
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 p-4 space-y-3">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> Poster created successfully!
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {generatedResult.editUrl && (
+                      <a href={generatedResult.editUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 rounded-lg bg-[#7d2ae8] text-white text-xs font-semibold py-2 px-4 hover:bg-[#6b24c6] transition-colors">
+                        ✏️ Open & Edit in Canva
+                      </a>
+                    )}
+                    {generatedResult.viewUrl && (
+                      <a href={generatedResult.viewUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 rounded-lg border border-border text-foreground text-xs font-semibold py-2 px-4 hover:bg-muted transition-colors">
+                        👁 View Poster
+                      </a>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Download as PNG/PDF directly from Canva after editing.</p>
+                </div>
+              )}
+
+              {!canvaConnected && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
+                  Connect your Canva account above to enable poster generation.
+                </p>
+              )}
+
+              <div className="border-t border-border pt-3 space-y-1">
+                <p className="text-[10px] font-semibold text-muted-foreground">How it works</p>
+                <ol className="text-[10px] text-muted-foreground space-y-0.5 list-decimal list-inside">
+                  <li>Create a brand template in Canva with data fields (e.g. packageName, destination, price)</li>
+                  <li>Load your templates above and select one</li>
+                  <li>Fill in the package details on the left</li>
+                  <li>Click Generate — Canva autofills and gives you an edit link</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Add/Edit Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
