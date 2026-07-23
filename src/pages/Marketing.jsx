@@ -842,6 +842,40 @@ export default function Marketing() {
       {activeTab === 'poster' && (
         <div className="space-y-4">
 
+          {/* Step 1: Pick a package — auto-fills everything */}
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div>
+              <h3 className="font-semibold text-sm text-foreground">Step 1 — Select Package</h3>
+              <p className="text-[10px] text-muted-foreground">Piliin ang package at auto-fill ang lahat ng details</p>
+            </div>
+            <Select
+              value={''}
+              onValueChange={val => {
+                const pkg = collectives.find(c => c.id === val);
+                if (pkg) generatePosterFromPackage(pkg);
+              }}
+            >
+              <SelectTrigger className="text-xs h-9">
+                <SelectValue placeholder="— Pumili ng package —" />
+              </SelectTrigger>
+              <SelectContent>
+                {collectives.filter(c => !['completed','cancelled'].includes(c.status)).map(pkg => (
+                  <SelectItem key={pkg.id} value={pkg.id} className="text-xs">
+                    {pkg.package_code ? `[${pkg.package_code}] ` : ''}{pkg.name}
+                    {pkg.destination ? ` · ${pkg.destination}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {posterForm.packageName && (
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 px-3 py-2 text-[11px] text-emerald-700 dark:text-emerald-400 space-y-0.5">
+                <p className="font-semibold">✓ Auto-filled from package:</p>
+                <p>{posterForm.packageName} · {posterForm.destination} · {posterForm.duration}</p>
+                {posterForm.price && <p>Price: {posterForm.price}{posterForm.downpayment ? ` · DP: ${posterForm.downpayment}` : ''}</p>}
+              </div>
+            )}
+          </div>
+
           {/* Canva Connect */}
           <div className="bg-card border border-border rounded-2xl p-4">
             <div className="flex items-center justify-between gap-3">
