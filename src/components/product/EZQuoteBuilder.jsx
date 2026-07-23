@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { Plus, Trash2, Save, RefreshCw, ChevronDown, ChevronUp, CheckCircle, ArrowRight, Calculator, FileText, Plane, Hotel, Users, DollarSign, Info, TrendingUp } from 'lucide-react';
 import SmartPackagePad from '@/components/product/SmartPackagePad';
 import AvailabilityRatesPricing from '@/components/product/AvailabilityRatesPricing';
@@ -277,9 +277,9 @@ export default function EZQuoteBuilder({ collectives }) {
 
     let id = savedId || activeTemplate;
     if (id) {
-      await base44.entities.Collective.update(id, payload);
+      await db.Collective.update(id, payload);
     } else {
-      const created = await base44.entities.Collective.create(payload);
+      const created = await db.Collective.create(payload);
       id = created.id;
       setSavedId(id);
     }

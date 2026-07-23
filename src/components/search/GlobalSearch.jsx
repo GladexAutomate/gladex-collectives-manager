@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Package, Users, CreditCard, CheckSquare, FileText, Megaphone, MapPin, Building2, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
@@ -80,14 +80,14 @@ export default function GlobalSearch() {
       setLoading(true);
       try {
         const [collectives, bookings, payments, tasks, documents, assets, clients, operators] = await Promise.all([
-          base44.entities.Collective.list('-updated_date', 100),
-          base44.entities.Booking.list('-updated_date', 100),
-          base44.entities.Payment.list('-updated_date', 100),
-          base44.entities.ChecklistTask.list('-updated_date', 100),
-          base44.entities.Document.list('-updated_date', 100),
-          base44.entities.MarketingAsset.list('-updated_date', 100),
-          base44.entities.Client.list('-updated_date', 100),
-          base44.entities.Operator.list('-updated_date', 100),
+          db.Collective.list('-updated_date', 100),
+          Promise.resolve([]),
+          Promise.resolve([]),
+          db.ChecklistTask.list('-updated_date', 100),
+          Promise.resolve([]),
+          db.MarketingAsset.list('-updated_date', 100),
+          Promise.resolve([]),
+          Promise.resolve([]),
         ]);
 
         const found = [];

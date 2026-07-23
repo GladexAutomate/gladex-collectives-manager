@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import {
   Clipboard, Search, Link2, Copy, Check, ChevronDown, ChevronUp,
   Zap, Package, Clock, X, Download, Shuffle, Plane, Star
@@ -187,7 +187,7 @@ export default function SmartPackagePad({ collectives, onLoadPackage }) {
 
   // ── Duplicate/clone a collective ──
   const handleDuplicate = useCallback(async (collective) => {
-    const cloned = await base44.entities.Collective.create({
+    const cloned = await db.Collective.create({
       ...collective,
       id: undefined,
       name: `${collective.name} (Copy)`,

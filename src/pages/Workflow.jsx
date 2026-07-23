@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { broadcastRefresh } from '@/lib/dataSync';
+import { fireTaskNotification, fireCompleteAllNotification } from '@/lib/notificationHelper';
 import {
   CheckCircle, Circle, Loader2, AlertTriangle, X,
   ChevronDown, ChevronRight, RefreshCw,
@@ -113,8 +114,8 @@ export default function Workflow() {
 
   // Load collectives list on mount
   useEffect(() => {
-    base44.entities.Collective.list('-updated_date', 100).then(data => setCollectives(Array.isArray(data) ? data : [])).catch(() => {});
-    base44.entities.ChecklistTask.list()
+    db.Collective.list('-updated_date', 100).then(data => setCollectives(Array.isArray(data) ? data : [])).catch(() => {});
+    db.ChecklistTask.list()
       .then(tasks => setCollectivesWithTasks(new Set((Array.isArray(tasks) ? tasks : []).map(t => t.collective_id).filter(Boolean))))
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
@@ -122,7 +123,7 @@ export default function Workflow() {
     if (cid) setSelectedCollective(cid);
     // Refresh collectives list when other pages make changes
     const onRefresh = () => {
-      base44.entities.Collective.list('-updated_date', 100).then(data => setCollectives(Array.isArray(data) ? data : [])).catch(() => {});
+      db.Collective.list('-updated_date', 100).then(data => setCollectives(Array.isArray(data) ? data : [])).catch(() => {});
     };
     window.addEventListener('gladex:refresh', onRefresh);
     return () => window.removeEventListener('gladex:refresh', onRefresh);
@@ -138,7 +139,7 @@ export default function Workflow() {
     setTasksError(null);
     setTasks([]);
 
-    base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
+    db.ChecklistTask.filter({ collective_id: selectedCollective })
       .then(data => {
         if (cancelled) return;
         setTasks(Array.isArray(data) ? data : []);
@@ -158,7 +159,7 @@ export default function Workflow() {
     if (!selectedCollective) return;
     setRegenerating(true);
     try {
-      const fresh = await base44.entities.ChecklistTask.filter({ collective_id: selectedCollective });
+      const fresh = await db.ChecklistTask.filter({ collective_id: selectedCollective });
       setTasks(Array.isArray(fresh) ? fresh : []);
     } finally {
       setRegenerating(false);
@@ -168,15 +169,17 @@ export default function Workflow() {
 
   const handleTaskToggle = async (task, newStatus) => {
     // Persist only — TaskRow handles its own optimistic UI
-    await base44.entities.ChecklistTask.update(task.id, {
+    await db.ChecklistTask.update(task.id, {
       status: newStatus,
       completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
       notes: newStatus === 'completed' && task.completion_mode === 'manual'
         ? ((task.notes ? task.notes + ' | ' : '') + 'Manually confirmed')
         : task.notes,
     });
-    // setTasks triggers the activation useEffect automatically
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+    // Fire notification (non-blocking)
+    const collectiveName = collectives.find(c => c.id === selectedCollective)?.name || '';
+    fireTaskNotification(task, newStatus, { collectiveName });
   };
 
   // Bulk-complete all tasks in a department — sequential with delay to avoid 429 rate limit
@@ -195,17 +198,20 @@ export default function Workflow() {
     // Send updates sequentially with 150ms gap to stay under rate limit
     for (const t of toComplete) {
       try {
-        await base44.entities.ChecklistTask.update(t.id, { status: 'completed', completed_at: now });
+        await db.ChecklistTask.update(t.id, { status: 'completed', completed_at: now });
       } catch (e) {
         // If still rate-limited, wait 1s and retry once
         if (e?.status === 429 || e?.message?.includes('429') || e?.message?.includes('Rate limit')) {
           await new Promise(r => setTimeout(r, 1000));
-          try { await base44.entities.ChecklistTask.update(t.id, { status: 'completed', completed_at: now }); } catch (_) {}
+          try { await db.ChecklistTask.update(t.id, { status: 'completed', completed_at: now }); } catch (_) {}
         }
       }
       await new Promise(r => setTimeout(r, 150));
     }
     broadcastRefresh();
+    // Fire one notification for the bulk complete
+    const collectiveName = collectives.find(c => c.id === selectedCollective)?.name || '';
+    fireCompleteAllNotification(dept, toComplete.length, { collectiveName });
   };
 
   // Reset all tasks in a department back to pending — sequential to avoid 429
@@ -222,11 +228,11 @@ export default function Workflow() {
     );
     for (const t of toReset) {
       try {
-        await base44.entities.ChecklistTask.update(t.id, { status: 'pending', completed_at: null });
+        await db.ChecklistTask.update(t.id, { status: 'pending', completed_at: null });
       } catch (e) {
         if (e?.status === 429 || e?.message?.includes('429') || e?.message?.includes('Rate limit')) {
           await new Promise(r => setTimeout(r, 1000));
-          try { await base44.entities.ChecklistTask.update(t.id, { status: 'pending', completed_at: null }); } catch (_) {}
+          try { await db.ChecklistTask.update(t.id, { status: 'pending', completed_at: null }); } catch (_) {}
         }
       }
       await new Promise(r => setTimeout(r, 150));
@@ -324,7 +330,7 @@ export default function Workflow() {
                   };
                   try {
                     manualStatusOverride.current = { id: selectedCollective, status: newStatus, time: Date.now() };
-                    await base44.entities.Collective.update(selectedCollective, { status: newStatus });
+                    await db.Collective.update(selectedCollective, { status: newStatus });
                     setCollectives(prev => prev.map(c => c.id === selectedCollective ? { ...c, status: newStatus } : c));
                     setActivationSuccess(labels[newStatus] || `✅ Status updated to "${newStatus}"`);
                     setTimeout(() => setActivationSuccess(null), 5000);
@@ -409,7 +415,7 @@ export default function Workflow() {
           <p className="text-sm font-medium text-foreground">{tasksError}</p>
           <Button size="sm" variant="outline" onClick={() => {
             setTasksError(null); setTasksLoading(true);
-            base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
+            db.ChecklistTask.filter({ collective_id: selectedCollective })
               .then(d => { setTasks(Array.isArray(d) ? d : []); setTasksLoading(false); })
               .catch(() => { setTasksError('Unable to load checklist. Please try again.'); setTasksLoading(false); });
           }}>Retry</Button>
@@ -539,7 +545,7 @@ export default function Workflow() {
               onRetry={() => {
                 setTasksError(null);
                 setTasksLoading(true);
-                base44.entities.ChecklistTask.filter({ collective_id: selectedCollective })
+                db.ChecklistTask.filter({ collective_id: selectedCollective })
                   .then(d => { setTasks(Array.isArray(d) ? d : []); setTasksLoading(false); })
                   .catch(() => { setTasksError('Unable to load checklist. Please try again.'); setTasksLoading(false); });
               }}
@@ -552,7 +558,7 @@ export default function Workflow() {
                 setActivating(true);
                 try {
                   manualStatusOverride.current = { id: selectedCollective, status: newStatus, time: Date.now() };
-                  await base44.entities.Collective.update(selectedCollective, { status: newStatus });
+                  await db.Collective.update(selectedCollective, { status: newStatus });
                   setCollectives(prev => prev.map(c => c.id === selectedCollective ? { ...c, status: newStatus } : c));
                 } catch (err) {
                   manualStatusOverride.current = null;

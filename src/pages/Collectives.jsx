@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { Globe, BarChart3, Users, TrendingUp, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CollectiveWorkspace from '@/components/collectives/CollectiveWorkspace';
@@ -22,8 +22,8 @@ export default function Collectives() {
 
   const loadCollectives = () => {
     Promise.all([
-      base44.entities.Collective.list('-created_date'),
-      base44.entities.MarketingAsset.list(),
+      db.Collective.list('-created_date'),
+      db.MarketingAsset.list(),
     ]).then(([colls, assets]) => {
       setCollectives(Array.isArray(colls) ? colls : []);
       setMarketingAssets(Array.isArray(assets) ? assets : []);

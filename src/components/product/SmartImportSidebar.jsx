@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import {
   X, Search, Download, Shuffle, Clock, Check, Copy, Zap,
   ChevronRight, Upload, FileText, Loader2, Sparkles, AlertCircle
@@ -229,7 +230,7 @@ export default function SmartImportSidebar({ open, onClose, collectives, onLoadP
   }, [onLoadPackage]);
 
   const handleDuplicate = useCallback(async (c) => {
-    const cloned = await base44.entities.Collective.create({
+    const cloned = await db.Collective.create({
       ...c,
       id: undefined,
       name: `${c.name} (Copy)`,

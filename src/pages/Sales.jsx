@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate as useSalesNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
-import { Search, Users, RefreshCw, Package, MapPin, Plane, Calendar, Hotel, X, ChevronRight, ChevronDown, Clock, FileText, AlertCircle, Info, Download, CheckCircle2 } from 'lucide-react';
+import { db } from '@/lib/db';
+import { Search, Users, RefreshCw, Package, MapPin, Plane, Calendar, Hotel, X, ChevronRight, ChevronDown, Clock, FileText, AlertCircle, Info, Download, CheckCircle2, Inbox, Image } from 'lucide-react';
 import CopyPackageButton from '@/components/collectives/CopyPackageButton';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -39,6 +39,7 @@ export default function Sales() {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null); // 'international' | 'domestic'
   const [openDestination, setOpenDestination] = useState(null);
+  const [markingReceived, setMarkingReceived] = useState(null);
 
   // ── Deep-link: pre-populate search from global search bar ─────────────────
   const location = useLocation();
@@ -55,7 +56,7 @@ export default function Sales() {
 
   const loadData = async () => {
     try {
-      const c = await base44.entities.Collective.list();
+      const c = await db.Collective.list();
       const safeC = Array.isArray(c) ? c : [];
       setCollectives(safeC);
       setViewingProduct(prev => prev ? (safeC.find(x => x.id === prev.id) || prev) : null);
@@ -63,13 +64,13 @@ export default function Sales() {
       console.error('Sales loadData error:', e);
     }
     try {
-      const ma = await base44.entities.MarketingAsset.list('-created_date');
+      const ma = await db.MarketingAsset.list('-created_date');
       setMarketingAssets(ma || []);
     } catch (e) {
       setMarketingAssets([]);
     }
     try {
-      const tasks = await base44.entities.ChecklistTask.list();
+      const tasks = await db.ChecklistTask.list();
       const tasksArr = Array.isArray(tasks) ? tasks : [];
       const ids = new Set(tasksArr.map(t => t.collective_id).filter(Boolean));
       setCollectivesWithTasks(ids);
@@ -93,6 +94,20 @@ export default function Sales() {
     };
   }, []);
 
+  const markReceived = async (collective) => {
+    setMarkingReceived(collective.id);
+    try {
+      await db.Collective.update(collective.id, { pipeline_stage: 'sales_received' });
+      await loadData();
+    } finally {
+      setMarkingReceived(null);
+    }
+  };
+
+  // Pipeline: packages sent from Marketing
+  const pipelineReady = collectives.filter(c => c.pipeline_stage === 'ready_for_sales');
+  const pipelineReceived = collectives.filter(c => c.pipeline_stage === 'sales_received');
+
 
   return (
     <div className="space-y-5 pb-6">
@@ -109,6 +124,83 @@ export default function Sales() {
         </div>
       </div>
 
+
+      {/* ── PIPELINE INBOX (from Marketing) ─────────────────────────────── */}
+      {(pipelineReady.length > 0 || pipelineReceived.length > 0) && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Inbox className="w-4 h-4 text-sky-500" />
+            <h3 className="text-sm font-bold text-foreground">From Marketing</h3>
+            {pipelineReady.length > 0 && (
+              <span className="text-xs bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 px-2 py-0.5 rounded-full font-medium">
+                {pipelineReady.length} new
+              </span>
+            )}
+          </div>
+
+          {pipelineReady.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {pipelineReady.map(c => {
+                const assets = marketingAssets.filter(a => a.collective_id === c.id && a.status === 'published');
+                const firstImg = assets.find(a => a.file_url)?.file_url?.split('\n')[0];
+                return (
+                  <div key={c.id} className="bg-card border-2 border-sky-200 dark:border-sky-800/60 rounded-2xl overflow-hidden">
+                    {firstImg && (
+                      <div className="h-28 overflow-hidden">
+                        <img src={firstImg} alt={c.name} className="w-full h-full object-cover" onError={e => e.target.style.display='none'} />
+                      </div>
+                    )}
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-foreground truncate">{c.name}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Plane className="w-3 h-3" /> {c.destination || '—'}
+                          </p>
+                        </div>
+                        <span className="text-[10px] bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 px-2 py-0.5 rounded-full font-medium flex-shrink-0">💼 Ready</span>
+                      </div>
+                      {c.selling_price > 0 && (
+                        <p className="text-xs text-amber-600 font-bold">₱{Number(c.selling_price).toLocaleString()}/pax</p>
+                      )}
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <Image className="w-3 h-3" />
+                        {assets.length} marketing asset{assets.length !== 1 ? 's' : ''}
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full h-7 text-xs gap-1 bg-sky-600 hover:bg-sky-700 text-white border-0"
+                        onClick={() => markReceived(c)}
+                        disabled={markingReceived === c.id}
+                      >
+                        <CheckCircle2 className="w-3 h-3" />
+                        {markingReceived === c.id ? 'Marking…' : 'Mark Received'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {pipelineReceived.length > 0 && (
+            <details className="group">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
+                <ChevronRight className="w-3 h-3 group-open:rotate-90 transition-transform" />
+                {pipelineReceived.length} previously received package{pipelineReceived.length !== 1 ? 's' : ''}
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {pipelineReceived.map(c => (
+                  <span key={c.id} className="text-[11px] bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 px-3 py-1 rounded-full">
+                    ✅ {c.name}
+                  </span>
+                ))}
+              </div>
+            </details>
+          )}
+          <div className="border-t border-border pt-2" />
+        </div>
+      )}
 
       {/* ── PACKAGES VIEW ───────────────────────────────────────────────── */}
       {true && <>

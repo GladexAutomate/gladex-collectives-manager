@@ -26,7 +26,7 @@ const pageTitles = {
   '/management': 'Management',
 };
 
-export default function AppLayout() {
+export default function AppLayout({ isSuperAdmin = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
@@ -62,6 +62,7 @@ export default function AppLayout() {
         onMobileClose={() => setMobileOpen(false)}
         onNotepadToggle={() => setNotepadOpen(v => !v)}
         notepadOpen={notepadOpen}
+        isSuperAdmin={isSuperAdmin}
       />
       {notepadOpen && <FloatingNotepad onClose={() => setNotepadOpen(false)} />}
 

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { Plus, FileText, Upload, CheckCircle, AlertTriangle, Clock, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +42,7 @@ export default function Documents() {
   const [saving, setSaving] = useState(false);
 
   const loadDocs = () => {
-    base44.entities.Document.list('-created_date').then(data => {
+    db.Document.list('-created_date').then(data => {
       setDocuments(Array.isArray(data) ? data : []);
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -52,14 +52,14 @@ export default function Documents() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Document.create(formData);
+    await db.Document.create(formData);
     setSaving(false);
     setShowModal(false);
     loadDocs();
   };
 
   const updateStatus = async (doc, newStatus) => {
-    await base44.entities.Document.update(doc.id, { status: newStatus });
+    await db.Document.update(doc.id, { status: newStatus });
     loadDocs();
   };
 

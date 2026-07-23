@@ -1,19 +1,20 @@
 // @ts-nocheck
-import { useState, useEffect, useRef } from 'react';
-import { Bell, X, CheckCheck, AlertTriangle, CheckCircle2, CreditCard, Briefcase, Users, FileText, Megaphone, Star, Clock, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { useState, useEffect, useRef, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, X, CheckCheck, AlertTriangle, CheckCircle2, CreditCard, Briefcase, Clock, ChevronRight } from 'lucide-react';
+import { db } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { EmployeeSessionContext } from '@/lib/employeeSessionContext';
+import { SUPABASE_DEPT_TO_WORKFLOW } from '@/lib/notificationHelper';
 
 const TYPE_CONFIG = {
-  deadline:  { icon: Clock,         color: 'text-rose-500',   bg: 'bg-rose-50 dark:bg-rose-950/30' },
-  approval:  { icon: CheckCircle2,  color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-950/30' },
-  payment:   { icon: CreditCard,    color: 'text-emerald-500',bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-  reminder:  { icon: Bell,          color: 'text-amber-500',  bg: 'bg-amber-50 dark:bg-amber-950/30' },
-  alert:     { icon: AlertTriangle, color: 'text-rose-500',   bg: 'bg-rose-50 dark:bg-rose-950/30' },
-  info:      { icon: Briefcase,     color: 'text-sky-500',    bg: 'bg-sky-50 dark:bg-sky-950/30' },
+  deadline:  { icon: Clock,         color: 'text-rose-500',    bg: 'bg-rose-50 dark:bg-rose-950/30' },
+  approval:  { icon: CheckCircle2,  color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+  payment:   { icon: CreditCard,    color: 'text-purple-500',  bg: 'bg-purple-50 dark:bg-purple-950/30' },
+  reminder:  { icon: Bell,          color: 'text-amber-500',   bg: 'bg-amber-50 dark:bg-amber-950/30' },
+  alert:     { icon: AlertTriangle, color: 'text-rose-500',    bg: 'bg-rose-50 dark:bg-rose-950/30' },
+  info:      { icon: Briefcase,     color: 'text-sky-500',     bg: 'bg-sky-50 dark:bg-sky-950/30' },
 };
 
 const PRIORITY_BADGE = {
@@ -23,28 +24,35 @@ const PRIORITY_BADGE = {
   low:    'bg-slate-100 text-slate-600',
 };
 
-const TABS = ['all', 'unread', 'deadline', 'approval', 'payment', 'alert'];
+const TABS = ['all', 'unread', 'approval', 'deadline', 'alert'];
 
 export default function NotificationCenter() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]                   = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [activeTab, setActiveTab] = useState('all');
-  const panelRef = useRef(null);
+  const [activeTab, setActiveTab]         = useState('all');
+  const panelRef                          = useRef(null);
+  const navigate                          = useNavigate();
+
+  const empCtx    = useContext(EmployeeSessionContext);
+  const empDept   = empCtx?.session?.department || null;
+  // Map Supabase dept name → workflow key for filtering
+  const workflowKey = empDept ? (SUPABASE_DEPT_TO_WORKFLOW[empDept.toUpperCase().trim()] || null) : null;
 
   const load = async () => {
-    const data = await base44.entities.Notification.list('-created_date', 60);
-    setNotifications(data);
+    try {
+      const data = await db.Notification.list('-created_date', 100);
+      setNotifications(Array.isArray(data) ? data : []);
+    } catch (e) {
+      // Silently ignore — non-critical
+    }
   };
 
   useEffect(() => {
     load();
-    // Poll every 30 seconds for new notifications
     const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
   }, []);
 
-
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false);
@@ -53,34 +61,41 @@ export default function NotificationCenter() {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  // Filter to employee's dept; Super Admin (empCtx=null) sees everything
+  const deptFiltered = notifications.filter(n => {
+    if (!empCtx) return true; // Super Admin
+    if (!workflowKey) return !n.department; // unmapped dept — show only non-dept notifs
+    return !n.department || n.department === workflowKey;
+  });
 
-  const filtered = notifications.filter(n => {
-    if (activeTab === 'all') return true;
+  const unreadCount = deptFiltered.filter(n => !n.is_read).length;
+
+  const filtered = deptFiltered.filter(n => {
+    if (activeTab === 'all')    return true;
     if (activeTab === 'unread') return !n.is_read;
     return n.type === activeTab;
   });
 
   const markRead = async (n) => {
     if (n.is_read) return;
-    await base44.entities.Notification.update(n.id, { is_read: true });
+    await db.Notification.update(n.id, { is_read: true });
     setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
   };
 
   const markAllRead = async () => {
-    const unread = notifications.filter(n => !n.is_read);
-    await Promise.all(unread.map(n => base44.entities.Notification.update(n.id, { is_read: true })));
+    const unread = deptFiltered.filter(n => !n.is_read);
+    await Promise.all(unread.map(n => db.Notification.update(n.id, { is_read: true })));
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
   return (
     <div className="relative" ref={panelRef}>
-      {/* Bell Button */}
+      {/* Bell */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => { setOpen(!open); if (!open) load(); }}
         className="relative h-8 w-8 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
       >
-        <Bell className={cn("w-4 h-4 transition-all", open && "text-primary", unreadCount > 0 && "animate-pulse")} />
+        <Bell className={cn("w-4 h-4 transition-all", open && "text-primary")} />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 h-4 min-w-4 px-0.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -92,10 +107,10 @@ export default function NotificationCenter() {
       {open && (
         <div className="absolute right-0 top-10 w-96 max-h-[600px] bg-card border border-border rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-primary" />
-              <h3 className="font-semibold font-jakarta text-sm text-foreground">Notifications</h3>
+              <h3 className="font-semibold font-jakarta text-sm">Notifications</h3>
               {unreadCount > 0 && (
                 <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
               )}
@@ -112,19 +127,21 @@ export default function NotificationCenter() {
             </div>
           </div>
 
+          {/* Dept badge */}
+          {empDept && (
+            <div className="px-4 py-1.5 bg-muted/40 border-b border-border text-[10px] text-muted-foreground">
+              Showing notifications for <span className="font-semibold text-foreground">{empDept}</span>
+            </div>
+          )}
+
           {/* Tabs */}
           <div className="flex gap-1 px-3 py-2 border-b border-border overflow-x-auto">
             {TABS.map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+              <button key={tab} onClick={() => setActiveTab(tab)}
                 className={cn(
                   "px-2.5 py-1 rounded-md text-[10px] font-medium capitalize whitespace-nowrap transition-colors",
-                  activeTab === tab
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                )}
-              >
+                  activeTab === tab ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                )}>
                 {tab}
                 {tab === 'unread' && unreadCount > 0 && (
                   <span className="ml-1 bg-rose-500 text-white rounded-full px-1 text-[9px]">{unreadCount}</span>
@@ -139,20 +156,18 @@ export default function NotificationCenter() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Bell className="w-8 h-8 text-muted-foreground/30 mb-2" />
                 <p className="text-sm text-muted-foreground">No notifications</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Complete tasks in Workflow to see updates here</p>
               </div>
             ) : (
               filtered.map(n => {
-                const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.info;
+                const cfg  = TYPE_CONFIG[n.type] || TYPE_CONFIG.info;
                 const Icon = cfg.icon;
                 return (
-                  <button
-                    key={n.id}
-                    onClick={() => markRead(n)}
+                  <button key={n.id} onClick={() => markRead(n)}
                     className={cn(
                       "w-full flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left border-b border-border/50",
                       !n.is_read && "bg-primary/5"
-                    )}
-                  >
+                    )}>
                     <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5", cfg.bg)}>
                       <Icon className={cn("w-4 h-4", cfg.color)} />
                     </div>
@@ -166,7 +181,7 @@ export default function NotificationCenter() {
                       <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
                       <div className="flex items-center gap-2 mt-1.5">
                         {n.priority && (
-                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium", PRIORITY_BADGE[n.priority])}>
+                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-medium", PRIORITY_BADGE[n.priority] || PRIORITY_BADGE.medium)}>
                             {n.priority}
                           </span>
                         )}
@@ -184,9 +199,8 @@ export default function NotificationCenter() {
           {/* Footer */}
           <div className="px-4 py-2.5 border-t border-border bg-muted/30">
             <button
-              onClick={() => setOpen(false)}
-              className="w-full text-center text-xs text-primary hover:underline flex items-center justify-center gap-1"
-            >
+              onClick={() => { setOpen(false); navigate('/notifications'); }}
+              className="w-full text-center text-xs text-primary hover:underline flex items-center justify-center gap-1">
               View all notifications <ChevronRight className="w-3 h-3" />
             </button>
           </div>

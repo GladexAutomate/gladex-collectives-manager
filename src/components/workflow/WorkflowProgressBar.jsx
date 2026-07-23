@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { CheckSquare, ChevronRight, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,7 @@ export default function WorkflowProgressBar({ collectiveId, collectiveName, comp
   useEffect(() => {
     if (!collectiveId) { setLoading(false); return; }
     const fetchTasks = () =>
-      base44.entities.ChecklistTask.filter({ collective_id: collectiveId })
+      db.ChecklistTask.filter({ collective_id: collectiveId })
         .then(t => { setTasks(t); setLoading(false); })
         .catch(() => setLoading(false));
     fetchTasks();

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { RefreshCw, CheckCircle2, Package, TrendingUp, Stamp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,8 +17,8 @@ export default function Visa() {
   const loadData = async () => {
     try {
       const [cols, tasks] = await Promise.all([
-        base44.entities.Collective.list(),
-        base44.entities.ChecklistTask.list(),
+        db.Collective.list(),
+        db.ChecklistTask.list(),
       ]);
       setCollectives(Array.isArray(cols) ? cols : []);
       const tasksArr = Array.isArray(tasks) ? tasks : [];

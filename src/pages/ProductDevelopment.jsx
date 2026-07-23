@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/lib/db';
 import { broadcastRefresh } from '@/lib/dataSync';
 import { Plus, TrendingUp, Search, Edit, FileText, Plane, Calendar, Package, ArrowRight, BarChart3, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,8 +35,8 @@ export default function ProductDevelopment() {
 
   const loadData = () => {
     Promise.all([
-      base44.entities.Collective.list('-created_date'),
-      base44.entities.MarketingAsset.list(),
+      db.Collective.list('-created_date'),
+      db.MarketingAsset.list(),
     ]).then(([cols, assets]) => {
       setCollectives(Array.isArray(cols) ? cols : []);
       setMarketingAssets(Array.isArray(assets) ? assets : []);
@@ -46,7 +46,7 @@ export default function ProductDevelopment() {
 
   useEffect(() => {
     loadData();
-    base44.entities.ChecklistTask.list()
+    db.ChecklistTask.list()
       .then(tasks => {
         const arr = Array.isArray(tasks) ? tasks : [];
         const pdFiltered = arr.filter(t => t.department === 'product_development');
@@ -164,7 +164,7 @@ export default function ProductDevelopment() {
       {activeTab === 'ezquote' && (
         <EZQuoteWorkspace
           collectives={collectives}
-          onCollectivesChange={() => base44.entities.Collective.list('-created_date').then(data => setCollectives(Array.isArray(data) ? data : []))}
+          onCollectivesChange={() => db.Collective.list('-created_date').then(data => setCollectives(Array.isArray(data) ? data : []))}
         />
       )}
 

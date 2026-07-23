@@ -1,8 +1,18 @@
 // @ts-nocheck
-import { Moon, Sun, Bell, ChevronDown, Menu, User } from 'lucide-react';
+import { useContext } from 'react';
+import { Moon, Sun, ChevronDown, Menu, User } from 'lucide-react';
 import GlobalSearch from '@/components/search/GlobalSearch';
+import NotificationCenter from '@/components/notifications/NotificationCenter';
+import { EmployeeSessionContext } from '@/lib/employeeSessionContext';
 
 export default function TopBar({ pageTitle, darkMode, onToggleDark, onMobileMenuToggle }) {
+  const empCtx = useContext(EmployeeSessionContext);
+  const emp    = empCtx?.session;
+
+  const displayName = emp?.name || emp?.employee_id || 'Super Admin';
+  const displaySub  = emp?.department || 'Administrator';
+  const initial     = (displayName[0] || 'S').toUpperCase();
+
   return (
     <header className="h-16 border-b border-border flex items-center justify-between px-4 md:px-6 sticky top-0 z-40"
       style={{ background: 'hsl(var(--card))' }}>
@@ -17,7 +27,7 @@ export default function TopBar({ pageTitle, darkMode, onToggleDark, onMobileMenu
         <div className="min-w-0">
           <h1 className="text-base font-bold font-jakarta text-foreground leading-tight truncate">{pageTitle}</h1>
           <p className="text-[11px] text-muted-foreground hidden sm:block">
-            Welcome back, <span style={{ color: '#a78bfa' }} className="font-semibold">Super Admin</span> 👋
+            Welcome back, <span style={{ color: '#a78bfa' }} className="font-semibold">{displayName}</span> 👋
           </p>
         </div>
       </div>
@@ -29,14 +39,8 @@ export default function TopBar({ pageTitle, darkMode, onToggleDark, onMobileMenu
           <GlobalSearch />
         </div>
 
-        {/* Notification bell */}
-        <div className="relative">
-          <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-muted transition-colors text-muted-foreground">
-            <Bell className="w-4 h-4" />
-          </button>
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[9px] font-bold text-white flex items-center justify-center rounded-full"
-            style={{ background: '#8b5cf6' }}>3</span>
-        </div>
+        {/* Live notification bell */}
+        <NotificationCenter />
 
         {/* Dark mode toggle */}
         <button
@@ -48,13 +52,13 @@ export default function TopBar({ pageTitle, darkMode, onToggleDark, onMobileMenu
 
         {/* User */}
         <div className="flex items-center gap-2 pl-2 border-l border-border cursor-pointer hover:opacity-80 ml-1">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
             style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)' }}>
-            <User className="w-4 h-4 text-white" />
+            {emp ? initial : <User className="w-4 h-4" />}
           </div>
           <div className="hidden sm:block">
-            <p className="text-xs font-bold text-foreground leading-tight">Super Admin</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">Administrator</p>
+            <p className="text-xs font-bold text-foreground leading-tight truncate max-w-[120px]">{displayName}</p>
+            <p className="text-[10px] text-muted-foreground leading-tight truncate max-w-[120px]">{displaySub}</p>
           </div>
           <ChevronDown className="w-3 h-3 text-muted-foreground hidden sm:block" />
         </div>

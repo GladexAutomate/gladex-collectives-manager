@@ -1,13 +1,17 @@
 // @ts-nocheck
+import { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Globe, CheckSquare, Package, Megaphone,
   FileText, Truck, Star, BarChart3, ClipboardList,
   Bell, Settings, ChevronLeft, ChevronRight, Users, CreditCard, X, StickyNote,
-  UserCog, Stamp, BriefcaseBusiness, HelpCircle, Zap
+  UserCog, Stamp, BriefcaseBusiness, HelpCircle, Zap, LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { EmployeeSessionContext } from '@/lib/employeeSessionContext';
+import { canAccess } from '@/lib/deptModuleMap';
 
+// Full nav (all routes) — used when employee session is active
 const mainNav = [
   { icon: LayoutDashboard,   label: 'Dashboard',    path: '/' },
   { icon: Globe,             label: 'Collectives',  path: '/collectives' },
@@ -21,7 +25,20 @@ const mainNav = [
   { icon: Stamp,             label: 'Visa',         path: '/visa' },
   { icon: BriefcaseBusiness, label: 'Management',   path: '/management' },
   { icon: FileText,          label: 'Documents',    path: '/documents' },
-  { icon: Star,              label: 'Feedback',     path: '/feedback' },
+  { icon: BarChart3,         label: 'Reports',      path: '/reports' },
+];
+
+// Base44 admin nav — hides modules now owned by employee dept logins
+const adminMainNav = [
+  { icon: LayoutDashboard,   label: 'Dashboard',    path: '/' },
+  { icon: CheckSquare,       label: 'Workflow',     path: '/workflow' },
+  { icon: Users,             label: 'Sales',        path: '/sales' },
+  { icon: CreditCard,        label: 'Accounting',   path: '/accounting' },
+  { icon: ClipboardList,     label: 'Admin',        path: '/admin-operations' },
+  { icon: Truck,             label: 'Operations',   path: '/operations' },
+  { icon: Stamp,             label: 'Visa',         path: '/visa' },
+  { icon: BriefcaseBusiness, label: 'Management',   path: '/management' },
+  { icon: FileText,          label: 'Documents',    path: '/documents' },
   { icon: BarChart3,         label: 'Reports',      path: '/reports' },
 ];
 
@@ -33,10 +50,36 @@ const systemNav = [
   { icon: HelpCircle, label: 'Help Center',     path: '/help',             badge: null },
 ];
 
+// Base44 admin system nav — no User Management (handled by employee super admins)
+const adminSystemNav = [
+  { icon: Settings,   label: 'Settings',      path: '/settings',      badge: null },
+  { icon: Bell,       label: 'Notifications', path: '/notifications', badge: 3 },
+  { icon: Star,       label: 'Feedback',      path: '/feedback',      badge: null },
+  { icon: HelpCircle, label: 'Help Center',   path: '/help',          badge: null },
+];
+
 const PURPLE = '#8b5cf6';
 
-export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, onNotepadToggle, notepadOpen }) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, onNotepadToggle, notepadOpen, isSuperAdmin }) {
   const location = useLocation();
+  const empCtx = useContext(EmployeeSessionContext);
+  const empSession = empCtx?.session;
+  const dept = empSession?.department || '';
+  const role = empSession?.role || '';
+
+  // base44 admin (isSuperAdmin=true, no empSession) → use restricted admin nav
+  // employee session → filter full nav by dept/role
+  const visibleMain = isSuperAdmin && !empSession
+    ? adminMainNav
+    : empSession
+      ? mainNav.filter(item => canAccess(dept, item.path, role))
+      : adminMainNav;
+
+  const visibleSystem = isSuperAdmin && !empSession
+    ? adminSystemNav
+    : empSession
+      ? systemNav.filter(item => canAccess(dept, item.path, role))
+      : adminSystemNav;
 
   const isActive = (path) =>
     location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
@@ -118,15 +161,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
       {/* Main Nav */}
       <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
-        {mainNav.map(item => <NavLink key={item.path} {...item} />)}
+        {visibleMain.map(item => <NavLink key={item.path} {...item} />)}
 
         {/* SYSTEM section */}
-        {(!collapsed || mobile) && (
+        {visibleSystem.length > 0 && (!collapsed || mobile) && (
           <p className="text-[9px] font-bold uppercase tracking-widest px-3 pt-4 pb-1"
             style={{ color: '#6b7280' }}>System</p>
         )}
-        {(collapsed && !mobile) && <div className="h-4" />}
-        {systemNav.map(item => <NavLink key={item.path} {...item} />)}
+        {visibleSystem.length > 0 && (collapsed && !mobile) && <div className="h-4" />}
+        {visibleSystem.map(item => <NavLink key={item.path} {...item} />)}
 
         {/* Notepad */}
         <button
@@ -144,27 +187,45 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </button>
       </nav>
 
-      {/* Pro Plan Card */}
+      {/* Bottom card: employee info or Pro Plan */}
       {(!collapsed || mobile) && (
         <div className="mx-3 mb-4 rounded-xl p-3 border border-[hsl(var(--sidebar-border))]"
           style={{ background: 'rgba(139,92,246,0.12)' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)' }}>
-              <Zap className="w-3 h-3 text-white" />
+          {empSession ? (
+            /* Employee info + logout */
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)' }}>
+                  {(empSession.name || empSession.employee_id || '?')[0].toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-white leading-tight truncate">{empSession.name || empSession.employee_id}</p>
+                  <p className="text-[10px] leading-tight truncate" style={{ color: '#a78bfa' }}>{empSession.department}</p>
+                </div>
+              </div>
+              <button
+                onClick={empCtx?.onLogout}
+                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-lg transition-colors hover:opacity-80"
+                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign Out
+              </button>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold text-white leading-tight">Pro Plan</p>
-              <p className="text-[10px] leading-tight" style={{ color: '#a78bfa' }}>You're on Pro Plan</p>
-            </div>
-          </div>
-          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-2">
-            <div className="h-full rounded-full" style={{ width: '75%', background: 'linear-gradient(90deg,#7c3aed,#a855f7)' }} />
-          </div>
-          <p className="text-[10px] text-center mb-2" style={{ color: '#a78bfa' }}>75% of resources used</p>
-          <button className="w-full text-xs font-semibold py-1.5 rounded-lg transition-colors hover:opacity-90"
-            style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)', color: '#fff' }}>
-            Manage Plan
+          ) : null}
+        </div>
+      )}
+
+      {/* Collapsed employee logout icon */}
+      {collapsed && !mobile && empSession && (
+        <div className="mx-2 mb-4">
+          <button
+            onClick={empCtx?.onLogout}
+            className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-red-500/10 transition-colors"
+            title="Sign Out"
+          >
+            <LogOut className="w-5 h-5 text-red-400" />
           </button>
         </div>
       )}
