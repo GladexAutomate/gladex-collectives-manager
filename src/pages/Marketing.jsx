@@ -161,6 +161,30 @@ export default function Marketing() {
     setLoadingTemplates(false);
   };
 
+  const generatePosterFromPackage = (pkg) => {
+    const nights = pkg.nights ? `${pkg.nights} NIGHTS` : '';
+    const days   = pkg.nights ? `${pkg.nights + 1} DAYS ${pkg.nights} NIGHTS` : '';
+    const price  = pkg.selling_price
+      ? `PHP ${Number(pkg.selling_price).toLocaleString()}`
+      : '';
+    const dp = pkg.downpayment_required
+      ? `PHP ${Number(pkg.downpayment_required).toLocaleString()}`
+      : '';
+    setPosterForm({
+      packageName:  pkg.name || '',
+      destination:  pkg.destination || '',
+      dateFrom:     pkg.departure_date || '',
+      dateTo:       pkg.return_date || '',
+      price,
+      inclusions:   pkg.inclusions || '',
+      tagline:      'BOOK NOW!',
+      duration:     days || nights,
+      tourCode:     pkg.package_code || '',
+      downpayment:  dp,
+    });
+    setActiveTab('poster');
+  };
+
   const generatePoster = async () => {
     if (!selectedTplId) return alert('Please select a brand template first.');
     if (!posterForm.packageName) return alert('Package Name is required.');
@@ -541,6 +565,14 @@ export default function Marketing() {
                         ))}
                       </div>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400"
+                      onClick={e => { e.stopPropagation(); generatePosterFromPackage(pkg); }}
+                    >
+                      ✨ Generate Poster
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
