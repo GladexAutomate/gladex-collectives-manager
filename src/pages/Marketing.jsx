@@ -587,6 +587,17 @@ export default function Marketing() {
                 {/* Expanded assets */}
                 {isExpanded && (
                   <div className="border-t border-border bg-muted/20">
+                    {/* Generate Poster shortcut */}
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-violet-50 dark:bg-violet-950/25 border-b border-violet-100 dark:border-violet-900/40">
+                      <span className="text-[11px] text-violet-700 dark:text-violet-300 font-semibold">✨ Auto-generate a poster for this package</span>
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs bg-violet-600 hover:bg-violet-700 text-white border-0 gap-1"
+                        onClick={() => generatePosterFromPackage(pkg)}
+                      >
+                        ✨ Generate Poster
+                      </Button>
+                    </div>
                     {(() => { const dl = pkg.drive_link || assets.find(a => a.collective_id === pkg.id && a.asset_type === 'tariff_link')?.file_url || driveLinkStore.get(pkg.id); return dl && (
                       <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 dark:bg-violet-950/25 border-b border-violet-100 dark:border-violet-900/40">
                         <span className="text-[11px] text-violet-700 dark:text-violet-300 font-semibold">🔗 Tariff / Package Link:</span>
